@@ -1,7 +1,8 @@
 package org.homepoker.game.cash;
 
-import org.homepoker.common.ValidationException;
+import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.game.*;
+import org.homepoker.model.game.*;
 import org.homepoker.user.UserManager;
 import org.jctools.maps.NonBlockingHashMap;
 import org.springframework.data.mongodb.core.MongoOperations;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,7 +55,7 @@ public class CashGameServerImpl implements CashGameServer {
     if (criteria.endDate() != null) {
       //The end date is intended to include any timestamp in that day, we just add one to the
       //day to insure we get all games on the end date.
-      mongoCriteria.and("endTimestamp").lte(criteria.endDate().plusDays(1));
+      mongoCriteria.and("endTimestamp").lte(criteria.endDate().plus(1, ChronoUnit.DAYS));
     }
 
     return mongoOperations.query(CashGame.class)

@@ -1,12 +1,11 @@
 package org.homepoker.websocket;
 
-import org.homepoker.user.User;
-import org.homepoker.user.UserCriteria;
-import org.homepoker.user.UserInformationUpdate;
-import org.homepoker.user.UserPasswordChangeRequest;
+import org.homepoker.model.user.User;
+import org.homepoker.model.user.UserCriteria;
+import org.homepoker.model.user.UserInformationUpdate;
+import org.homepoker.model.user.UserPasswordChangeRequest;
 import org.homepoker.user.UserManager;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;

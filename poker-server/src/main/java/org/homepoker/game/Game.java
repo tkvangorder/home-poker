@@ -1,6 +1,10 @@
 package org.homepoker.game;
 
-import org.homepoker.user.User;
+import org.homepoker.model.game.GameFormat;
+import org.homepoker.model.game.GameStatus;
+import org.homepoker.model.game.GameType;
+import org.homepoker.model.game.Player;
+import org.homepoker.model.user.User;
 
 import java.util.List;
 import java.util.Map;

@@ -1,7 +1,7 @@
 package org.homepoker.security;
 
 import lombok.Value;
-import org.homepoker.user.User;
+import org.homepoker.model.user.User;
 import org.homepoker.user.UserManager;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.*;

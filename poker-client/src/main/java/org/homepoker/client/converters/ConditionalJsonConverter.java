@@ -1,9 +1,8 @@
 package org.homepoker.client.converters;
 
-import org.homepoker.client.util.JsonUtils;
+import org.homepoker.lib.util.JsonUtils;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.ConditionalGenericConverter;
-import org.springframework.lang.NonNull;
 
 import java.io.IOException;
 import java.util.Set;

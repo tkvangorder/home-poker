@@ -1,9 +1,9 @@
 package org.homepoker.client;
 
 import lombok.extern.slf4j.Slf4j;
-import org.homepoker.client.util.DateUtils;
-import org.homepoker.client.util.JsonUtils;
-import org.homepoker.domain.common.ValidationException;
+import org.homepoker.lib.exception.ValidationException;
+import org.homepoker.lib.util.DateUtils;
+import org.homepoker.lib.util.JsonUtils;
 import org.homepoker.domain.game.CashGameDetails;
 import org.homepoker.domain.game.GameStatus;
 import org.homepoker.domain.game.TournamentGameDetails;

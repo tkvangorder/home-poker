@@ -1,6 +1,9 @@
 package org.homepoker.poker;
 
 
+import org.homepoker.model.poker.Card;
+import org.homepoker.model.poker.CardValue;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

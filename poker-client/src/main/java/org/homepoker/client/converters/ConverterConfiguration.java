@@ -1,6 +1,6 @@
 package org.homepoker.client.converters;
 
-import org.homepoker.domain.user.User;
+import org.homepoker.model.user.User;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

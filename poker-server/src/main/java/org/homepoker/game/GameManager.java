@@ -1,7 +1,7 @@
 package org.homepoker.game;
 
-import org.homepoker.command.GameCommand;
-import org.homepoker.user.User;
+import org.homepoker.model.command.GameCommand;
+import org.homepoker.model.user.User;
 import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscLinkedQueue;

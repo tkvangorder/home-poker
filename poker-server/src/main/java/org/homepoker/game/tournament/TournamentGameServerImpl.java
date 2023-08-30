@@ -1,10 +1,10 @@
 package org.homepoker.game.tournament;
 
-import org.homepoker.common.ValidationException;
-import org.homepoker.game.GameCriteria;
+import org.homepoker.lib.exception.ValidationException;
+import org.homepoker.model.game.GameCriteria;
 import org.homepoker.game.GameManager;
-import org.homepoker.game.GameStatus;
-import org.homepoker.game.GameType;
+import org.homepoker.model.game.GameStatus;
+import org.homepoker.model.game.GameType;
 import org.homepoker.user.UserManager;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -13,6 +13,7 @@ import org.springframework.util.Assert;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 
@@ -50,7 +51,7 @@ public class TournamentGameServerImpl implements TournamentGameServer {
     if (criteria.endDate() != null) {
       //The end date is intended to include any timestamp in that day, we just add one to the
       //day to insure we get all games on the end date.
-      mongoCriteria.and("endTimestamp").lte(criteria.endDate().plusDays(1));
+      mongoCriteria.and("endTimestamp").lte(criteria.endDate().plus(1, ChronoUnit.DAYS));
     }
 
     return mongoOperations.query(TournamentGame.class)

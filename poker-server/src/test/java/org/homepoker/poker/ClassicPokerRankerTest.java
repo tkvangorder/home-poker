@@ -1,6 +1,7 @@
 package org.homepoker.poker;
 
-import org.homepoker.poker.*;
+import org.homepoker.model.poker.Card;
+import org.homepoker.model.poker.CardValue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -9,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.homepoker.poker.PokerUtilities.parseCards;
+import static org.homepoker.lib.poker.PokerUtilities.parseCards;
 import static org.junit.jupiter.api.Assertions.assertTimeout;
 
 class ClassicPokerRankerTest {

@@ -1,7 +1,7 @@
 package org.homepoker.poker;
 
-import org.homepoker.poker.Card;
-import org.homepoker.poker.PokerUtilities;
+import org.homepoker.lib.poker.PokerUtilities;
+import org.homepoker.model.poker.Card;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

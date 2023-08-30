@@ -1,5 +1,6 @@
 package org.homepoker.poker;
 
+import org.homepoker.model.poker.CardValue;
 import org.springframework.util.Assert;
 
 import java.util.Arrays;

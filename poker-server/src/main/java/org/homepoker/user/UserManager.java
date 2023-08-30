@@ -1,5 +1,10 @@
 package org.homepoker.user;
 
+import org.homepoker.model.user.User;
+import org.homepoker.model.user.UserCriteria;
+import org.homepoker.model.user.UserInformationUpdate;
+import org.homepoker.model.user.UserPasswordChangeRequest;
+
 import java.util.List;
 
 public interface UserManager {

@@ -2,7 +2,7 @@ package org.homepoker.game.tournament;
 
 import lombok.Builder;
 import lombok.Data;
-import org.homepoker.game.GameType;
+import org.homepoker.model.game.GameType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

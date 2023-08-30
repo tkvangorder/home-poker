@@ -1,10 +1,10 @@
 package org.homepoker.client;
 
 import lombok.extern.slf4j.Slf4j;
-import org.homepoker.client.util.JsonUtils;
-import org.homepoker.domain.user.User;
-import org.homepoker.domain.user.UserInformationUpdate;
-import org.homepoker.domain.user.UserPasswordChangeRequest;
+import org.homepoker.lib.util.JsonUtils;
+import org.homepoker.model.user.User;
+import org.homepoker.model.user.UserInformationUpdate;
+import org.homepoker.model.user.UserPasswordChangeRequest;
 import org.springframework.shell.Availability;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;

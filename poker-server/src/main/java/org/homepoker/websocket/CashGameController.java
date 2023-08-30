@@ -1,7 +1,7 @@
 package org.homepoker.websocket;
 
-import org.homepoker.command.GameCommand;
-import org.homepoker.game.GameCriteria;
+import org.homepoker.model.command.GameCommand;
+import org.homepoker.model.game.GameCriteria;
 import org.homepoker.game.cash.CashGameDetails;
 import org.homepoker.game.cash.CashGameServer;
 import org.homepoker.security.PokerUserDetails;

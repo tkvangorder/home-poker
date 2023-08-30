@@ -3,7 +3,11 @@ package org.homepoker.game.cash;
 import lombok.Builder;
 import lombok.Data;
 import org.homepoker.game.*;
-import org.homepoker.user.User;
+import org.homepoker.model.game.GameFormat;
+import org.homepoker.model.game.GameStatus;
+import org.homepoker.model.game.GameType;
+import org.homepoker.model.game.Player;
+import org.homepoker.model.user.User;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

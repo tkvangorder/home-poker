@@ -3,14 +3,12 @@ package org.homepoker.client;
 import static org.homepoker.client.ClientRoutes.*;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
-import org.homepoker.domain.user.User;
-import org.homepoker.domain.user.UserInformationUpdate;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.homepoker.model.user.User;
+import org.homepoker.model.user.UserInformationUpdate;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.simp.stomp.*;
 import org.springframework.shell.Availability;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
