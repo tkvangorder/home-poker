@@ -1,0 +1,21 @@
+version: '3'
+
+networks:
+  build-docker-network:
+    driver: bridge
+
+volumes:
+  mongodata:
+  mongoconfig:
+
+services:
+  mongo:
+    container_name: mongo
+    image: mongo:latest
+    networks:
+      - build-docker-network
+    ports:
+      - "27017:27017"
+    volumes:
+     - mongodata:/data/db
+     - mongoconfig:/data/configdb

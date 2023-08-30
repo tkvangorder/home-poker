@@ -1,0 +1,44 @@
+*.class
+*.log
+*.7z
+*.zip
+*.jar
+*~
+target
+bin
+.metadata
+*.DS_Store
+pom.xml.versionsBackup
+
+#VS Code
+.vscode/
+
+#IntelliJ project files
+*.iml
+.idea/
+atlassian-ide-plugin.xml
+.surefire*
+
+#Eclipse project files
+.project
+.classpath
+.settings
+.factorypath
+.apt_generated
+.sts4-cache/
+
+# Vagrant
+vagrant/
+.vagrant/**
+
+# Bower Packages
+pom.xml.versionsBackup
+
+# node
+node_modules/
+
+# coverage
+coverage
+.springBeans
+**/.factorypath
+*.factorypath

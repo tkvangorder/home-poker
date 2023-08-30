@@ -1,0 +1,14 @@
+logging:
+  level:
+    ROOT: debug
+    org:
+      homepoker: info
+
+
+poker:
+  security:
+    # This is a list of login IDs that are granted admin privileges.
+    admin-users:
+      - admin
+    passcode: "1234"
+
