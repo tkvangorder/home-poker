@@ -1,6 +1,7 @@
-package org.homepoker.client;
+package org.homepoker.client.user;
 
 import lombok.extern.slf4j.Slf4j;
+import org.homepoker.client.ClientConnectionManager;
 import org.homepoker.lib.util.JsonUtils;
 import org.homepoker.model.user.User;
 import org.homepoker.model.user.UserInformationUpdate;
@@ -63,9 +64,6 @@ public class UserCommands {
         .name(name)
         .phone(phone)
         .build());
-
-    //Print updated user information.
-    user();
   }
 
   @ShellMethod("Change user's password [loginId, oldPassword, newPassword].")

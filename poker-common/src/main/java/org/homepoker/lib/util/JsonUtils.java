@@ -3,6 +3,7 @@ package org.homepoker.lib.util;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.lang.Nullable;
 
@@ -20,6 +21,7 @@ public class JsonUtils {
 
   private JsonUtils() {
   }
+
 
   public static String toJson(Object o) {
     try {
@@ -39,12 +41,22 @@ public class JsonUtils {
     }
   }
 
-  public static <T> T readValue(String jsonString, Class<T> valueType) throws IOException {
+  public static <T> T jsonToObject(JsonNode node, Class<T> type) {
+    return objectMapper.convertValue(node, type);
+  }
+
+  public static <T> T jsonToObject(JsonNode node, TypeReference<T> type) {
+    return objectMapper.convertValue(node, type);
+  }
+
+  public static <T> T jsonToObject(String jsonString, Class<T> valueType) throws IOException {
     return objectMapper.readValue(jsonString, valueType);
   }
 
-  public static <T> T readValue(String jsonString, TypeReference<T> valueTypeReference)
+  public static <T> T jsonToObject(String jsonString, TypeReference<T> valueTypeReference)
       throws IOException {
     return objectMapper.readValue(jsonString, valueTypeReference);
   }
+
+
 }

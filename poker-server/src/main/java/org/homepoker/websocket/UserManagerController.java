@@ -1,5 +1,6 @@
 package org.homepoker.websocket;
 
+import org.homepoker.event.user.CurrentUserRetrieved;
 import org.homepoker.model.user.User;
 import org.homepoker.model.user.UserCriteria;
 import org.homepoker.model.user.UserInformationUpdate;
@@ -10,6 +11,7 @@ import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 
+import static org.homepoker.PokerMessageRoutes.*;
 import java.util.List;
 
 @Controller
@@ -26,10 +28,10 @@ public class UserManagerController {
     return userManager.registerUser(user);
   }
 
-  @MessageMapping("/user/get")
+  @MessageMapping(ROUTE_USER_MANAGER_GET_CURRENT_USER)
   @SendToUser("/queue/events")
-  User getUser(@AuthenticationPrincipal User user) {
-    return userManager.getUser(user.getLoginId());
+  CurrentUserRetrieved getCurrentUser(@AuthenticationPrincipal User user) {
+    return new CurrentUserRetrieved(userManager.getUser(user.getLoginId()));
   }
 
   @MessageMapping("/user/find")

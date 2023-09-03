@@ -1,6 +1,6 @@
 package org.homepoker.game;
 
-import org.homepoker.model.event.GameEvent;
+import org.homepoker.event.GameEvent;
 import org.homepoker.model.user.User;
 
 public interface GameListener {

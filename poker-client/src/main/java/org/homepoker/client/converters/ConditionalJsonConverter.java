@@ -3,6 +3,7 @@ package org.homepoker.client.converters;
 import org.homepoker.lib.util.JsonUtils;
 import org.springframework.core.convert.TypeDescriptor;
 import org.springframework.core.convert.converter.ConditionalGenericConverter;
+import org.springframework.lang.Nullable;
 
 import java.io.IOException;
 import java.util.Set;
@@ -34,11 +35,11 @@ public class ConditionalJsonConverter implements ConditionalGenericConverter {
   }
 
   @Override
-  public Object convert(Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
+  public Object convert(@Nullable Object source, TypeDescriptor sourceType, TypeDescriptor targetType) {
     try {
       if (sourceType.getType() == String.class) {
         //String -> Object, using the target's type.
-        return JsonUtils.readValue((String) source, targetType.getType());
+        return JsonUtils.jsonToObject((String) source, targetType.getType());
       } else {
         //Object to JSON
         return JsonUtils.toJson(source);

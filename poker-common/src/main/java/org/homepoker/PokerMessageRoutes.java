@@ -1,15 +1,15 @@
-package org.homepoker.client;
+package org.homepoker;
 
-public class ClientRoutes {
+public class PokerMessageRoutes {
 
-  public static final String USER_TOPIC_DESTINATION = "/topic/events";
-  public static final String USER_QUEUE_DESTINATION = "/queue/events";
+  public static final String TOPIC_DESTINATION = "/topic/events";
+  public static final String USER_QUEUE_DESTINATION = "/user/queue/events";
 
   //----------------------------------------------------------------------
   // User Manager Routes
   //----------------------------------------------------------------------
   public static final String ROUTE_USER_MANAGER_REGISTER_USER = "user-manager-register-user";
-  public static final String ROUTE_USER_MANAGER_GET_USER = "user-manager-get-user";
+  public static final String ROUTE_USER_MANAGER_GET_CURRENT_USER = "/user/currentUser";
   public static final String ROUTE_USER_MANAGER_FIND_USERS = "user-manager-find-users";
   public static final String ROUTE_USER_MANAGER_UPDATE_USER = "user-manager-update-user";
   public static final String ROUTE_USER_MANAGER_UPDATE_PASSWORD = "user-manager-update-password";
@@ -45,6 +45,6 @@ public class ClientRoutes {
   public static final String ROUTE_TOURNAMENT_JOIN_GAME = "tournament-join-game";
   public static final String ROUTE_TOURNAMENT_GAME_COMMAND = "tournament-game-command";
 
-  private ClientRoutes() {
+  private PokerMessageRoutes() {
   }
 }
