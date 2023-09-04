@@ -27,9 +27,9 @@ https://sdkman.io/ for managing your Java installations. This project provides a
 mongo server within a docker container.
 
 There is a primitive command-line client that can be used to interact with the server. This client is built with spring
-shell. It is not pretty but it does allow you login and issue commands to the server.
+shell. It is not pretty, but it does allow you log in and issue commands to the server.
 
-1. Start the mongo database (from the root directoy of the poker-server) via `docker-compose up`
+1. Start the Mongo database (from the root directory of the poker-server) via `docker-compose up`
 2. Build and run the server (from the root directory of the server) via `./mvnw clean spring-boot:run`
 3. Build and run the client (from the root directory of the client) via `./mvnw clean spring-boot:run`
 4. Use the client to login anonymously and register a new user and then register a new admin user:
