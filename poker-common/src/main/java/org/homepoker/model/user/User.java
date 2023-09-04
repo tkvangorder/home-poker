@@ -1,14 +1,18 @@
 package org.homepoker.model.user;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
-@Data
+@Getter
+@FieldDefaults(makeFinal=true, level=AccessLevel.PRIVATE)
+@EqualsAndHashCode
 @AllArgsConstructor
-@NoArgsConstructor
 @Builder
+@With
+@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "@c")
+@JsonPropertyOrder({"@c"}) // serialize type info first
 public class User {
 
   /**

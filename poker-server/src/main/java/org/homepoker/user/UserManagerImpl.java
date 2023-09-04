@@ -5,6 +5,7 @@ import org.homepoker.model.user.User;
 import org.homepoker.model.user.UserCriteria;
 import org.homepoker.model.user.UserInformationUpdate;
 import org.homepoker.model.user.UserPasswordChangeRequest;
+import org.homepoker.security.MongoUserDetailsService;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.mongodb.core.MongoOperations;
@@ -62,10 +63,10 @@ public class UserManagerImpl implements UserManager {
 
     if (StringUtils.hasText(user.getAlias())) {
       //If no alias is provided, default it to the user's name
-      user.setAlias(user.getName());
+      user = user.withAlias(user.getName());
     }
     //Encode the user password (the default algorithm is Bcrypt)
-    user.setPassword(passwordEncoder.encode(user.getPassword()));
+    user = user.withPassword(passwordEncoder.encode(user.getPassword()));
 
     try {
       return UserManagerImpl.filterPassword(userRepository.insert(user));
@@ -86,13 +87,14 @@ public class UserManagerImpl implements UserManager {
     if (user == null) {
       throw new ValidationException("The user does not exist.");
     } else {
-      user.setEmail(userInfo.getEmail());
-      user.setName(userInfo.getName());
-      user.setPhone(userInfo.getPhone());
+
+      user = user.withEmail(userInfo.getEmail());
+      user = user.withName(userInfo.getName());
+      user = user.withPhone(userInfo.getPhone());
       if (StringUtils.hasText(userInfo.getAlias())) {
-        user.setAlias(userInfo.getAlias());
+        user = user.withAlias(userInfo.getAlias());
       } else {
-        user.setAlias(userInfo.getName());
+        user = user.withAlias(userInfo.getName());
       }
       return UserManagerImpl.filterPassword(userRepository.save(user));
     }
@@ -100,7 +102,7 @@ public class UserManagerImpl implements UserManager {
 
   @Override
   public User getUser(String loginId) {
-    User user = userRepository.findByLoginId(loginId);
+    User user = "anonymous".equals(loginId) ? MongoUserDetailsService.anonymousUser : userRepository.findByLoginId(loginId);
     if (user == null) {
       throw new ValidationException("The user does not exist.");
     }
@@ -149,7 +151,7 @@ public class UserManagerImpl implements UserManager {
     if (user == null || !passwordEncoder.matches(userPasswordChangeRequest.getUserChallenge(), user.getPassword())) {
       throw new ValidationException("Access Denied");
     } else {
-      user.setPassword(passwordEncoder.encode(userPasswordChangeRequest.getNewPassword()));
+      user = user.withPassword(passwordEncoder.encode(userPasswordChangeRequest.getNewPassword()));
       userRepository.save(user);
     }
   }
@@ -165,7 +167,7 @@ public class UserManagerImpl implements UserManager {
     if (user == null) {
       return null;
     }
-    user.setPassword(null);
+    user = user.withPassword(null);
     return user;
   }
 }

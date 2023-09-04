@@ -2,15 +2,24 @@ package org.homepoker.client.user;
 
 import lombok.extern.slf4j.Slf4j;
 import org.homepoker.client.ClientConnectionManager;
+import org.homepoker.client.NotificationService;
+import org.homepoker.event.user.UserPasswordChanged;
+import org.homepoker.event.user.UserRegistered;
+import org.homepoker.event.user.UserSearchCompleted;
 import org.homepoker.lib.util.JsonUtils;
 import org.homepoker.model.user.User;
+import org.homepoker.model.user.UserCriteria;
 import org.homepoker.model.user.UserInformationUpdate;
 import org.homepoker.model.user.UserPasswordChangeRequest;
+import org.springframework.context.event.EventListener;
 import org.springframework.shell.Availability;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellMethodAvailability;
 import org.springframework.shell.standard.ShellOption;
+import org.springframework.web.client.RestClient;
+
+import static org.homepoker.PokerMessageRoutes.*;
 
 @Slf4j
 @ShellComponent
@@ -18,7 +27,7 @@ public class UserCommands {
 
   private final ClientConnectionManager connectionManager;
 
-  public UserCommands(ClientConnectionManager connectionManager) {
+  public UserCommands(ClientConnectionManager connectionManager, RestClient.Builder restClientBuilder) {
     this.connectionManager = connectionManager;
   }
 
@@ -38,8 +47,13 @@ public class UserCommands {
         .phone(phone)
         .build();
 
-    //Print user information.
-    log.info("Registered User:\n" + JsonUtils.toFormattedJson(user));
+    connectionManager.send(ROUTE_USER_MANAGER_REGISTER_USER, user);
+
+  }
+
+  @EventListener
+  public void userRegistered(UserRegistered userRegistered) {
+    NotificationService.info("User registered successfully. " + JsonUtils.toJson(userRegistered.user()));
   }
 
   @ShellMethod("This will display the current user information.")
@@ -48,8 +62,6 @@ public class UserCommands {
 
     if (user == null && !connectionManager.connectionAvailability().isAvailable()) {
       log.info("You are not connected to a server.");
-    } else if (user == null) {
-      log.info("You are logged in as a guest.");
     } else {
       log.info("Current User:\n" + JsonUtils.toFormattedJson(user));
     }
@@ -57,30 +69,33 @@ public class UserCommands {
 
   @ShellMethod("Update user's contact information [loginId, email, name, phone].")
   public void updateUser(String loginId, String email, String name, String phone) {
-
-    connectionManager.updateUser(UserInformationUpdate.builder()
+    connectionManager.send(ROUTE_USER_MANAGER_UPDATE_USER, UserInformationUpdate.builder()
         .loginId(loginId)
         .email(email)
         .name(name)
         .phone(phone)
-        .build());
+        .build()
+    );
   }
 
   @ShellMethod("Change user's password [loginId, oldPassword, newPassword].")
   public void userPasswordChange(String loginId, String oldPassword, String newPassword) {
-    UserPasswordChangeRequest request = new UserPasswordChangeRequest(loginId, oldPassword, newPassword);
+    connectionManager.send(ROUTE_USER_MANAGER_UPDATE_PASSWORD, new UserPasswordChangeRequest(loginId, oldPassword, newPassword));
+  }
+
+  @EventListener
+  public void userPasswordChanged(UserPasswordChanged event) {
     log.info("Password has been changed.");
   }
 
   @ShellMethod("Find users registered with the server [loginId, email].")
   public void findUsers(@ShellOption(defaultValue = ShellOption.NULL) String loginId, @ShellOption(defaultValue = ShellOption.NULL) String email) {
-    log.info("Search Complete. Found [" + 0 + "] users.");
+    connectionManager.send(ROUTE_USER_MANAGER_USER_SEARCH, new UserCriteria(loginId, email));
   }
 
-  @ShellMethod("Delete a user [loginId].")
-  public void deleteUser(String loginId) {
-
-    log.info("\nUser [{}] has been deleted.", loginId);
+  @EventListener
+  public void userPasswordChanged(UserSearchCompleted searchCompleted) {
+    NotificationService.info("Search Complete. Found [" + searchCompleted.users().size() + "] users.");
   }
 
   @ShellMethodAvailability({"register-default-user", "register-user", "find-users", "delete-user", "update-user", "user-password-change"})

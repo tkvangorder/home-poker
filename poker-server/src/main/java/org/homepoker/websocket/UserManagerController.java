@@ -1,18 +1,19 @@
 package org.homepoker.websocket;
 
-import org.homepoker.event.user.CurrentUserRetrieved;
+import org.homepoker.event.user.*;
 import org.homepoker.model.user.User;
 import org.homepoker.model.user.UserCriteria;
 import org.homepoker.model.user.UserInformationUpdate;
 import org.homepoker.model.user.UserPasswordChangeRequest;
 import org.homepoker.user.UserManager;
+import org.springframework.context.annotation.Role;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.annotation.SendToUser;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 
 import static org.homepoker.PokerMessageRoutes.*;
-import java.util.List;
 
 @Controller
 public class UserManagerController {
@@ -23,34 +24,36 @@ public class UserManagerController {
     this.userManager = userManager;
   }
 
-  @MessageMapping("/user/register")
-  User registerUser(User user) {
-    return userManager.registerUser(user);
-  }
-
   @MessageMapping(ROUTE_USER_MANAGER_GET_CURRENT_USER)
-  @SendToUser("/queue/events")
+  @SendToUser(USER_QUEUE_DESTINATION)
   CurrentUserRetrieved getCurrentUser(@AuthenticationPrincipal User user) {
     return new CurrentUserRetrieved(userManager.getUser(user.getLoginId()));
   }
 
-  @MessageMapping("/user/find")
-  List<User> findUsers(UserCriteria criteria) {
-    return userManager.findUsers(criteria);
+  @MessageMapping(ROUTE_USER_MANAGER_USER_SEARCH)
+  @SendToUser(USER_QUEUE_DESTINATION)
+  UserSearchCompleted userSearch(UserCriteria criteria) {
+    return new UserSearchCompleted(userManager.findUsers(criteria));
   }
 
-  @MessageMapping("/user/update")
-  User updateUser(UserInformationUpdate update) {
-    return userManager.updateUserInformation(update);
+  @MessageMapping(ROUTE_USER_MANAGER_UPDATE_USER)
+  @SendToUser(USER_QUEUE_DESTINATION)
+  CurrentUserUpdated updateUser(UserInformationUpdate update) {
+    return new CurrentUserUpdated(userManager.updateUserInformation(update));
   }
 
-  @MessageMapping("/user/update-password")
-  void updateUserPassword(UserPasswordChangeRequest passwordRequest) {
+  @MessageMapping(ROUTE_USER_MANAGER_UPDATE_PASSWORD)
+  @SendToUser(USER_QUEUE_DESTINATION)
+  UserPasswordChanged updateUserPassword(UserPasswordChangeRequest passwordRequest) {
     userManager.updateUserPassword(passwordRequest);
+    return new UserPasswordChanged();
   }
 
-  @MessageMapping("/user/delete")
-  void deleteUser(String loginId) {
-    userManager.deleteUser(loginId);
+  @MessageMapping(ROUTE_USER_MANAGER_REGISTER_USER)
+  @SendToUser(USER_QUEUE_DESTINATION)
+  @PreAuthorize("hasRole('ANONYMOUS')")
+  UserRegistered registerUser(User user) {
+    return new UserRegistered(userManager.registerUser(user));
   }
+
 }

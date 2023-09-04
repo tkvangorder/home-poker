@@ -48,13 +48,8 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
     this.observationRegistry = observationRegistry == null ? ObservationRegistry.NOOP : observationRegistry;
 
     this.authorizationManager = messages
-        .anyMessage().permitAll()
-//        .simpDestMatchers("/user/register").permitAll()
-//        .simpSubscribeDestMatchers("/secured/user/queue").permitAll()
-//        .simpDestMatchers("/cash-game/admin/**").hasRole("ADMIN")
-//        .simpDestMatchers("/**").hasRole("USER")
-//        .simpSubscribeDestMatchers("/user**").hasRole("USER")
-//        .anyMessage().denyAll();
+        .simpDestMatchers("/user/register", "/user/current-user").permitAll()
+        .anyMessage().authenticated()
         .build();
 
 

@@ -3,8 +3,11 @@ package org.homepoker.client;
 import static org.homepoker.PokerMessageRoutes.*;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
+import org.homepoker.event.ApplicationError;
 import org.homepoker.event.Event;
 import org.homepoker.event.user.CurrentUserRetrieved;
+import org.homepoker.event.user.CurrentUserUpdated;
+import org.homepoker.lib.util.JsonUtils;
 import org.homepoker.model.user.User;
 import org.homepoker.model.user.UserInformationUpdate;
 import org.springframework.context.ApplicationEventPublisher;
@@ -13,6 +16,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.messaging.simp.stomp.*;
 import org.springframework.shell.Availability;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
@@ -24,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 public class ClientConnectionManager {
 
   private final WebSocketStompClient stompClient;
+
   private final ApplicationEventPublisher applicationEventPublisher;
   @Nullable
   private User currentUser = null;
@@ -44,7 +49,7 @@ public class ClientConnectionManager {
    * @param port Poker server port
    */
   public void connect(String host, Integer port) {
-    connect(host, port, "admin", "admin");
+    connect(host, port, "anonymous", "anonymous");
   }
 
   /**
@@ -71,16 +76,7 @@ public class ClientConnectionManager {
       throw new IllegalStateException("You are not connected to the server.");
     }
     assert stompSession != null;
-    stompSession.send("/poker/" + route, payload);
-  }
-
-  /**
-   * Update the user's basic contact information. You cannot update a user's password with this method.
-   *
-   * @param userInformation User information to update.
-   */
-  public void updateUser(UserInformationUpdate userInformation) {
-    send(ROUTE_USER_MANAGER_UPDATE_USER, userInformation);
+    stompSession.send("/poker" + route, payload);
   }
 
   public Availability connectionAvailability() {
@@ -109,8 +105,20 @@ public class ClientConnectionManager {
 
   @EventListener
   public void currentUserReceived(CurrentUserRetrieved userRetrieved) {
+    if (currentUser == null) {
+      NotificationService.info("Welcome back " + userRetrieved.user().getName() + "!");
+    }
     currentUser = userRetrieved.user();
-    log.info("Welcome back {}!", currentUser.getName());
+  }
+
+  @EventListener
+  public void currentUserUpdated(CurrentUserUpdated userUpdated) {
+    currentUser = userUpdated.user();
+    NotificationService.info("User information has been update!" + JsonUtils.toJson(currentUser));
+  }
+  @EventListener
+  public void applicationError(ApplicationError error) {
+    NotificationService.error(error.message() + " : " + error.details());
   }
 
   private class SessionHandler extends StompSessionHandlerAdapter {
@@ -123,7 +131,7 @@ public class ClientConnectionManager {
     @Override
     public void afterConnected(StompSession session, StompHeaders connectedHeaders) {
       //session.subscribe(USER_TOPIC_DESTINATION, this);
-      session.subscribe(USER_QUEUE_DESTINATION, this);
+      session.subscribe("/user" + USER_QUEUE_DESTINATION, this);
       send(ROUTE_USER_MANAGER_GET_CURRENT_USER, null);
     }
 
@@ -133,18 +141,18 @@ public class ClientConnectionManager {
         applicationEventPublisher.publishEvent(payload);
       } else {
         //Not sure if there is a use case for this
-        log.error("Received null payload from server.");
+        NotificationService.error("Received null payload from server.");
       }
     }
 
     @Override
     public void handleException(StompSession session, @Nullable StompCommand command, StompHeaders headers, byte[] payload, Throwable exception) {
-      log.error("WebSocket Exception [" + command + "], Headers: [" + headers + "], Payload: [" + new String(payload) + "] " + exception.getMessage(),  exception);
+      NotificationService.error("WebSocket Exception [" + command + "], Headers: [" + headers + "], Payload: [" + new String(payload) + "] " + exception.getMessage(),  exception);
     }
 
     @Override
     public void handleTransportError(StompSession session, Throwable exception) {
-      log.error("Transport Error: " +  exception.getMessage(),  exception);
+      NotificationService.error("Transport Error: " +  exception.getMessage(),  exception);
     }
   }
 }

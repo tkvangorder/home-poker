@@ -3,6 +3,7 @@ package org.homepoker.client;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -25,15 +26,13 @@ public class PokerClientApplication {
 
     WebSocketStompClient stompClient = new WebSocketStompClient(new StandardWebSocketClient());
     MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
+    converter.setObjectMapper(builder
+        .modules(new ParameterNamesModule())
+        .build());
     stompClient.setMessageConverter(converter);
+
     return stompClient;
 
   }
 
-//  @Bean
-//  public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
-//    ObjectMapper objectMapper = builder.build();
-//    objectMapper.activateDefaultTyping(new LaissezFaireSubTypeValidator(), ObjectMapper.DefaultTyping.EVERYTHING, JsonTypeInfo.As.PROPERTY);
-//    return objectMapper;
-//  }
 }
