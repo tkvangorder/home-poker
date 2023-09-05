@@ -18,11 +18,6 @@ import java.util.Set;
  */
 public class MongoUserDetailsService implements UserDetailsService {
 
-  private static final Set<GrantedAuthority> adminAuthorities = Set.of(new SimpleGrantedAuthority("ROLE_USER"), new SimpleGrantedAuthority("ROLE_ADMIN"));
-  private static final Set<GrantedAuthority> userAuthorities = Set.of(new SimpleGrantedAuthority("ROLE_USER"));
-
-  private static final Set<GrantedAuthority> anonymousAuthorities = Set.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"));
-
   public static final User anonymousUser = User.builder()
       .loginId("anonymous")
       .password(PasswordEncoderFactories.createDelegatingPasswordEncoder().encode("anonymous"))
@@ -30,32 +25,19 @@ public class MongoUserDetailsService implements UserDetailsService {
       .build();
 
   private final UserRepository userRepository;
-  private final PokerSecurityProperties securitySettings;
+  private final SecurityUtilities securityUtilities;
 
 
-  public MongoUserDetailsService(UserRepository userRepository, PokerSecurityProperties securitySettings) {
+  public MongoUserDetailsService(UserRepository userRepository, SecurityUtilities securityUtilities) {
     this.userRepository = userRepository;
-    this.securitySettings = securitySettings;
+    this.securityUtilities = securityUtilities;
   }
 
   @Override
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-    return "anonymous".equals(username) ? userToUserDetails(anonymousUser) : userToUserDetails(userRepository.findByLoginId(username));
-  }
-
-  private PokerUserDetails userToUserDetails(User user) {
-
-    if (user == null) {
-      throw new UsernameNotFoundException("User not found");
-    }
-
-    Set<GrantedAuthority> roles = userAuthorities;
-    if ("anonymous".equals(user.getLoginId())) {
-      roles = anonymousAuthorities;
-    } else if (securitySettings.getAdminUsers().contains(user.getLoginId())) {
-      roles = adminAuthorities;
-    }
-    return new PokerUserDetails(user, roles);
+    return "anonymous".equals(username) ?
+        securityUtilities.userToUserDetails(anonymousUser) :
+        securityUtilities.userToUserDetails(userRepository.findByLoginId(username));
   }
 
 }

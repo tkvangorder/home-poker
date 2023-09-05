@@ -27,15 +27,15 @@ public class WebSecurityConfiguration {
             .csrfTokenRequestHandler(requestHandler)
         )
         .authorizeHttpRequests((requests) -> requests
-            .requestMatchers("/user/*").permitAll()
+            .requestMatchers("/user/register").hasRole("ANONYMOUS")
             .anyRequest().authenticated()
         ).httpBasic(withDefaults());
     return http.build();
   }
 
   @Bean
-  UserDetailsService userDetailsService(UserRepository userRepository, PokerSecurityProperties securitySettings) {
-    return new MongoUserDetailsService(userRepository, securitySettings);
+  UserDetailsService userDetailsService(UserRepository userRepository, SecurityUtilities securityUtilities) {
+    return new MongoUserDetailsService(userRepository, securityUtilities);
   }
 
 }

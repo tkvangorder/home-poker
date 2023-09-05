@@ -1,5 +1,6 @@
 package org.homepoker.user;
 
+import org.homepoker.event.MessageReceived;
 import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.model.user.User;
 import org.homepoker.model.user.UserCriteria;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +21,10 @@ import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import jakarta.annotation.PostConstruct;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
 import java.util.List;
 
 import static org.springframework.data.mongodb.core.query.Query.query;
@@ -170,4 +176,5 @@ public class UserManagerImpl implements UserManager {
     user = user.withPassword(null);
     return user;
   }
+
 }

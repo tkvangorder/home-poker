@@ -9,6 +9,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.HandlerMethodArgumentResolver;
+import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.annotation.support.SimpAnnotationMethodMessageHandler;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -25,6 +26,8 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 import java.util.List;
+
+import static org.homepoker.PokerMessageRoutes.*;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -46,10 +49,21 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
     this.context = context;
     this.securityContextHolderStrategy = securityContextHolderStrategy == null ? SecurityContextHolder.getContextHolderStrategy() : securityContextHolderStrategy;
     this.observationRegistry = observationRegistry == null ? ObservationRegistry.NOOP : observationRegistry;
-
     this.authorizationManager = messages
-        .simpDestMatchers("/user/register", "/user/current-user").permitAll()
-        .anyMessage().authenticated()
+        .simpMessageDestMatchers(ROUTE_USER_MANAGER_REGISTER_USER, ROUTE_USER_MANAGER_GET_CURRENT_USER).hasRole("ANONYMOUS")
+        .simpDestMatchers(ROUTE_USER_MANAGER_GET_CURRENT_USER, "/user" + USER_QUEUE_DESTINATION + "**").authenticated()
+        .simpDestMatchers("/user/**").hasRole("USER")
+        .simpDestMatchers("/admin/**").hasRole("ADMIN")
+        .simpTypeMatchers(	SimpMessageType.CONNECT,
+            SimpMessageType.CONNECT_ACK,
+            SimpMessageType.SUBSCRIBE,
+            SimpMessageType.UNSUBSCRIBE,
+            SimpMessageType.HEARTBEAT,
+            SimpMessageType.DISCONNECT,
+            SimpMessageType.DISCONNECT_ACK,
+            SimpMessageType.OTHER
+        ).authenticated()
+        .anyMessage().denyAll()
         .build();
 
 
@@ -67,17 +81,8 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
   }
 
   @Bean
-  public AuthorizationManager<Message<?>> messageAuthorizationManager(MessageMatcherDelegatingAuthorizationManager.Builder messages) {
-    messages
-
-        .anyMessage().permitAll();
-//        .simpDestMatchers("/user/register").permitAll()
-//        .simpSubscribeDestMatchers("/secured/user/queue").permitAll()
-//        .simpDestMatchers("/cash-game/admin/**").hasRole("ADMIN")
-//        .simpDestMatchers("/**").hasRole("USER")
-//        .simpSubscribeDestMatchers("/user**").hasRole("USER")
-//        .anyMessage().denyAll();
-    return messages.build();
+  public AuthorizationManager<Message<?>> messageAuthorizationManager() {
+    return this.authorizationManager;
   }
 
 

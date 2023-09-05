@@ -3,20 +3,18 @@ package org.homepoker.client;
 import static org.homepoker.PokerMessageRoutes.*;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
-import org.homepoker.event.ApplicationError;
+import org.homepoker.event.MessageReceived;
 import org.homepoker.event.Event;
 import org.homepoker.event.user.CurrentUserRetrieved;
 import org.homepoker.event.user.CurrentUserUpdated;
 import org.homepoker.lib.util.JsonUtils;
 import org.homepoker.model.user.User;
-import org.homepoker.model.user.UserInformationUpdate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.simp.stomp.*;
 import org.springframework.shell.Availability;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
@@ -117,8 +115,12 @@ public class ClientConnectionManager {
     NotificationService.info("User information has been update!" + JsonUtils.toJson(currentUser));
   }
   @EventListener
-  public void applicationError(ApplicationError error) {
-    NotificationService.error(error.message() + " : " + error.details());
+  public void messageReceived(MessageReceived messageReceived) {
+    switch (messageReceived.message().severity()) {
+      case INFO -> NotificationService.info(messageReceived.message().message());
+      case WARNING -> NotificationService.warn(messageReceived.message().message());
+      case ERROR -> NotificationService.error(messageReceived.message().message());
+    }
   }
 
   private class SessionHandler extends StompSessionHandlerAdapter {

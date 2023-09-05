@@ -11,8 +11,6 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @Builder
 @With
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "@c")
-@JsonPropertyOrder({"@c"}) // serialize type info first
 public class User {
 
   /**
