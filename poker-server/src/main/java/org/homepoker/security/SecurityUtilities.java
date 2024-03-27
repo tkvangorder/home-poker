@@ -33,9 +33,9 @@ public class SecurityUtilities {
     }
 
     Set<GrantedAuthority> roles = userAuthorities;
-    if ("anonymous".equals(user.getLoginId())) {
+    if ("anonymous".equals(user.loginId())) {
       roles = anonymousAuthorities;
-    } else if (securitySettings.getAdminUsers().contains(user.getLoginId())) {
+    } else if (securitySettings.getAdminUsers().contains(user.loginId())) {
       roles = adminAuthorities;
     }
     return new PokerUserDetails(user, roles);

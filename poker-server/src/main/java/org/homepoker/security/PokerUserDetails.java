@@ -12,21 +12,20 @@ import java.util.Set;
  *
  * @author tyler.vangorder
  */
-public class PokerUserDetails extends User implements UserDetails {
+public class PokerUserDetails implements UserDetails {
+
+  private final User user;
   private final Set<GrantedAuthority> authorities;
 
   PokerUserDetails(User user, Set<GrantedAuthority> authorities) {
-    super(
-        user.getId(),
-        user.getLoginId(),
-        user.getPassword(),
-        user.getEmail(),
-        user.getAlias(),
-        user.getName(),
-        user.getPhone());
+    this.user = user;
     this.authorities = authorities;
   }
 
+  public User toUser() {
+    return user;
+  }
+  
   @Override
   public Collection<? extends GrantedAuthority> getAuthorities() {
     return authorities;
@@ -34,7 +33,12 @@ public class PokerUserDetails extends User implements UserDetails {
 
   @Override
   public String getUsername() {
-    return getLoginId();
+    return user.loginId();
+  }
+
+  @Override
+  public String getPassword() {
+    return user.password();
   }
 
   @Override
@@ -57,27 +61,4 @@ public class PokerUserDetails extends User implements UserDetails {
     return true;
   }
 
-  @Override
-  public int hashCode() {
-    final int prime = 31;
-    int result = super.hashCode();
-    result = prime * result + ((authorities == null) ? 0 : authorities.hashCode());
-    return result;
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj)
-      return true;
-    if (!super.equals(obj))
-      return false;
-    if (getClass() != obj.getClass())
-      return false;
-    PokerUserDetails other = (PokerUserDetails) obj;
-    if (authorities == null) {
-      return other.authorities == null;
-    } else {
-      return authorities.equals(other.authorities);
-    }
-  }
 }

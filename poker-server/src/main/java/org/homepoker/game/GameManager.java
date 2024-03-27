@@ -25,7 +25,7 @@ public abstract class GameManager<T extends Game> {
   private final Map<String, GameListener> gameListeners = new NonBlockingHashMap<>();
 
   public Optional<GameListener> getGameListener(User user) {
-    return Optional.ofNullable(gameListeners.get(user.getLoginId()));
+    return Optional.ofNullable(gameListeners.get(user.loginId()));
   }
 
   public void addGameListener(GameListener listener) {

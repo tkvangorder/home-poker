@@ -168,9 +168,9 @@ public class CashGameServerImpl implements CashGameServer {
     if (game.getPlayers() == null) {
       game.setPlayers(new HashMap<>());
     }
-    if (!game.getPlayers().containsKey(game.getOwner().getLoginId())) {
+    if (!game.getPlayers().containsKey(game.getOwner().loginId())) {
       Player player = Player.builder().user(game.getOwner()).confirmed(true).status(PlayerStatus.AWAY).build();
-      game.getPlayers().put(game.getOwner().getLoginId(), player);
+      game.getPlayers().put(game.getOwner().loginId(), player);
     }
     return game;
   }
@@ -189,7 +189,7 @@ public class CashGameServerImpl implements CashGameServer {
         .startTimestamp(game.getStartTimestamp())
         .buyInChips(game.getBuyInChips())
         .buyInAmount(game.getBuyInAmount())
-        .ownerLoginId(game.getOwner().getLoginId())
+        .ownerLoginId(game.getOwner().loginId())
         .smallBlind(game.getSmallBlind())
         .bigBlind(game.getBigBlind())
         .numberOfPlayers(game.getPlayers() == null ? 0 : game.getPlayers().size())

@@ -2,6 +2,7 @@ package org.homepoker.model.game;
 
 import lombok.Builder;
 import lombok.Data;
+import lombok.With;
 import org.homepoker.model.user.User;
 
 /**
@@ -9,27 +10,7 @@ import org.homepoker.model.user.User;
  *
  * @author tyler.vangorder
  */
-@Data
 @Builder
-public class Player {
-
-  /**
-   * The user linked to this player.
-   */
-  final User user;
-
-  /**
-   * The player has been confirmed by the game manager and can be assigned a seat at table.
-   */
-  boolean confirmed;
-
-  /**
-   * The player status to indicate if the player is active, away, or out.
-   */
-  PlayerStatus status;
-
-  /**
-   * The player's current chip count
-   */
-  Integer chipCount;
+@With
+public record Player(User user, boolean confirmed, PlayerStatus status, Integer chipCount) {
 }

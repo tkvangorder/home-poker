@@ -31,11 +31,11 @@ public record GameCommand(CommandId commandId, String gameId, Map<String, String
    */
   public static GameCommand asRegisterUser(User user, String gameId) {
     Assert.notNull(user, "The user is required when registering for a game.");
-    Assert.hasText(user.getLoginId(), "The user's loginId is required when registering for a game.");
+    Assert.hasText(user.loginId(), "The user's loginId is required when registering for a game.");
     return new GameCommand(
         CommandId.REGISTER_USER,
         gameId,
-        Map.of("loginId", user.getLoginId()),
+        Map.of("loginId", user.loginId()),
         user
     );
   }
@@ -51,7 +51,7 @@ public record GameCommand(CommandId commandId, String gameId, Map<String, String
    */
   public static GameCommand confirmUser(User user, String gameId, String loginId) {
     Assert.notNull(user, "The user that is confirming the login ID is required.");
-    Assert.hasText(user.getLoginId(), "The user's that is confirming the login ID is required.");
+    Assert.hasText(user.loginId(), "The user's that is confirming the login ID is required.");
     Assert.hasText(loginId, "The login ID for the user being confirmed is required.");
 
     return new GameCommand(

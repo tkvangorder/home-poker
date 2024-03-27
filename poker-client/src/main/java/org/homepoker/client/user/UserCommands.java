@@ -8,9 +8,6 @@ import org.homepoker.event.user.UserRegistered;
 import org.homepoker.event.user.UserSearchCompleted;
 import org.homepoker.lib.util.JsonUtils;
 import org.homepoker.model.user.User;
-import org.homepoker.model.user.UserCriteria;
-import org.homepoker.model.user.UserInformationUpdate;
-import org.homepoker.model.user.UserPasswordChangeRequest;
 import org.springframework.context.event.EventListener;
 import org.springframework.shell.Availability;
 import org.springframework.shell.standard.ShellComponent;
@@ -18,8 +15,6 @@ import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellMethodAvailability;
 import org.springframework.shell.standard.ShellOption;
 import org.springframework.web.client.RestClient;
-
-import static org.homepoker.PokerMessageRoutes.*;
 
 @Slf4j
 @ShellComponent
@@ -47,7 +42,7 @@ public class UserCommands {
         .phone(phone)
         .build();
 
-    connectionManager.send(ROUTE_USER_MANAGER_REGISTER_USER, user);
+    //connectionManager.send(ROUTE_USER_MANAGER_REGISTER_USER, user);
 
   }
 
@@ -69,18 +64,18 @@ public class UserCommands {
 
   @ShellMethod("Update user's contact information [loginId, email, name, phone].")
   public void updateUser(String loginId, String email, String name, String phone) {
-    connectionManager.send(ROUTE_USER_MANAGER_UPDATE_USER, UserInformationUpdate.builder()
-        .loginId(loginId)
-        .email(email)
-        .name(name)
-        .phone(phone)
-        .build()
-    );
+//    connectionManager.send(ROUTE_USER_MANAGER_UPDATE_USER, UserInformationUpdate.builder()
+//        .loginId(loginId)
+//        .email(email)
+//        .name(name)
+//        .phone(phone)
+//        .build()
+//    );
   }
 
   @ShellMethod("Change user's password [loginId, oldPassword, newPassword].")
   public void userPasswordChange(String loginId, String oldPassword, String newPassword) {
-    connectionManager.send(ROUTE_USER_MANAGER_UPDATE_PASSWORD, new UserPasswordChangeRequest(loginId, oldPassword, newPassword));
+//    connectionManager.send(ROUTE_USER_MANAGER_UPDATE_PASSWORD, new UserPasswordChangeRequest(loginId, oldPassword, newPassword));
   }
 
   @EventListener
@@ -90,7 +85,7 @@ public class UserCommands {
 
   @ShellMethod("Find users registered with the server [loginId, email].")
   public void findUsers(@ShellOption(defaultValue = ShellOption.NULL) String loginId, @ShellOption(defaultValue = ShellOption.NULL) String email) {
-    connectionManager.send(ROUTE_USER_MANAGER_USER_SEARCH, new UserCriteria(loginId, email));
+//    connectionManager.send(ROUTE_USER_MANAGER_USER_SEARCH, new UserCriteria(loginId, email));
   }
 
   @EventListener

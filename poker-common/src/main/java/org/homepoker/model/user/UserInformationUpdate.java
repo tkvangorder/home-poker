@@ -9,34 +9,12 @@ import lombok.Value;
  * <p>
  * NOTE: This domain object cannot be used to alter the user's ID or password.
  *
- * @author tyler.vangorder
+ * @param loginId The user's login ID.
+ * @param email   The user's email address.
+ * @param alias   The user's alias.
+ * @param name    The user's name.
+ * @param phone   The user's phone number.
  */
-@Value
 @Builder
-public class UserInformationUpdate {
-
-  /**
-   * Existing user's loginID
-   */
-  String loginId;
-
-  /**
-   * User's email.
-   */
-  String email;
-
-  /**
-   * User's preferred alias when in a game or at a table.
-   */
-  String alias;
-
-  /**
-   * User's "real" name.
-   */
-  String name;
-
-  /**
-   * Phone number can be useful when organizing a remote game.
-   */
-  String phone;
+public record UserInformationUpdate(String loginId, String email, String alias, String name, String phone) {
 }

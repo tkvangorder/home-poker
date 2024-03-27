@@ -11,9 +11,6 @@
   <version>0.0.1-SNAPSHOT</version>
   <name>poker-server</name>
   <description>Poker Server</description>
-  <properties>
-    <java.version>20</java.version>
-  </properties>
   <dependencies>
     <dependency>
       <groupId>org.homepoker</groupId>
@@ -27,10 +24,12 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-security</artifactId>
     </dependency>
+    <!-- No Message security for now
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-messaging</artifactId>
     </dependency>
+    -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-websocket</artifactId>

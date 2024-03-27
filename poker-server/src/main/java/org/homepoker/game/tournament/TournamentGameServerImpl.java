@@ -209,7 +209,7 @@ public class TournamentGameServerImpl implements TournamentGameServer {
         .name(game.getName())
         .gameType(game.getGameType())
         .startTimestamp(game.getStartTimestamp())
-        .ownerLoginId(game.getOwner().getLoginId())
+        .ownerLoginId(game.getOwner().loginId())
         .buyInChips(game.getBuyInChips())
         .buyInAmount(game.getBuyInAmount())
         .estimatedTournamentLengthHours(game.getEstimatedTournamentLengthHours())
