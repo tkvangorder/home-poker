@@ -1,14 +1,13 @@
 package org.homepoker.model.user;
 
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.*;
-import lombok.experimental.FieldDefaults;
+
+import java.util.Set;
 
 /**
  * A user registered with the system.
  */
 @Builder
 @With
-public record User(String id, String loginId, String password, String email, String alias, String name, String phone) {
+public record User(String id, String loginId, String password, String email, String alias, String name, String phone, Set<UserRole> roles) {
 }

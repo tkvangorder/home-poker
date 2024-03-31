@@ -17,10 +17,10 @@
 
   <properties>
     <java.version>21</java.version>
+    <jjwt.version>0.12.5</jjwt.version>
   </properties>
 
   <modules>
-    <module>poker-client</module>
     <module>poker-common</module>
     <module>poker-server</module>
   </modules>
@@ -37,6 +37,16 @@
         <groupId>org.homepoker</groupId>
         <artifactId>poker-common</artifactId>
         <version>0.0.1-SNAPSHOT</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>${jjwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-jackson</artifactId>
+        <version>${jjwt.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

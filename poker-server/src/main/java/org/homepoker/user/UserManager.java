@@ -6,15 +6,13 @@ import org.homepoker.model.user.User;
 import org.homepoker.model.user.UserCriteria;
 import org.homepoker.model.user.UserInformationUpdate;
 import org.homepoker.model.user.UserPasswordChangeRequest;
-import org.homepoker.security.MongoUserDetailsService;
+import org.homepoker.security.SecurityUtilities;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.lang.Nullable;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -28,11 +26,13 @@ public class UserManager {
 
   private final UserRepository userRepository;
   private final MongoOperations mongoOperations;
-  private final PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
-  public UserManager(UserRepository userRepository, MongoOperations mongoOperations) {
+  private final SecurityUtilities securityUtilities;
+
+  public UserManager(UserRepository userRepository, MongoOperations mongoOperations, SecurityUtilities securityUtilities) {
     this.userRepository = userRepository;
     this.mongoOperations = mongoOperations;
+    this.securityUtilities = securityUtilities;
   }
 
   @PostConstruct
@@ -69,7 +69,10 @@ public class UserManager {
       user = user.withAlias(user.name());
     }
     //Encode the user password (the default algorithm is Bcrypt)
-    user = user.withPassword(passwordEncoder.encode(user.password()));
+    user = user.withPassword(securityUtilities.encodePassword(user.password()));
+
+    //Assign the user a role based on the security settings.
+    user = securityUtilities.assignRolesToUser(user);
 
     try {
       return filterPassword(userRepository.insert(user));
@@ -90,10 +93,10 @@ public class UserManager {
   public void updateUserPassword(UserPasswordChangeRequest userPasswordChangeRequest) {
     User user = userRepository.findByLoginId(userPasswordChangeRequest.loginId());
 
-    if (user == null || !passwordEncoder.matches(userPasswordChangeRequest.userChallenge(), user.password())) {
+    if (user == null || !securityUtilities.getPasswordEncoder().matches(userPasswordChangeRequest.userChallenge(), user.password())) {
       throw new ValidationException("Access Denied");
     } else {
-      user = user.withPassword(passwordEncoder.encode(userPasswordChangeRequest.newPassword()));
+      user = user.withPassword(securityUtilities.encodePassword(userPasswordChangeRequest.newPassword()));
       userRepository.save(user);
     }
   }
@@ -136,7 +139,7 @@ public class UserManager {
    * @return User
    */
   public User getUser(String loginId) {
-    User user = "anonymous".equals(loginId) ? MongoUserDetailsService.anonymousUser : userRepository.findByLoginId(loginId);
+    User user = userRepository.findByLoginId(loginId);
     if (user == null) {
       throw new ValidationException("The user does not exist.");
     }

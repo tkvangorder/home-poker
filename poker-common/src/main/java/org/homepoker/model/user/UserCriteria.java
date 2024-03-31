@@ -1,6 +1,6 @@
 package org.homepoker.model.user;
 
-import lombok.Value;
+import org.springframework.lang.Nullable;
 
-public record UserCriteria(String userLoginId, String userEmail) {
+public record UserCriteria(@Nullable String userLoginId, @Nullable String userEmail) {
 }

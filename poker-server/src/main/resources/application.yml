@@ -1,14 +1,16 @@
 logging:
   level:
-    ROOT: debug
+    ROOT: info
     org:
       homepoker: info
-
 
 poker:
   security:
     # This is a list of login IDs that are granted admin privileges.
     admin-users:
       - admin
-    passcode: "1234"
+    # The passcode that is required to register a new user (The recommendation is to use an environment variable for this value)
+    passcode: 1234
+    # The expiration time for issued JWT tokens
+    jwt-expiration: 10h
 

@@ -23,15 +23,7 @@ public class UserController {
     this.securityProperties = securityProperties;
   }
 
-  @PostMapping("/register")
-  User registerUser(RegisterUserRequest userRequest) {
-    if (!securityProperties.getPasscode().equals(userRequest.serverPasscode())) {
-      throw new SecurityException("Access Denied");
-    }
-    return userManager.registerUser(userRequest.user());
-  }
-
-  @PostMapping("/search")
+  @PostMapping("")
   List<User> findUsers(UserCriteria criteria) {
     return userManager.findUsers(criteria);
   }
