@@ -1,7 +1,0 @@
-spring:
-  main:
-    web-application-type: none
-
-poker:
-  default-user: admin
-  default-password: admin
