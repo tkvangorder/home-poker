@@ -29,8 +29,9 @@ public class AuthenticationService {
   public AuthenticationResponse login(UserLogin userLogin) {
     // Login is implemented via Spring Security's authentication manager.
     authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(userLogin.loginId(), userLogin.password()));
+    User user = userManager.getUser(userLogin.loginId());
     // If we get here, we have successfully authenticated and generate a new token for the user.
-    return new AuthenticationResponse(jwtTokenService.generateToken(userManager.getUser(userLogin.loginId())));
+    return new AuthenticationResponse(jwtTokenService.generateToken(user), user);
   }
 
   /**
@@ -44,7 +45,7 @@ public class AuthenticationService {
       throw new SecurityException("Access Denied");
     }
     User user = userManager.registerUser(userRequest.user());
-    return new AuthenticationResponse(jwtTokenService.generateToken(user));
+    return new AuthenticationResponse(jwtTokenService.generateToken(user), user);
   }
 
 }
