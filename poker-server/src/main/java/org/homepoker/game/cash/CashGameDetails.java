@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 import org.homepoker.model.game.GameType;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * The game configuration is used to set the parameters for a given poker game.
@@ -33,7 +33,7 @@ public class CashGameDetails {
   /**
    * The scheduled/actual start time of the game.
    */
-  private LocalDateTime startTimestamp;
+  private Instant startTimestamp;
 
   /**
    * The number of chips a player receives for the buy-in amount.

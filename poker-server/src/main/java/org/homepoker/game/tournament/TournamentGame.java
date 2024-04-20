@@ -9,8 +9,7 @@ import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -41,13 +40,13 @@ public class TournamentGame implements Game {
   /**
    * The scheduled/actual start time of the game.
    */
-  private LocalDateTime startTimestamp;
+  private Instant startTimestamp;
 
   /**
    * The end time is used only when persisting a game once it is over or has been ended
    * by the game manager.
    */
-  private LocalDateTime endTimestamp;
+  private Instant endTimestamp;
 
   /**
    * Current status of the game (useful when persisting the game to storage)
@@ -76,9 +75,9 @@ public class TournamentGame implements Game {
   private Integer buyInChips;
 
   /**
-   * The buy-in amount in dollars
+   * The buy-in amount in cents
    */
-  private BigDecimal buyInAmount;
+  private Integer buyInAmount;
 
   /**
    * The time interval where the blinds go "up"
@@ -107,9 +106,9 @@ public class TournamentGame implements Game {
   private Integer rebuyChips = 0;
 
   /**
-   * The rebuy-in amount in dollars
+   * The rebuy-in amount in cents
    */
-  private BigDecimal rebuyAmount;
+  private Integer rebuyAmount;
 
   /**
    * Does this game allow add-ons?
@@ -122,9 +121,9 @@ public class TournamentGame implements Game {
   private Integer addOnChips;
 
   /**
-   * The add-on amount in dollars
+   * The add-on amount in cents
    */
-  private BigDecimal addOnAmount;
+  private Integer addOnAmount;
 
   /**
    * The blind schedule for the tournament. The blind schedule can be provided when creating the game or it can be

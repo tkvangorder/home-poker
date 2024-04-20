@@ -10,7 +10,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -131,8 +131,8 @@ public class CashGameServerImpl implements CashGameServer {
     //If the a start date is not specified or is before the current date, we just default to
     //"now" and immediately transition game to a "paused" state. The owner can then choose when they want to
     //"un-pause" game.
-    LocalDateTime now = LocalDateTime.now();
-    LocalDateTime startTimestamp = gameDetails.getStartTimestamp();
+    Instant now = Instant.now();
+    Instant startTimestamp = gameDetails.getStartTimestamp();
 
     GameStatus status = GameStatus.SCHEDULED;
     if (startTimestamp == null || now.isAfter(startTimestamp)) {

@@ -4,8 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 import org.homepoker.model.game.GameType;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * The game configuration is used to set the parameters for a given poker game.
@@ -34,7 +33,7 @@ public class TournamentGameDetails {
   /**
    * The scheduled/actual start time of the game.
    */
-  private LocalDateTime startTimestamp;
+  private Instant startTimestamp;
 
   /**
    * The number of chips each player will start with.
@@ -42,9 +41,9 @@ public class TournamentGameDetails {
   private Integer buyInChips;
 
   /**
-   * The buy-in amount in dollars
+   * The buy-in amount in cents (we do not want to deal with floating point numbers).
    */
-  private BigDecimal buyInAmount;
+  private Integer buyInAmount;
 
   /**
    * User that created/owns the game.
@@ -78,9 +77,9 @@ public class TournamentGameDetails {
   private Integer rebuyChips;
 
   /**
-   * The rebuy-in amount in dollars
+   * The rebuy-in amount in cents
    */
-  private BigDecimal rebuyAmount;
+  private Integer rebuyAmount;
 
   /**
    * Does this game allow add-ons?
@@ -93,9 +92,9 @@ public class TournamentGameDetails {
   private Integer addOnChips;
 
   /**
-   * The add-on amount in dollars
+   * The add-on amount in cents
    */
-  private BigDecimal addOnAmount;
+  private Integer addOnAmount;
 
   /**
    * The number of players registered/playing in the game.

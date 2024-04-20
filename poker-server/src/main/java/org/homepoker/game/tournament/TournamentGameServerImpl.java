@@ -11,8 +11,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
@@ -113,8 +112,8 @@ public class TournamentGameServerImpl implements TournamentGameServer {
     //If the a start date is not specified or is before the current date, we just default to
     //"now" and immediately transition game to a "paused" state. The owner can then choose when they want to
     //"un-pause" game.
-    LocalDateTime now = LocalDateTime.now();
-    LocalDateTime startTimestamp = gameDetails.getStartTimestamp();
+    Instant now = Instant.now();
+    Instant startTimestamp = gameDetails.getStartTimestamp();
 
     GameStatus status = GameStatus.SCHEDULED;
     if (startTimestamp == null || startTimestamp.isAfter(now)) {
@@ -139,7 +138,7 @@ public class TournamentGameServerImpl implements TournamentGameServer {
     //If a re-buy amount is not provided, we default it to the buy amount.
     int numberOfRebuys = 0;
     Integer rebuyChips = null;
-    BigDecimal rebuyAmount = null;
+    Integer rebuyAmount = null;
 
     if (gameDetails.getNumberOfRebuys() != null) {
       numberOfRebuys = gameDetails.getNumberOfRebuys();
@@ -160,7 +159,7 @@ public class TournamentGameServerImpl implements TournamentGameServer {
     //  If a add-on amount is not provided, we default it to the buy amount.
     boolean addOnsAllowed = gameDetails.isAddOnAllowed();
     Integer addOnChips = null;
-    BigDecimal addOnAmount = null;
+    Integer addOnAmount = null;
 
     if (addOnsAllowed) {
       addOnChips = gameDetails.getAddOnChips();

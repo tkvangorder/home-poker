@@ -9,7 +9,7 @@ import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -40,13 +40,13 @@ public class CashGame implements Game {
   /**
    * The scheduled/actual start time of the game.
    */
-  private LocalDateTime startTimestamp;
+  private Instant startTimestamp;
 
   /**
    * The end time is used only when persisting a game once it is over or has been ended
    * by the game manager.
    */
-  private LocalDateTime endTimestamp;
+  private Instant endTimestamp;
 
   /**
    * Current status of the game (useful when persisting the game to storage)
