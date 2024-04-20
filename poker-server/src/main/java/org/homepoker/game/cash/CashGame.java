@@ -9,7 +9,6 @@ import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -86,7 +85,7 @@ public class CashGame implements Game {
   private Integer buyInChips;
 
   /**
-   * The number of chips a player receives for the buy-in amount.
+   * The buy-in amount in cents, we do not want to deal with floating point numbers.
    */
-  private BigDecimal buyInAmount;
+  private Integer buyInAmount;
 }

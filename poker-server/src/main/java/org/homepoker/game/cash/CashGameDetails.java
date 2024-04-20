@@ -4,7 +4,6 @@ import lombok.Builder;
 import lombok.Data;
 import org.homepoker.model.game.GameType;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -42,9 +41,9 @@ public class CashGameDetails {
   private Integer buyInChips;
 
   /**
-   * The buy-in amount in dollars
+   * The buy-in amount in cents, we do not want to deal with floating point numbers.
    */
-  private BigDecimal buyInAmount;
+  private Integer buyInAmount;
 
   /**
    * The user's loginId that created/owns the game.
