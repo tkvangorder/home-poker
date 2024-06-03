@@ -44,7 +44,15 @@ public class AuthenticationService {
     if (!securityProperties.getPasscode().equals(userRequest.serverPasscode())) {
       throw new SecurityException("Access Denied");
     }
-    User user = userManager.registerUser(userRequest.user());
+    User user = userManager.registerUser(User.builder()
+        .loginId(userRequest.loginId())
+        .password(userRequest.password())
+        .name(userRequest.name())
+        .alias(userRequest.alias())
+        .phone(userRequest.phone())
+        .email(userRequest.email())
+        .build()
+    );
     return new AuthenticationResponse(jwtTokenService.generateToken(user), user);
   }
 

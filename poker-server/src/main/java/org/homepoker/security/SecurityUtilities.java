@@ -1,8 +1,10 @@
 package org.homepoker.security;
 
+import org.homepoker.lib.exception.SecurityException;
 import org.homepoker.model.user.User;
 import org.homepoker.model.user.UserRole;
 import org.springframework.lang.Nullable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -60,4 +62,11 @@ public class SecurityUtilities {
     return passwordEncoder;
   }
 
+  public static User getCurrentUser() {
+    PokerUserDetails userDetails = (PokerUserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    if (userDetails == null) {
+      throw new SecurityException("No user is currently logged in.");
+    }
+    return userDetails.toUser();
+  }
 }
