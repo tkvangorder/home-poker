@@ -1,5 +1,6 @@
 package org.homepoker.security;
 
+import org.homepoker.lib.exception.SecurityException;
 import org.homepoker.model.user.RegisterUserRequest;
 import org.homepoker.model.user.User;
 import org.homepoker.model.user.UserLogin;

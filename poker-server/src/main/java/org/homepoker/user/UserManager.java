@@ -58,7 +58,7 @@ public class UserManager {
 	public User registerUser(User user) {
     Assert.notNull(user, "The user information cannot be null");
     Assert.isTrue(!StringUtils.hasText(user.id()), "The ID must be null when registering a new user.");
-    Assert.notNull(user.loginId(), "The user login ID is required");
+    Assert.hasText(user.loginId(), "The user login ID is required");
     Assert.hasText(user.password(), "The user password is required.");
     Assert.hasText(user.email(), "The user email address is required.");
     Assert.hasText(user.name(), "The user name is required.");
