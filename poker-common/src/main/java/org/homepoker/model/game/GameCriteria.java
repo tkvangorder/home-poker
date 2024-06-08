@@ -1,7 +1,8 @@
 package org.homepoker.model.game;
 
-import java.time.Instant;
-import java.time.LocalDate;
+import org.springframework.lang.Nullable;
 
-public record GameCriteria(String name, GameStatus status, Instant startDate, Instant endDate) {
+import java.time.Instant;
+
+public record GameCriteria(@Nullable String name, @Nullable GameStatus status, @Nullable Instant startDate, @Nullable Instant endDate) {
 }

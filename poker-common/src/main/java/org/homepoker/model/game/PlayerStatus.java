@@ -15,10 +15,15 @@ public enum PlayerStatus {
   /**
    * Player is in a game but idle.
    */
-  AWAY,   //Active player but has stepped away from the table.
+  AWAY,
 
   /**
    * Player has been eliminated from the game.
    */
-  OUT    //Player is out of the game (no chips)
+  OUT,
+
+  /**
+   * Player is registered for the game but has not connected.
+   */
+  REGISTERED
 }

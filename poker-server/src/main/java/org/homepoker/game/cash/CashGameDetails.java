@@ -2,7 +2,9 @@ package org.homepoker.game.cash;
 
 import lombok.Builder;
 import lombok.Data;
+import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
+import org.homepoker.model.user.User;
 
 import java.time.Instant;
 
@@ -31,24 +33,24 @@ public class CashGameDetails {
   private GameType gameType;
 
   /**
+   * Current status of the game
+   */
+  private GameStatus status;
+
+  /**
    * The scheduled/actual start time of the game.
    */
   private Instant startTimestamp;
 
   /**
-   * The number of chips a player receives for the buy-in amount.
+   * The maximum buy-in amount in cents, we do not want to deal with floating point numbers.
    */
-  private Integer buyInChips;
+  private Integer maxBuyIn;
 
   /**
-   * The buy-in amount in cents, we do not want to deal with floating point numbers.
+   * The user that created/owns the game.
    */
-  private Integer buyInAmount;
-
-  /**
-   * The user's loginId that created/owns the game.
-   */
-  private String ownerLoginId;
+  private User owner;
 
   /**
    * The number of chips for the small blind.
