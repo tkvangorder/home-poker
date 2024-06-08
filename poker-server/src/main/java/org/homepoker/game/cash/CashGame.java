@@ -1,7 +1,7 @@
 package org.homepoker.game.cash;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.With;
 import org.homepoker.game.*;
 import org.homepoker.model.game.GameFormat;
 import org.homepoker.model.game.GameStatus;
@@ -13,79 +13,22 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-@Data
 @Builder
-public class CashGame implements Game {
-
-  @Override
-  public GameFormat getGameFormat() {
-    return GameFormat.CASH;
-  }
-
-  /**
-   * Unique Id of the game.
-   */
-  private String id;
-
-  /**
-   * A human readable name for the game.
-   */
-  private String name;
-
-  /**
-   * What type of poker game? Texas Hold'em, Draw, etc.
-   */
-  private GameType gameType;
-
-  /**
-   * The scheduled/actual start time of the game.
-   */
-  private Instant startTimestamp;
-
-  /**
-   * The end time is used only when persisting a game once it is over or has been ended
-   * by the game manager.
-   */
-  private Instant endTimestamp;
-
-  /**
-   * Current status of the game (useful when persisting the game to storage)
-   */
-  private GameStatus status;
-
-  /**
-   * User that created/owns the game.
-   */
-  private User owner;
-
-  /**
-   * The players registered/participating in the game. The map is userId -> player.
-   */
-  private Map<String, Player> players;
-
-  /**
-   * A game may have multiple tables depending on how many players are registered/participating in the game.
-   * Each table can hold up to nine players and as players come and go, the players may be moved to different tables.
-   */
-  private List<Table> tables;
-
-  /**
-   * Small blind for the cash game
-   */
-  int smallBlind;
-
-  /**
-   * Big blind for the cash game
-   */
-  int bigBlind;
-
-  /**
-   * The number of chips a player receives for the buy-in amount.
-   */
-  private Integer buyInChips;
-
-  /**
-   * The buy-in amount in cents, we do not want to deal with floating point numbers.
-   */
-  private Integer buyInAmount;
+@With
+public record CashGame(
+    String id,
+    String name,
+    GameFormat format,
+    GameType type,
+    Instant startTimestamp,
+    Instant endTimestamp,
+    GameStatus status,
+    User owner,
+    Map<String, Player> players,
+    List<Table> tables,
+    Integer smallBlind,
+    Integer bigBlind,
+    Integer maxBuyIn
+    ) implements Game {
 }
+

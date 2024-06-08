@@ -112,8 +112,8 @@ public class CashGameServer {
    */
   public CashGameDetails updateGameDetails(final CashGameDetails details) {
 
-    CashGame game = gameRepository.findById(details.getId()).orElseThrow(
-        () -> new ValidationException("The cash game [" + details.getId() + "] does not exist.")
+    CashGame game = gameRepository.findById(details.id()).orElseThrow(
+        () -> new ValidationException("The cash game [" + details.id() + "] does not exist.")
     );
 
     //Find the game by ID
@@ -154,19 +154,19 @@ public class CashGameServer {
    */
   private CashGame applyDetailsToGame(CashGame game, CashGameDetails gameDetails) {
 
-    if (game.getStatus() != GameStatus.SCHEDULED) {
+    if (game.status() != GameStatus.SCHEDULED) {
       throw new ValidationException("You can only update the details of the game prior to it starting");
     }
-    Assert.notNull(gameDetails.getName(), "The name is required when creating a game.");
-    Assert.notNull(gameDetails.getMaxBuyIn(), "The max buy-in amount is required when creating a game.");
-    Assert.notNull(gameDetails.getOwner(), "The game owner is required when creating a game.");
-    Assert.notNull(gameDetails.getSmallBlind(), "The small blind must be defined for a cash game.");
+    Assert.notNull(gameDetails.name(), "The name is required when creating a game.");
+    Assert.notNull(gameDetails.maxBuyIn(), "The max buy-in amount is required when creating a game.");
+    Assert.notNull(gameDetails.owner(), "The game owner is required when creating a game.");
+    Assert.notNull(gameDetails.smallBlind(), "The small blind must be defined for a cash game.");
 
     //If the start date is not specified or is before the current date, we just default to
     //"now" and immediately transition game to a "paused" state. The owner can then choose when they want to
     //"un-pause" game.
     Instant now = Instant.now();
-    Instant startTimestamp = gameDetails.getStartTimestamp();
+    Instant startTimestamp = gameDetails.startTimestamp();
 
     GameStatus status = GameStatus.SCHEDULED;
     if (startTimestamp == null || now.isAfter(startTimestamp)) {
@@ -175,35 +175,35 @@ public class CashGameServer {
     }
 
     //Default game type to Texas Hold'em.
-    GameType gameType = gameDetails.getGameType();
-    if (gameDetails.getGameType() == null) {
+    GameType gameType = gameDetails.type();
+    if (gameDetails.type() == null) {
       gameType = GameType.TEXAS_HOLDEM;
     }
 
     //If big blind is not explicitly passed in, we just double the small blind.
-    int bigBlind = gameDetails.getSmallBlind() * 2;
-    if (gameDetails.getBigBlind() != null) {
-      bigBlind = gameDetails.getBigBlind();
-      if (bigBlind <= gameDetails.getSmallBlind()) {
+    int bigBlind = gameDetails.smallBlind() * 2;
+    if (gameDetails.bigBlind() != null) {
+      bigBlind = gameDetails.bigBlind();
+      if (bigBlind <= gameDetails.smallBlind()) {
         throw new ValidationException("The big blind must be larger then the small blind. Typically it should be double the small blind.");
       }
     }
 
-    game.setName(gameDetails.getName());
-    game.setGameType(gameType);
-    game.setStatus(status);
-    game.setStartTimestamp(startTimestamp);
-    game.setBuyInAmount(gameDetails.getMaxBuyIn());
-    game.setSmallBlind(gameDetails.getSmallBlind());
-    game.setBigBlind(bigBlind);
-    game.setOwner(gameDetails.getOwner());
+    game = game.withName(gameDetails.name());
+    game = game.withType(gameType);
+    game = game.withStatus(status);
+    game = game.withStartTimestamp(startTimestamp);
+    game = game.withMaxBuyIn(gameDetails.maxBuyIn());
+    game = game.withSmallBlind(gameDetails.smallBlind());
+    game = game.withBigBlind(bigBlind);
+    game = game.withOwner(gameDetails.owner());
 
-    if (game.getPlayers() == null) {
-      game.setPlayers(new HashMap<>());
+    if (game.players() == null) {
+      game = game.withPlayers(new HashMap<>());
     }
-    if (!game.getPlayers().containsKey(game.getOwner().loginId())) {
-      Player player = Player.builder().user(game.getOwner()).confirmed(true).status(PlayerStatus.AWAY).build();
-      game.getPlayers().put(game.getOwner().loginId(), player);
+    if (!game.players().containsKey(game.owner().loginId())) {
+      Player player = Player.builder().user(game.owner()).confirmed(true).status(PlayerStatus.AWAY).build();
+      game.players().put(game.owner().loginId(), player);
     }
     return game;
   }
@@ -216,15 +216,15 @@ public class CashGameServer {
    */
   private static CashGameDetails gameToGameDetails(CashGame game) {
     return CashGameDetails.builder()
-        .id(game.getId())
-        .name(game.getName())
-        .gameType(game.getGameType())
-        .startTimestamp(game.getStartTimestamp())
-        .maxBuyIn(game.getBuyInAmount())
-        .owner(game.getOwner())
-        .smallBlind(game.getSmallBlind())
-        .bigBlind(game.getBigBlind())
-        .numberOfPlayers(game.getPlayers() == null ? 0 : game.getPlayers().size())
+        .id(game.id())
+        .name(game.name())
+        .type(game.type())
+        .startTimestamp(game.startTimestamp())
+        .maxBuyIn(game.maxBuyIn())
+        .owner(game.owner())
+        .smallBlind(game.smallBlind())
+        .bigBlind(game.bigBlind())
+        .numberOfPlayers(game.players() == null ? 0 : game.players().size())
         .build();
   }
 

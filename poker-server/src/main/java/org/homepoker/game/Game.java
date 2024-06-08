@@ -19,43 +19,43 @@ public interface Game {
   /**
    * Unique Id of the game.
    */
-  String getId();
+  String id();
 
   /**
    * A human readable name for the game.
    */
-  String getName();
+  String name();
 
   /**
    * This is a simple enumeration for the format: CASH or TOURNAMENT
    *
    * @return The game format.
    */
-  GameFormat getGameFormat();
+  GameFormat format();
 
   /**
    * What type of poker game? Texas Hold'em, Draw, etc.
    */
-  GameType getGameType();
+  GameType type();
 
   /**
    * Current status of the game (useful when persisting the game to storage)
    */
-  GameStatus getStatus();
+  GameStatus status();
 
   /**
    * User that created/owns the game.
    */
-  User getOwner();
+  User owner();
 
   /**
    * The players registered/participating in the game.
    */
-  Map<String, Player> getPlayers();
+  Map<String, Player> players();
 
   /**
    * A game may have multiple tables depending on how many players are registered/participating in the game.
    * Each table can hold up to nine players and as players come and go, the players may be moved to different tables.
    */
-  List<Table> getTables();
+  List<Table> tables();
 }

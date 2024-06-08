@@ -181,46 +181,46 @@ public class TournamentGameServerImpl implements TournamentGameServer {
       cliffLevel = gameDetails.getCliffLevel() != null ? gameDetails.getCliffLevel() : 4;
     }
 
-    game.setName(gameDetails.getName());
-    game.setGameType(gameType);
-    game.setStatus(status);
-    game.setStartTimestamp(startTimestamp);
-    game.setBuyInChips(gameDetails.getBuyInChips());
-    game.setBuyInAmount(gameDetails.getBuyInAmount());
-    game.setBlindIntervalMinutes(blindIntervalMinutes);
-    game.setNumberOfRebuys(numberOfRebuys);
-    game.setRebuyChips(rebuyChips);
-    game.setRebuyAmount(rebuyAmount);
-    game.setAddOnAllowed(addOnsAllowed);
-    game.setAddOnChips(addOnChips);
-    game.setAddOnAmount(addOnAmount);
-    game.setCliffLevel(cliffLevel);
-    game.setOwner(userManager.getUser(gameDetails.getOwnerLoginId()));
-    if (game.getPlayers() == null) {
-      game.setPlayers(new HashMap<>());
+    game = game.withName(gameDetails.getName());
+    game = game.withType(gameType);
+    game = game.withStatus(status);
+    game = game.withStartTimestamp(startTimestamp);
+    game = game.withBuyInChips(gameDetails.getBuyInChips());
+    game = game.withBuyInAmount(gameDetails.getBuyInAmount());
+    game = game.withBlindIntervalMinutes(blindIntervalMinutes);
+    game = game.withNumberOfRebuys(numberOfRebuys);
+    game = game.withRebuyChips(rebuyChips);
+    game = game.withRebuyAmount(rebuyAmount);
+    game = game.withAddOnAllowed(addOnsAllowed);
+    game = game.withAddOnChips(addOnChips);
+    game = game.withAddOnAmount(addOnAmount);
+    game = game.withCliffLevel(cliffLevel);
+    game = game.withOwner(userManager.getUser(gameDetails.getOwnerLoginId()));
+    if (game.players() == null) {
+      game = game.withPlayers(new HashMap<>());
     }
     return game;
   }
 
   private static TournamentGameDetails gameToGameDetails(TournamentGame game) {
     return TournamentGameDetails.builder()
-        .id(game.getId())
-        .name(game.getName())
-        .gameType(game.getGameType())
-        .startTimestamp(game.getStartTimestamp())
-        .ownerLoginId(game.getOwner().loginId())
-        .buyInChips(game.getBuyInChips())
-        .buyInAmount(game.getBuyInAmount())
-        .estimatedTournamentLengthHours(game.getEstimatedTournamentLengthHours())
-        .blindIntervalMinutes(game.getBlindIntervalMinutes())
-        .numberOfRebuys(game.getNumberOfRebuys())
-        .rebuyChips(game.getRebuyChips())
-        .rebuyAmount(game.getRebuyAmount())
-        .addOnAllowed(game.isAddOnAllowed())
-        .addOnChips(game.getAddOnChips())
-        .addOnAmount(game.getAddOnAmount())
-        .cliffLevel(game.getCliffLevel())
-        .numberOfPlayers(game.getPlayers() == null ? 0 : game.getPlayers().size())
+        .id(game.id())
+        .name(game.name())
+        .gameType(game.type())
+        .startTimestamp(game.startTimestamp())
+        .ownerLoginId(game.owner().loginId())
+        .buyInChips(game.buyInChips())
+        .buyInAmount(game.buyInAmount())
+        .estimatedTournamentLengthHours(game.estimatedTournamentLengthHours())
+        .blindIntervalMinutes(game.blindIntervalMinutes())
+        .numberOfRebuys(game.numberOfRebuys())
+        .rebuyChips(game.rebuyChips())
+        .rebuyAmount(game.rebuyAmount())
+        .addOnAllowed(game.addOnAllowed())
+        .addOnChips(game.addOnChips())
+        .addOnAmount(game.addOnAmount())
+        .cliffLevel(game.cliffLevel())
+        .numberOfPlayers(game.players() == null ? 0 : game.players().size())
         .build();
   }
 }
