@@ -8,5 +8,5 @@ import java.time.Instant;
 
 @Builder
 @With
-public record CashGameConfiguration(String id, String name, GameType gameType, Instant startTimestamp, Integer smallBlind, Integer bigBlind, Integer maxBuyIn) {
+public record CashGameConfiguration(String name, GameType gameType, Instant startTime, Integer smallBlind, Integer bigBlind, Integer maxBuyIn) {
 }

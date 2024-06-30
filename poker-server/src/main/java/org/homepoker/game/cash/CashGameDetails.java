@@ -18,7 +18,7 @@ public record CashGameDetails(
     String name,
     GameType type,
     GameStatus status,
-    Instant startTimestamp,
+    Instant startTime,
     Integer maxBuyIn,
     User owner,
     Integer smallBlind,

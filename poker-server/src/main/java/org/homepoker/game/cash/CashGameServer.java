@@ -154,7 +154,7 @@ public class CashGameServer {
    */
   private CashGame applyDetailsToGame(CashGame game, CashGameDetails gameDetails) {
 
-    if (game.status() != GameStatus.SCHEDULED) {
+    if (game.status() != null && game.status() != GameStatus.SCHEDULED) {
       throw new ValidationException("You can only update the details of the game prior to it starting");
     }
     Assert.notNull(gameDetails.name(), "The name is required when creating a game.");
@@ -166,7 +166,7 @@ public class CashGameServer {
     //"now" and immediately transition game to a "paused" state. The owner can then choose when they want to
     //"un-pause" game.
     Instant now = Instant.now();
-    Instant startTimestamp = gameDetails.startTimestamp();
+    Instant startTimestamp = gameDetails.startTime();
 
     GameStatus status = GameStatus.SCHEDULED;
     if (startTimestamp == null || now.isAfter(startTimestamp)) {
@@ -192,7 +192,7 @@ public class CashGameServer {
     game = game.withName(gameDetails.name());
     game = game.withType(gameType);
     game = game.withStatus(status);
-    game = game.withStartTimestamp(startTimestamp);
+    game = game.withStartTime(startTimestamp);
     game = game.withMaxBuyIn(gameDetails.maxBuyIn());
     game = game.withSmallBlind(gameDetails.smallBlind());
     game = game.withBigBlind(bigBlind);
@@ -219,7 +219,7 @@ public class CashGameServer {
         .id(game.id())
         .name(game.name())
         .type(game.type())
-        .startTimestamp(game.startTimestamp())
+        .startTime(game.startTime())
         .maxBuyIn(game.maxBuyIn())
         .owner(game.owner())
         .smallBlind(game.smallBlind())

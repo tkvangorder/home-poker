@@ -30,10 +30,9 @@ public class CashGameController {
 
     return gameServer.createGame(
         CashGameDetails.builder()
-            .id(request.id())
             .name(request.name())
             .type(request.gameType())
-            .startTimestamp(request.startTimestamp())
+            .startTime(request.startTime())
             .smallBlind(request.smallBlind())
             .bigBlind(request.bigBlind())
             .maxBuyIn(request.maxBuyIn())
@@ -51,10 +50,10 @@ public class CashGameController {
   CashGameDetails updateGameDetails(@RequestBody CashGameConfiguration configuration, @RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
     return gameServer.updateGameDetails(
         CashGameDetails.builder()
-        .id(configuration.id() == null ? gameId : configuration.id())
+        .id(gameId)
         .name(configuration.name())
         .type(configuration.gameType())
-        .startTimestamp(configuration.startTimestamp())
+        .startTime(configuration.startTime())
         .smallBlind(configuration.smallBlind())
         .bigBlind(configuration.bigBlind())
         .maxBuyIn(configuration.maxBuyIn())
