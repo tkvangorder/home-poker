@@ -12,9 +12,7 @@ import org.springframework.util.Assert;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.springframework.data.mongodb.core.query.Query.query;
 
@@ -157,7 +155,7 @@ public class CashGameServer {
     if (game.status() != null && game.status() != GameStatus.SCHEDULED) {
       throw new ValidationException("You can only update the details of the game prior to it starting");
     }
-    Assert.notNull(gameDetails.name(), "The name is required when creating a game.");
+    Assert.hasText(gameDetails.name(), "The name is required when creating a game.");
     Assert.notNull(gameDetails.maxBuyIn(), "The max buy-in amount is required when creating a game.");
     Assert.notNull(gameDetails.owner(), "The game owner is required when creating a game.");
     Assert.notNull(gameDetails.smallBlind(), "The small blind must be defined for a cash game.");
@@ -224,7 +222,7 @@ public class CashGameServer {
         .owner(game.owner())
         .smallBlind(game.smallBlind())
         .bigBlind(game.bigBlind())
-        .numberOfPlayers(game.players() == null ? 0 : game.players().size())
+        .players(game.players() == null ? Collections.emptyList() : new ArrayList<>(game.players().values()))
         .build();
   }
 

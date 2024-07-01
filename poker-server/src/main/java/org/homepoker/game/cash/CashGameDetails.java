@@ -3,9 +3,11 @@ package org.homepoker.game.cash;
 import lombok.Builder;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
+import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * The game configuration is used to set the parameters for a given poker game.
@@ -23,6 +25,6 @@ public record CashGameDetails(
     User owner,
     Integer smallBlind,
     Integer bigBlind,
-    Integer numberOfPlayers) {
+    List<Player> players) {
 }
 
