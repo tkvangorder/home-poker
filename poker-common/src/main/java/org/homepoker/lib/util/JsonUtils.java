@@ -5,11 +5,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.homepoker.lib.exception.SystemException;
 import org.springframework.lang.Nullable;
 
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 
+@SuppressWarnings("ALL")
 public class JsonUtils {
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -22,41 +23,86 @@ public class JsonUtils {
   private JsonUtils() {
   }
 
+  @Nullable
+  public static String toJson(@Nullable Object o) {
+    return toJson(o, objectMapper);
+  }
 
-  public static String toJson(Object o) {
+  @Nullable
+  public static String toJson(@Nullable Object o, ObjectMapper objectMapper) {
     try {
       return objectMapper.writeValueAsString(o);
     } catch (JsonProcessingException exception) {
-      return "Error : " + exception;
+      throw new SystemException("Error converting object to Json.", exception);
     }
   }
 
   @Nullable
   public static String toFormattedJson(@Nullable Object o) {
+    return toFormattedJson(o, objectMapper);
+  }
+
+  @Nullable
+  public static String toFormattedJson(@Nullable Object o, ObjectMapper objectMapper) {
     if (o == null) return null;
     try {
       return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(o);
     } catch (JsonProcessingException exception) {
-      return "Error : " + exception;
+      throw new SystemException("Error converting object to Json.", exception);
     }
   }
 
-  public static <T> T jsonToObject(JsonNode node, Class<T> type) {
+  @Nullable
+  public static <T> T jsonToObject(@Nullable JsonNode node, Class<T> type) {
+    return jsonToObject(node, type, objectMapper);
+  }
+
+  @Nullable
+  public static <T> T jsonToObject(@Nullable JsonNode node, Class<T> type, ObjectMapper objectMapper) {
+    if (node == null) return null;
     return objectMapper.convertValue(node, type);
   }
 
-  public static <T> T jsonToObject(JsonNode node, TypeReference<T> type) {
+  @Nullable
+  public static <T> T jsonToObject(@Nullable JsonNode node, TypeReference<T> type) {
+    return jsonToObject(node, type, objectMapper);
+  }
+
+  @Nullable
+  public static <T> T jsonToObject(@Nullable JsonNode node, TypeReference<T> type, ObjectMapper objectMapper) {
+    if (node == null) return null;
     return objectMapper.convertValue(node, type);
   }
 
-  public static <T> T jsonToObject(String jsonString, Class<T> valueType) throws IOException {
-    return objectMapper.readValue(jsonString, valueType);
+  @Nullable
+  public static <T> T jsonToObject(@Nullable String jsonString, Class<T> valueType) {
+    return jsonToObject(jsonString, valueType, objectMapper);
   }
 
-  public static <T> T jsonToObject(String jsonString, TypeReference<T> valueTypeReference)
-      throws IOException {
+  @Nullable
+  public static <T> T jsonToObject(@Nullable String jsonString, Class<T> valueType, ObjectMapper objectMapper) {
+    if (jsonString == null) return null;
+    try {
+      return objectMapper.readValue(jsonString, valueType);
+    } catch (JsonProcessingException exception) {
+      throw new SystemException("Error converting JSON string [" + jsonString + "] to instance of ["
+          + valueType.getCanonicalName() + "].", exception);
+    }
+  }
+
+  @Nullable
+  public static <T> T jsonToObject(@Nullable String jsonString, TypeReference<T> valueTypeReference) {
+    return jsonToObject(jsonString, valueTypeReference, objectMapper);
+  }
+
+  @Nullable
+  public static <T> T jsonToObject(@Nullable String jsonString, TypeReference<T> valueTypeReference, ObjectMapper objectMapper) {
+    if (jsonString == null) return null;
+    try {
     return objectMapper.readValue(jsonString, valueTypeReference);
+    } catch (JsonProcessingException exception) {
+      throw new SystemException("Error converting JSON string [" + jsonString + "] to instance of ["
+          + valueTypeReference + "].", exception);
+    }
   }
-
-
 }

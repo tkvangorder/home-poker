@@ -3,7 +3,7 @@ package org.homepoker.rest;
 import org.homepoker.game.cash.CashGameDetails;
 import org.homepoker.game.cash.CashGameServer;
 import org.homepoker.game.cash.CashGameConfiguration;
-import org.homepoker.model.command.GameCommand;
+import org.homepoker.model.command.RegisterUser;
 import org.homepoker.model.game.GameCriteria;
 import org.homepoker.security.PokerUserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -63,7 +63,12 @@ public class CashGameController {
 
   @PostMapping("/{gameId}/register")
   void registerForGame(@RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
-    gameServer.getGameManger(gameId).submitCommand(GameCommand.asRegisterUser(user.toUser(), gameId));
+
+    gameServer.getGameManger(gameId).submitCommand(RegisterUser.builder()
+        .gameId(gameId)
+        .user(user.toUser())
+        .build()
+    );
   }
 
 }
