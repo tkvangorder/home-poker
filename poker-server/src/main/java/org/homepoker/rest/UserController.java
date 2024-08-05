@@ -1,6 +1,5 @@
 package org.homepoker.rest;
 
-import org.homepoker.event.user.UserPasswordChanged;
 import org.homepoker.model.user.*;
 import org.homepoker.security.PokerSecurityProperties;
 import org.homepoker.security.PokerUserDetails;
@@ -34,12 +33,11 @@ public class UserController {
   }
 
   @PostMapping("/{userId}/password")
-  UserPasswordChanged updateUserPassword(@AuthenticationPrincipal PokerUserDetails user, UserPasswordChangeRequest passwordRequest) {
+  void updateUserPassword(@AuthenticationPrincipal PokerUserDetails user, UserPasswordChangeRequest passwordRequest) {
     if (!SecurityUtilities.userIsAdmin(user) && !user.getUsername().equals(passwordRequest.loginId())) {
       throw new SecurityException("Access Denied");
     }
     userManager.updateUserPassword(passwordRequest);
-    return new UserPasswordChanged();
   }
 
 }

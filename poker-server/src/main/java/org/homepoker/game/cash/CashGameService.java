@@ -17,7 +17,7 @@ import java.util.*;
 import static org.springframework.data.mongodb.core.query.Query.query;
 
 @Service
-public class CashGameServer {
+public class CashGameService {
 
   private final CashGameRepository gameRepository;
   private final UserManager userManager;
@@ -27,7 +27,7 @@ public class CashGameServer {
   //without blocking the event loop.
   private final Map<String, GameManager<CashGame>> gameManagerMap = new NonBlockingHashMap<>();
 
-  public CashGameServer(CashGameRepository gameRepository, UserManager userManager, MongoOperations mongoOperations) {
+  public CashGameService(CashGameRepository gameRepository, UserManager userManager, MongoOperations mongoOperations) {
     this.gameRepository = gameRepository;
     this.userManager = userManager;
     this.mongoOperations = mongoOperations;
@@ -44,7 +44,7 @@ public class CashGameServer {
     if (criteria == null ||
         (criteria.status() == null && criteria.startDate() == null && criteria.endDate() == null)) {
       //No criteria provided, return all games.
-      return gameRepository.findAll().stream().map(CashGameServer::gameToGameDetails).toList();
+      return gameRepository.findAll().stream().map(CashGameService::gameToGameDetails).toList();
     }
 
     Criteria mongoCriteria = new Criteria();
@@ -64,7 +64,7 @@ public class CashGameServer {
     return mongoOperations.query(CashGame.class)
         .matching(query(mongoCriteria))
         .all().stream()
-        .map(CashGameServer::gameToGameDetails).toList();
+        .map(CashGameService::gameToGameDetails).toList();
   }
 
   /**
@@ -74,15 +74,13 @@ public class CashGameServer {
    * @return A game manager for the game or an error if the game does not exist.
    */
   public GameManager<CashGame> getGameManger(String gameId) {
-    //There is a map of eagerly fetched Mono<GameManager> instances. If the game manager is
-    //present we pass a new mono to the subscriber (via the defer)
 
     return gameManagerMap.computeIfAbsent(gameId,
         (id) -> {
           //If the game manager is not yet in memory, we retrieve the game from
           //the database and materialize the game manager
           return new CashGameManager(gameRepository.findById(gameId)
-              .orElseThrow(() -> new ValidationException("The cash game [" + gameId + "] does not exist.")));
+              .orElseThrow(() -> new ValidationException("The cash game [" + gameId + "] does not exist.")), this);
         });
   }
 
@@ -96,7 +94,7 @@ public class CashGameServer {
    * @throws ValidationException If a validation error occurs
    */
   public CashGameDetails createGame(CashGameDetails gameDetails) {
-    return CashGameServer.gameToGameDetails(
+    return CashGameService.gameToGameDetails(
         gameRepository.save(applyDetailsToGame(CashGame.builder().build(), gameDetails))
     );
   }
@@ -115,7 +113,7 @@ public class CashGameServer {
     );
 
     //Find the game by ID
-    return CashGameServer.gameToGameDetails(gameRepository.save(applyDetailsToGame(game, details)));
+    return CashGameService.gameToGameDetails(gameRepository.save(applyDetailsToGame(game, details)));
   }
 
   /**
@@ -226,4 +224,7 @@ public class CashGameServer {
         .build();
   }
 
+  public CashGame saveGame(CashGame game) {
+    return gameRepository.save(game);
+  }
 }

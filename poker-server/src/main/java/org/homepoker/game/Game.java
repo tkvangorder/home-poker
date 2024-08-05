@@ -5,7 +5,10 @@ import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -53,9 +56,14 @@ public interface Game {
    */
   Map<String, Player> players();
 
+  <G extends Game> G withPlayers(Map<String, Player> players);
+
   /**
    * A game may have multiple tables depending on how many players are registered/participating in the game.
    * Each table can hold up to nine players and as players come and go, the players may be moved to different tables.
    */
   List<Table> tables();
+
+  @LastModifiedDate
+  Instant lastModified();
 }

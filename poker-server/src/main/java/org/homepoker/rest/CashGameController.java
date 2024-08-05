@@ -1,9 +1,10 @@
 package org.homepoker.rest;
 
 import org.homepoker.game.cash.CashGameDetails;
-import org.homepoker.game.cash.CashGameServer;
+import org.homepoker.game.cash.CashGameService;
 import org.homepoker.game.cash.CashGameConfiguration;
-import org.homepoker.model.command.RegisterUser;
+import org.homepoker.model.command.RegisterForGame;
+import org.homepoker.model.command.UnregisterFromGame;
 import org.homepoker.model.game.GameCriteria;
 import org.homepoker.security.PokerUserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,9 +15,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/cash-games")
 public class CashGameController {
-  private final CashGameServer gameServer;
+  private final CashGameService gameServer;
 
-  public CashGameController(CashGameServer gameServer) {
+  public CashGameController(CashGameService gameServer) {
     this.gameServer = gameServer;
   }
 
@@ -64,7 +65,17 @@ public class CashGameController {
   @PostMapping("/{gameId}/register")
   void registerForGame(@RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
 
-    gameServer.getGameManger(gameId).submitCommand(RegisterUser.builder()
+    gameServer.getGameManger(gameId).submitCommand(RegisterForGame.builder()
+        .gameId(gameId)
+        .user(user.toUser())
+        .build()
+    );
+  }
+
+  @PostMapping("/{gameId}/unregister")
+  void unregisterFromGame(@RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
+
+    gameServer.getGameManger(gameId).submitCommand(UnregisterFromGame.builder()
         .gameId(gameId)
         .user(user.toUser())
         .build()

@@ -37,7 +37,8 @@ public record TournamentGame(
     boolean addOnAllowed,
     Integer addOnChips,
     Integer addOnAmount,
-    BlindSchedule blindSchedule
+    BlindSchedule blindSchedule,
+    Instant lastModified
 ) implements Game {
 
 }

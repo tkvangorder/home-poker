@@ -4,14 +4,14 @@ import org.homepoker.game.GameManager;
 
 public class CashGameManager extends GameManager<CashGame> {
 
-  private final CashGame game;
+  CashGameService cashGameService;
 
-  public CashGameManager(CashGame game) {
-    this.game = game;
+  public CashGameManager(CashGame game, CashGameService cashGameService) {
+    super(game);
   }
 
   @Override
-  protected CashGame getGame() {
-    return game;
+  protected CashGame persistGameState(CashGame game) {
+    return cashGameService.saveGame(game);
   }
 }

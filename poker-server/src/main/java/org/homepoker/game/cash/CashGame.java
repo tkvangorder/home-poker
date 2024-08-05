@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 
 @Builder
-@With
 public record CashGame(
     String id,
     String name,
@@ -24,11 +23,17 @@ public record CashGame(
     Instant endTime,
     GameStatus status,
     User owner,
+    @With
     Map<String, Player> players,
     List<Table> tables,
     Integer smallBlind,
     Integer bigBlind,
-    Integer maxBuyIn
-    ) implements Game {
+    Integer maxBuyIn,
+    Instant lastModified
+    ) implements Fred {
+    @Override
+    public <G extends Game> G withPlayers(Map<String, Player> players) {
+        return null;
+    }
 }
 

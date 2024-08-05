@@ -32,27 +32,27 @@ import java.util.Set;
 public interface GameCommand {
 
   @JsonTypeId
-  CommandId commandId();
+  GameCommandType commandId();
   String gameId();
   @JsonIgnore
   User user();
 
   /**
-   * This method will scan for all game commands (annotated with GameCommandType) and dynamically register those types with
-   * the given object mapper. This allows the object mapper to polymorphically deserialize a GameCommand
-   * into the correct subtype.
+   * This method will scan for all game commands (annotated with GameCommandMarker) and dynamically register those types with
+   * the given object mapper. This allows the object mapper perform polymorphic deserialization of a GameCommand into
+   * the correct subtype.
    *
    * @param objectMapper The object mapper to register the subtypes with
    */
   static void registerCommandsWithJackson(ObjectMapper objectMapper) {
     ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
-    scanner.addIncludeFilter(new AnnotationTypeFilter((GameCommandType.class)));
+    scanner.addIncludeFilter(new AnnotationTypeFilter((GameCommandMarker.class)));
 
     Set<BeanDefinition> beanDefinitions = scanner.findCandidateComponents("org.homepoker.model.command");
     for (BeanDefinition beanDefinition : beanDefinitions) {
       if (beanDefinition instanceof AnnotatedBeanDefinition annotatedDefinition) {
         Map<String, Object> annotationAttributes = annotatedDefinition.getMetadata()
-            .getAnnotationAttributes(GameCommandType.class.getCanonicalName());
+            .getAnnotationAttributes(GameCommandMarker.class.getCanonicalName());
 
         String subTypeName = annotationAttributes == null ? null : annotationAttributes.get("value").toString();
         if (subTypeName == null) {
