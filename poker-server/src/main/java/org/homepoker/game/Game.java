@@ -64,6 +64,8 @@ public interface Game {
    */
   List<Table> tables();
 
+  <G extends Game> G withTables(List<Table> tables);
+
   @LastModifiedDate
   Instant lastModified();
 }
