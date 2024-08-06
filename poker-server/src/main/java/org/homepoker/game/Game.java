@@ -5,7 +5,6 @@ import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
-import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.Instant;
@@ -17,7 +16,7 @@ import java.util.Map;
  *
  * @author tyler.vangorder
  */
-public interface Game {
+public interface Game<G extends Game<G>> {
 
   /**
    * Unique Id of the game.
@@ -56,7 +55,7 @@ public interface Game {
    */
   Map<String, Player> players();
 
-  <G extends Game> G withPlayers(Map<String, Player> players);
+  G withPlayers(Map<String, Player> players);
 
   /**
    * A game may have multiple tables depending on how many players are registered/participating in the game.
@@ -64,7 +63,7 @@ public interface Game {
    */
   List<Table> tables();
 
-  <G extends Game> G withTables(List<Table> tables);
+  G withTables(List<Table> tables);
 
   @LastModifiedDate
   Instant lastModified();

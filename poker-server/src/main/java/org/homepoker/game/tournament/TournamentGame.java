@@ -39,6 +39,6 @@ public record TournamentGame(
     Integer addOnAmount,
     BlindSchedule blindSchedule,
     Instant lastModified
-) implements Game {
+) implements Game<TournamentGame> {
 
 }

@@ -20,7 +20,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
-public abstract class GameManager<T extends Game> {
+public abstract class GameManager<T extends Game<T>> {
 
   // The interval at which an active game's in-memory state is saved to the underlying database.
   private static final int SAVE_INTERVAL_SECONDS = 5;
