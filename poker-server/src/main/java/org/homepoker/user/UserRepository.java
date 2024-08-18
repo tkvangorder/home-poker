@@ -2,6 +2,7 @@ package org.homepoker.user;
 
 import org.homepoker.model.user.User;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -12,5 +13,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface UserRepository extends MongoRepository<User, String> {
 
+  @Nullable
   User findByLoginId(String loginId);
 }

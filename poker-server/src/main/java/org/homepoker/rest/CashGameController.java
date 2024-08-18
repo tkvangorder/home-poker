@@ -1,5 +1,7 @@
 package org.homepoker.rest;
 
+import org.homepoker.game.GameManager;
+import org.homepoker.game.cash.CashGame;
 import org.homepoker.game.cash.CashGameDetails;
 import org.homepoker.game.cash.CashGameService;
 import org.homepoker.game.cash.CashGameConfiguration;
@@ -64,12 +66,14 @@ public class CashGameController {
 
   @PostMapping("/{gameId}/register")
   void registerForGame(@RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
+    GameManager<CashGame> gameManager = gameServer.getGameManger(gameId);
 
     gameServer.getGameManger(gameId).submitCommand(RegisterForGame.builder()
         .gameId(gameId)
         .user(user.toUser())
         .build()
     );
+
   }
 
   @PostMapping("/{gameId}/unregister")

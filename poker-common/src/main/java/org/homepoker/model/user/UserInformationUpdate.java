@@ -1,7 +1,7 @@
 package org.homepoker.model.user;
 
 import lombok.Builder;
-import lombok.Value;
+import lombok.With;
 
 /**
  * Domain object used to update information about the user. The loginId is used to
@@ -16,5 +16,6 @@ import lombok.Value;
  * @param phone   The user's phone number.
  */
 @Builder
+@With
 public record UserInformationUpdate(String loginId, String email, String alias, String name, String phone) {
 }

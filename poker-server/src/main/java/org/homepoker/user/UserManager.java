@@ -21,6 +21,7 @@ import java.util.List;
 
 import static org.springframework.data.mongodb.core.query.Query.query;
 
+@SuppressWarnings("ALL")
 @Service
 public class UserManager {
 
@@ -159,6 +160,10 @@ public class UserManager {
      return userRepository.findAll().stream().map(UserManager::filterPassword).toList();
    }
 
+   User example = User.builder()
+       .loginId(criteria.userLoginId())
+       .email(criteria.userEmail())
+       .build();
    Criteria mongoCriteria = new Criteria();
 
    if (StringUtils.hasText(criteria.userLoginId())) {
@@ -167,6 +172,7 @@ public class UserManager {
    if (StringUtils.hasText(criteria.userEmail())) {
      mongoCriteria.and("email").regex(criteria.userEmail());
    }
+
 
    return mongoOperations.query(User.class)
        .matching(query(mongoCriteria))
@@ -184,7 +190,7 @@ public class UserManager {
     if (user == null) {
       throw new ValidationException("The user does not exist.");
     } else {
-      userRepository.delete(user);
+      userRepository.deleteById(loginId);
     }
   }
 

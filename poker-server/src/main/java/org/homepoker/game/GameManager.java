@@ -76,58 +76,63 @@ public abstract class GameManager<T extends Game<T>> {
       return;
     }
 
-    GameContext<T> gameContext = new GameContext<>(gameState);
+    try {
+      GameContext<T> gameContext = new GameContext<>(gameState);
 
-    // Process queued Commands
-    List<GameCommand> commands = new ArrayList<>();
-    pendingCommands.drain(commands::add);
+      // Process queued Commands
+      List<GameCommand> commands = new ArrayList<>();
+      pendingCommands.drain(commands::add);
 
-    for (GameCommand command : commands) {
-      try {
-        gameContext = applyCommand(command, gameContext);
-      } catch (ValidationException e) {
-        if (gameContext.gameStatus() == GameStatus.SCHEDULED) {
-          // This can happen if a user is attempting to register/unregister from a game that is not active. The
-          // processGameTick is called on the same thread as the RestController and we want to bubble that to the
-          // client.
+      for (GameCommand command : commands) {
+        try {
+          gameContext = applyCommand(command, gameContext);
+        } catch (ValidationException e) {
+          if (gameContext.gameStatus() == GameStatus.SCHEDULED) {
+            // This can happen if a user is attempting to register/unregister from a game that is not active. The
+            // processGameTick is called on the same thread as the RestController and we want to bubble that to the
+            // client.
+            throw e;
+          }
+          gameContext = gameContext.queueEvent(UserMessage.builder()
+              .userId(command.user().loginId())
+              .severity(MessageSeverity.ERROR)
+              .message(e.getMessage())
+              .build());
+        } catch (Exception e) {
+          log.error("An error occurred while while processing command [" + command + "].\n" + e.getMessage(), e);
+          // TODO It might be useful to emit an event here that can be broadcast to listeners that are interested in such things.
           throw e;
         }
-        gameContext = gameContext.queueEvent(UserMessage.builder()
-            .userId(command.user().loginId())
-            .severity(MessageSeverity.ERROR)
-            .message(e.getMessage())
-            .build());
-      } catch (Exception e) {
-        log.error("An error occurred while while processing command [" + command + "].\n" + e.getMessage(), e);
-        // TODO It might be useful to emit an event here that can be broadcast to listeners that are interested in such things.
       }
-    }
 
-    if (gameContext.gameStatus() == GameStatus.ACTIVE || gameContext.gameStatus() == GameStatus.PAUSED) {
-      // If the game is active or paused, we need to see if the state of the game/tables has changed based on either
-      // the commands that were processed or time passing.
+      if (gameContext.gameStatus() == GameStatus.ACTIVE || gameContext.gameStatus() == GameStatus.PAUSED) {
+        // If the game is active or paused, we need to see if the state of the game/tables has changed based on either
+        // the commands that were processed or time passing.
 
-      // TODO Top Level Game Processing
-      // TODO ProcessEachTable
-    }
-
-    // TODO Process Events
-    this.gameState = gameContext.game();
-
-    if (gameContext.gameStatus() == GameStatus.ACTIVE || gameContext.gameStatus() == GameStatus.PAUSED) {
-      // If the game is active or paused, there are active threads firing for each "tick", we want to periodically
-      // save the in-memory state of the game to the database.
-
-      if (gameState.lastModified() == null || gameState.lastModified().plusSeconds(SAVE_INTERVAL_SECONDS).isBefore(Instant.now())) {
-        saveGame();
+        // TODO Top Level Game Processing
+        // TODO ProcessEachTable
       }
-    } else {
-      // If the game is not active or paused, we can save the game state to the database immediately.
-      saveGame();
-    }
 
-    // Release the lock
-    tickLock.set(false);
+      // TODO Process Events
+
+      // Update teh game state
+      this.gameState = gameContext.game();
+
+      if (gameContext.gameStatus() == GameStatus.ACTIVE || gameContext.gameStatus() == GameStatus.PAUSED) {
+        // If the game is active or paused, there are active threads firing for each "tick", we want to periodically
+        // save the in-memory state of the game to the database.
+
+        if (gameState.lastModified() == null || gameState.lastModified().plusSeconds(SAVE_INTERVAL_SECONDS).isBefore(Instant.now())) {
+          gameState = saveGame();
+        }
+      } else {
+        // If the game is not active or paused, we can save the game state to the database immediately.
+        gameState = saveGame();
+      }
+    } finally {
+      // Release the lock
+      tickLock.set(false);
+    }
   }
 
   /**
@@ -144,19 +149,13 @@ public abstract class GameManager<T extends Game<T>> {
 
   protected final GameContext<T> applyCommand(GameCommand command, GameContext<T> gameContext) {
 
-    GameContext<T> context = gameContext;
-    switch (command) {
-      case RegisterForGame gameCommand:
-        context = registerForGame(gameCommand, gameContext);
-        break;
-      case UnregisterFromGame gameCommand:
-        context = unregisterFromGame(gameCommand, gameContext);
-        break;
-      default:
+    return switch (command) {
+      case RegisterForGame gameCommand -> registerForGame(gameCommand, gameContext);
+      case UnregisterFromGame gameCommand -> unregisterFromGame(gameCommand, gameContext);
+      default ->
         // Allow the subclass to handle any commands that are specific to child game manager.
-        return applyGameSpecificCommand(command, gameContext);
-    }
-    return gameContext;
+          applyGameSpecificCommand(command, gameContext);
+    };
   }
 
   private GameContext<T> registerForGame(RegisterForGame registerForGame, GameContext<T> gameContext) {
@@ -185,7 +184,15 @@ public abstract class GameManager<T extends Game<T>> {
       throw new ValidationException("You can only unregister from the game prior to it starting.");
     }
 
-    return gameContext;
+    T game = gameContext.game();
+
+    if (!game.players().containsKey(registerForGame.user().loginId())) {
+      throw new ValidationException("You are not registered for this game.");
+    }
+
+    Map<String, Player> players = new HashMap<>(game.players());
+    players.remove(registerForGame.user().loginId());
+    return gameContext.withGame(game.withPlayers(players));
 
   }
 
