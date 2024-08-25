@@ -34,23 +34,23 @@ public class TournamentGameServerImpl implements TournamentGameServer {
   @Override
   public List<TournamentGameDetails> findGames(GameCriteria criteria) {
     if (criteria == null ||
-        (criteria.status() == null && criteria.startDate() == null && criteria.endDate() == null)) {
+        (criteria.statuses() == null && criteria.startTime() == null && criteria.endTime() == null)) {
       //No criteria provided, return all games.
       return gameRepository.findAll().stream().map(TournamentGameServerImpl::gameToGameDetails).toList();
     }
 
     Criteria mongoCriteria = new Criteria();
 
-    if (criteria.status() != null) {
-      mongoCriteria.and("status").is(criteria.status());
+    if (criteria.statuses() != null) {
+      mongoCriteria.and("status").in(criteria.statuses());
     }
-    if (criteria.startDate() != null) {
-      mongoCriteria.and("startTimestamp").gte(criteria.startDate());
+    if (criteria.startTime() != null) {
+      mongoCriteria.and("startTime").gte(criteria.startTime());
     }
-    if (criteria.endDate() != null) {
+    if (criteria.endTime() != null) {
       //The end date is intended to include any timestamp in that day, we just add one to the
       //day to insure we get all games on the end date.
-      mongoCriteria.and("endTimestamp").lte(criteria.endDate().plus(1, ChronoUnit.DAYS));
+      mongoCriteria.and("endTime").lte(criteria.endTime().plus(1, ChronoUnit.DAYS));
     }
 
     return mongoOperations.query(TournamentGame.class)

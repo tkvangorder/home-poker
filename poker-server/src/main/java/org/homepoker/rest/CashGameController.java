@@ -19,13 +19,14 @@ import java.util.List;
 public class CashGameController {
   private final CashGameService gameServer;
 
+
   public CashGameController(CashGameService gameServer) {
     this.gameServer = gameServer;
   }
 
   @PostMapping("/search")
   List<CashGameDetails> findGames(@RequestBody GameCriteria criteria) {
-    return gameServer.findGames(criteria);
+    return gameServer.findGames(criteria == null ? GameCriteria.builder().build() : criteria);
   }
 
   @PostMapping("")
@@ -73,7 +74,6 @@ public class CashGameController {
         .user(user.toUser())
         .build()
     );
-
   }
 
   @PostMapping("/{gameId}/unregister")

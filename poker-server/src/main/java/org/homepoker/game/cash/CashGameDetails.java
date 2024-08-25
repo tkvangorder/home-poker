@@ -5,6 +5,7 @@ import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
+import org.springframework.lang.Nullable;
 
 import java.time.Instant;
 import java.util.List;
@@ -20,10 +21,12 @@ public record CashGameDetails(
     String name,
     GameType type,
     GameStatus status,
+    @Nullable
     Instant startTime,
     Integer maxBuyIn,
     User owner,
     Integer smallBlind,
+    @Nullable
     Integer bigBlind,
     List<Player> players) {
 }

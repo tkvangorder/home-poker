@@ -11,9 +11,12 @@ import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.game.PlayerStatus;
 import org.homepoker.model.user.User;
+import org.homepoker.security.SecurityUtilities;
+import org.homepoker.user.UserManager;
 import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscLinkedQueue;
+import org.springframework.lang.Nullable;
 
 import java.time.Instant;
 import java.util.*;
@@ -45,24 +48,46 @@ public abstract class GameManager<T extends Game<T>> {
    */
   private T gameState;
 
+  private final UserManager userManager;
+  private final SecurityUtilities securityUtilities;
+
   /**
    * This is an atomic boolean that is used to ensure that only one game tick is processed at a time.
    */
   private final AtomicBoolean tickLock = new AtomicBoolean(false);
 
-  public GameManager(T gameState) {
+  public GameManager(T gameState, UserManager userManager, SecurityUtilities securityUtilities) {
     this.gameState = gameState;
+    this.userManager = userManager;
+    this.securityUtilities = securityUtilities;
   }
 
-  public Optional<GameListener> getGameListener(User user) {
-    return Optional.ofNullable(gameListeners.get(user.loginId()));
+  @Nullable
+  public GameListener getGameListener(User user) {
+    return gameListeners.get(user.loginId());
   }
 
   public void addGameListener(GameListener listener) {
   }
 
+  public String gameId() {
+    return gameState.id();
+  }
+
+  public GameStatus gameStatus() {
+    return gameState.status();
+  }
+
   public void removeGameListener(GameListener listener) {
     // TODO Auto-generated method stub
+  }
+
+  protected UserManager getUserManager() {
+    return userManager;
+  }
+
+  protected SecurityUtilities getSecurityUtilities() {
+    return securityUtilities;
   }
 
   public void submitCommand(GameCommand command) {
@@ -71,7 +96,7 @@ public abstract class GameManager<T extends Game<T>> {
 
   public void processGameTick() {
 
-    if (tickLock.compareAndSet(false, true)) {
+    if (!tickLock.compareAndSet(false, true)) {
       // Any additional virtual threads should simply return if there is already a game tick in progress.
       return;
     }
@@ -87,12 +112,6 @@ public abstract class GameManager<T extends Game<T>> {
         try {
           gameContext = applyCommand(command, gameContext);
         } catch (ValidationException e) {
-          if (gameContext.gameStatus() == GameStatus.SCHEDULED) {
-            // This can happen if a user is attempting to register/unregister from a game that is not active. The
-            // processGameTick is called on the same thread as the RestController and we want to bubble that to the
-            // client.
-            throw e;
-          }
           gameContext = gameContext.queueEvent(UserMessage.builder()
               .userId(command.user().loginId())
               .severity(MessageSeverity.ERROR)
@@ -115,7 +134,7 @@ public abstract class GameManager<T extends Game<T>> {
 
       // TODO Process Events
 
-      // Update teh game state
+      // Update the game state
       this.gameState = gameContext.game();
 
       if (gameContext.gameStatus() == GameStatus.ACTIVE || gameContext.gameStatus() == GameStatus.PAUSED) {
@@ -175,7 +194,7 @@ public abstract class GameManager<T extends Game<T>> {
         .status(PlayerStatus.REGISTERED)
         .build());
 
-    return gameContext.withGame(game.withPlayers(players));
+    return gameContext.withGame(game.withPlayers(players)).withForceUpdate(true);
   }
 
   private GameContext<T> unregisterFromGame(UnregisterFromGame registerForGame, GameContext<T> gameContext) {
@@ -192,7 +211,7 @@ public abstract class GameManager<T extends Game<T>> {
 
     Map<String, Player> players = new HashMap<>(game.players());
     players.remove(registerForGame.user().loginId());
-    return gameContext.withGame(game.withPlayers(players));
+    return gameContext.withGame(game.withPlayers(players)).withForceUpdate(true);
 
   }
 

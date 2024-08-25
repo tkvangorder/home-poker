@@ -1,13 +1,16 @@
 package org.homepoker.game.cash;
 
 import org.homepoker.game.GameManager;
+import org.homepoker.security.SecurityUtilities;
+import org.homepoker.user.UserManager;
 
 public class CashGameManager extends GameManager<CashGame> {
 
-  CashGameService cashGameService;
+  private final CashGameService cashGameService;
 
-  public CashGameManager(CashGame game, CashGameService cashGameService) {
-    super(game);
+  public CashGameManager(CashGame game, CashGameService cashGameService, UserManager userManager, SecurityUtilities securityUtilities) {
+    super(game, userManager, securityUtilities);
+    this.cashGameService = cashGameService;
   }
 
   @Override
