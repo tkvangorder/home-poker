@@ -8,7 +8,7 @@ import org.homepoker.model.game.*;
 import org.homepoker.security.SecurityUtilities;
 import org.homepoker.threading.VirtualThreadManager;
 import org.homepoker.user.UserManager;
-import org.homepoker.utils.TimeUtils;
+import org.homepoker.utils.DateTimeUtils;
 import org.jctools.maps.NonBlockingHashMap;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -100,13 +100,13 @@ public class CashGameService {
 
   protected void loadNewGames() {
     try {
-      lastGameCheck = TimeUtils.computeNextWallMinute();
+      lastGameCheck = DateTimeUtils.computeNextWallMinute();
 
-      Instant startOfDay = TimeUtils.computeNextWallMinute();
+      Instant startOfDay = DateTimeUtils.getStartOfDayInCurrentZone();
       Instant endOfDay = startOfDay.plus(Duration.ofDays(1));
 
       GameCriteria criteria = GameCriteria.builder()
-          .statuses(List.of(GameStatus.SCHEDULED, GameStatus.PAUSED, GameStatus.PAUSED))
+          .statuses(List.of(GameStatus.SCHEDULED, GameStatus.ACTIVE, GameStatus.PAUSED))
           .startTime(startOfDay)
           .endTime(endOfDay)
           .build();
@@ -119,6 +119,7 @@ public class CashGameService {
       log.error("Error loading new games", e);
     }
   }
+
   @PreDestroy
   public void shutdown() {
     gamesScheduler.cancel(true);
@@ -301,6 +302,7 @@ public class CashGameService {
         .id(game.id())
         .name(game.name())
         .type(game.type())
+        .status(game.status())
         .startTime(game.startTime())
         .maxBuyIn(game.maxBuyIn())
         .owner(game.owner())

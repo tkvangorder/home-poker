@@ -7,9 +7,9 @@ import org.homepoker.model.game.GameStatus;
 import java.util.ArrayList;
 import java.util.List;
 
-public record GameContext<T extends Game<T>>(@With T game, List<GameEvent> events, @With boolean forceUpdate) {
-  public GameContext(T game) {
-    this(game, List.of(), false);
+public record GameContext<T extends Game<T>>(@With T game, GameSettings settings, List<GameEvent> events, @With boolean forceUpdate) {
+  public GameContext(T game, GameSettings settings) {
+    this(game, settings, List.of(), false);
   }
 
   public GameStatus gameStatus() {
@@ -23,6 +23,6 @@ public record GameContext<T extends Game<T>>(@With T game, List<GameEvent> event
   }
 
   private GameContext<T> withEvents(List<GameEvent> events) {
-    return new GameContext<>(game, events, forceUpdate);
+    return new GameContext<>(game, settings, events, forceUpdate);
   }
 }

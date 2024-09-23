@@ -1,6 +1,7 @@
 package org.homepoker.game.cash;
 
 import lombok.Builder;
+import lombok.With;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
@@ -16,6 +17,7 @@ import java.util.List;
  * @author tyler.vangorder
  */
 @Builder
+@With
 public record CashGameDetails(
     String id,
     String name,

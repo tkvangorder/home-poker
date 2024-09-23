@@ -25,9 +25,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public abstract class GameManager<T extends Game<T>> {
 
-  // The interval at which an active game's in-memory state is saved to the underlying database.
-  private static final int SAVE_INTERVAL_SECONDS = 5;
-
   /**
    * This is a non-blocking queue that allows multiple threads to add commands to the queue and a single thread (the game loop thread) that will drain those commands.
    * The contract guarantee (multi-producers, one consumer) is defined by the implementation MpscLinkedQueue and the capacity is unbounded.
@@ -100,9 +97,8 @@ public abstract class GameManager<T extends Game<T>> {
       // Any additional virtual threads should simply return if there is already a game tick in progress.
       return;
     }
-
     try {
-      GameContext<T> gameContext = new GameContext<>(gameState);
+      GameContext<T> gameContext = new GameContext<>(gameState, gameSettings());
 
       // Process queued Commands
       List<GameCommand> commands = new ArrayList<>();
@@ -141,7 +137,8 @@ public abstract class GameManager<T extends Game<T>> {
         // If the game is active or paused, there are active threads firing for each "tick", we want to periodically
         // save the in-memory state of the game to the database.
 
-        if (gameState.lastModified() == null || gameState.lastModified().plusSeconds(SAVE_INTERVAL_SECONDS).isBefore(Instant.now())) {
+        if (gameContext.forceUpdate() || gameState.lastModified() == null ||
+            gameState.lastModified().plusSeconds(gameSettings().saveIntervalSeconds).isBefore(Instant.now())) {
           gameState = saveGame();
         }
       } else {
@@ -164,6 +161,9 @@ public abstract class GameManager<T extends Game<T>> {
     return persistGameState(gameState);
   }
 
+  protected GameSettings gameSettings() {
+    return GameSettings.DEFAULT;
+  }
   protected abstract T persistGameState(T game);
 
   protected final GameContext<T> applyCommand(GameCommand command, GameContext<T> gameContext) {

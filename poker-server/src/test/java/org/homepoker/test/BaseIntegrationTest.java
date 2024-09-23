@@ -23,6 +23,4 @@ public class BaseIntegrationTest {
   @LocalServerPort
   protected int serverPort;
 
-
-
 }

@@ -45,7 +45,7 @@ public record CashGame(
     public static class CashGameBuilder {
 
         CashGame build() {
-            return new CashGame(id, name, format, type, startTime, endTime, status, owner, smallBlind, bigBlind,
+            return new CashGame(id, name, format, type, startTime, endTime, status == null ? GameStatus.SCHEDULED : status, owner, smallBlind, bigBlind,
                 maxBuyIn, lastModified, players == null ? Map.of() : players, tables == null ? List.of() : tables);
         }
 
