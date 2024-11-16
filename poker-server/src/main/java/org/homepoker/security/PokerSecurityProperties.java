@@ -1,8 +1,8 @@
 package org.homepoker.security;
 
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 
 import java.time.Duration;

@@ -6,7 +6,7 @@ import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.List;

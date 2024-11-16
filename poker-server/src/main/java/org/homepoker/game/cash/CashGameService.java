@@ -234,7 +234,7 @@ public class CashGameService {
   }
 
   /**
-   * This method will apply the game details to the game and return a mono for the cash game.
+   * This method will apply the game details to the game and return the cash game.
    *
    * @param game        The game that will have the details applied to it.
    * @param gameDetails The game details.
@@ -251,14 +251,13 @@ public class CashGameService {
     Assert.notNull(gameDetails.owner(), "The game owner is required when creating a game.");
     Assert.notNull(gameDetails.smallBlind(), "The small blind must be defined for a cash game.");
 
-    //If the start date is not specified or is before the current date, we just default to
-    //"now" and immediately transition game to a "paused" state. The owner can then choose when they want to
-    //"un-pause" game.
+    //If the start date is not specified, we just default to "now" and immediately transition game to a "paused" state.
+    // The owner can then choose when they want to "un-pause" game.
     Instant now = Instant.now();
     Instant startTime = gameDetails.startTime();
 
     GameStatus status = GameStatus.SCHEDULED;
-    if (startTime == null || now.isAfter(startTime)) {
+    if (startTime == null) {
       startTime = now;
       status = GameStatus.PAUSED;
     }
@@ -314,5 +313,23 @@ public class CashGameService {
 
   public CashGame saveGame(CashGame game) {
     return gameRepository.save(game);
+  }
+
+  /**
+   * Used for testing purposes only.
+   *
+   * @param lastGameCheck The last game check time can be set in the past to test the game loop (and ensure it loads new games).
+   */
+  protected void setLastGameCheck(Instant lastGameCheck) {
+    this.lastGameCheck = lastGameCheck;
+  }
+
+  /**
+   * Used for testing purposes only.
+   *
+   * @return A copy of the game managerMap.
+   */
+  protected Map<String, GameManager<CashGame>> getGameManagerMap() {
+    return gameManagerMap;
   }
 }

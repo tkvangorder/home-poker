@@ -7,12 +7,12 @@ import org.homepoker.model.user.UserCriteria;
 import org.homepoker.model.user.UserInformationUpdate;
 import org.homepoker.model.user.UserPasswordChangeRequest;
 import org.homepoker.security.SecurityUtilities;
+import org.jspecify.annotations.Nullable;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.index.Index;
 import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -78,7 +78,7 @@ public class UserManager {
     try {
       return filterPassword(userRepository.insert(user));
     } catch (DuplicateKeyException e) {
-      throw new ValidationException("There is already a user registered with that loginId or email.");
+      throw new ValidationException("EXISTING_USER", "There is already a user registered with that loginId or email.");
     }
   }
 

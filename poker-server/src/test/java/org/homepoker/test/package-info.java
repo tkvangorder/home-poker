@@ -1,4 +1,4 @@
-@NonNullApi
+@NullMarked
 package org.homepoker.test;
 
-import org.springframework.lang.NonNullApi;
+import org.jspecify.annotations.NullMarked;

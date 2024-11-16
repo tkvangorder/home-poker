@@ -1,8 +1,8 @@
 package org.homepoker.user;
 
 import org.homepoker.model.user.User;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 
 /**

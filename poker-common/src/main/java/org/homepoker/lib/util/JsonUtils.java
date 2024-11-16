@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.homepoker.lib.exception.SystemException;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.text.SimpleDateFormat;
 

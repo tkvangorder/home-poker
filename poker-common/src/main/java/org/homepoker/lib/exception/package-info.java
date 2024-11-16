@@ -1,6 +1,4 @@
-@NonNullApi
-@NonNullFields
+@NullMarked
 package org.homepoker.lib.exception;
 
-import org.springframework.lang.NonNullApi;
-import org.springframework.lang.NonNullFields;
+import org.jspecify.annotations.NullMarked;

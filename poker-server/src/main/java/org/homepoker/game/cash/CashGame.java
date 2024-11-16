@@ -8,7 +8,7 @@ import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -24,8 +24,7 @@ public record CashGame(
     GameFormat format,
     GameType type,
     Instant startTime,
-    @Nullable
-    Instant endTime,
+    @Nullable Instant endTime,
     GameStatus status,
     User owner,
     Integer smallBlind,
@@ -38,18 +37,29 @@ public record CashGame(
 
     public CashGame withPlayer(Player player) {
         Map<String, Player> players = new HashMap<>(this.players);
+        if (player.user().id() == null) {
+            throw new IllegalArgumentException("Player must have a user id");
+        }
         players.put(player.user().id(), player);
         return this.withPlayers(Map.copyOf(players));
     }
 
     public static class CashGameBuilder {
 
+        @SuppressWarnings("FieldMayBeFinal")
+        private GameStatus status = GameStatus.SCHEDULED;
+        private Map<String, Player> players = Map.of();
+        private List<Table> tables = List.of();
+
         CashGame build() {
-            return new CashGame(id, name, format, type, startTime, endTime, status == null ? GameStatus.SCHEDULED : status, owner, smallBlind, bigBlind,
-                maxBuyIn, lastModified, players == null ? Map.of() : players, tables == null ? List.of() : tables);
+            return new CashGame(id, name, format, type, startTime, endTime, status, owner, smallBlind, bigBlind,
+                maxBuyIn, lastModified, players, tables);
         }
 
         CashGameBuilder player(Player player) {
+            if (player.user().id() == null) {
+                throw new IllegalArgumentException("Player must have a user id");
+            }
             Map<String, Player> players = new HashMap<>(this.players);
             players.put(player.user().id(), player);
             this.players = Map.copyOf(players);
