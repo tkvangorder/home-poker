@@ -60,8 +60,9 @@ public class CashGameServiceTest extends BaseIntegrationTest {
       assertThat(game3.status()).isEqualTo(GameStatus.SCHEDULED);
       assertThat(game3.startTime()).isEqualTo(game3Start);
     } finally {
-      // Clean up afterwards.
+      // Clean up afterward.
       cashGameService.getGameManagerMap().clear();
+      cashGameRepository.deleteAll();
     }
   }
 
@@ -94,12 +95,48 @@ public class CashGameServiceTest extends BaseIntegrationTest {
 
     } finally {
 
-      // Clean up afterwards.
+      // Clean up afterward.
       cashGameService.getGameManagerMap().clear();
+      cashGameRepository.deleteAll();
     }
-
-    
   }
 
+  @Test
+  public void processGames() {
+    User user = createUser(TestDataHelper.user("fred", "password", "Fred"));
 
+    Instant game1Start = DateTimeUtils.computeNextWallMinute();
+    Instant game2Start = game1Start.plus(1, MINUTES);
+    Instant game3Start = game1Start.plus(-2, MINUTES);
+
+    try {
+      cashGameService.setLastGameCheck(Instant.now().minus(1, MINUTES));
+      CashGameDetails details1 = cashGameService.createGame(TestDataHelper.cashGameDetails("Test Game 1", user)
+          .withStartTime(game1Start)
+      );
+      CashGameDetails details2 = cashGameService.createGame(TestDataHelper.cashGameDetails("Test Game 2", user)
+          .withStartTime(game2Start)
+      );
+      CashGameDetails details3 = cashGameService.createGame(TestDataHelper.cashGameDetails("Test Game 3", user)
+          .withStartTime(game3Start)
+      );
+
+      cashGameService.processGames();
+
+      //Thread.sleep(10);
+      Map<String, GameManager<CashGame>> gameManagerMap = cashGameService.getGameManagerMap();
+      assertThat(gameManagerMap).hasSize(3);
+      assertThat(gameManagerMap.get(details1.id())).isNotNull();
+      assertThat(gameManagerMap.get(details2.id())).isNotNull();
+      assertThat(gameManagerMap.get(details3.id())).isNotNull();
+
+//    } catch (InterruptedException e) {
+//      throw new RuntimeException(e);
+    } finally {
+
+      // Clean up afterward.
+      cashGameService.getGameManagerMap().clear();
+      cashGameRepository.deleteAll();
+    }
   }
+}

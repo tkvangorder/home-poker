@@ -27,14 +27,6 @@
     <module>poker-server</module>
   </modules>
 
-  <dependencies>
-    <dependency>
-      <groupId>com.github.spotbugs</groupId>
-      <artifactId>spotbugs-annotations</artifactId>
-      <version>3.1.12</version>
-    </dependency>
-  </dependencies>
-
   <build>
     <plugins>
       <plugin>

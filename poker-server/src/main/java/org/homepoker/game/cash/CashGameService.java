@@ -10,6 +10,7 @@ import org.homepoker.threading.VirtualThreadManager;
 import org.homepoker.user.UserManager;
 import org.homepoker.utils.DateTimeUtils;
 import org.jctools.maps.NonBlockingHashMap;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
@@ -28,12 +29,13 @@ import static org.springframework.data.mongodb.core.query.Query.query;
 @Service
 @Slf4j
 public class CashGameService {
-
   private final CashGameRepository gameRepository;
   private final UserManager userManager;
   private final SecurityUtilities securityUtilities;
   private final MongoOperations mongoOperations;
   private final VirtualThreadManager threadManager;
+
+  @Nullable
   private final ScheduledFuture<?> gamesScheduler;
 
   /**
@@ -48,18 +50,23 @@ public class CashGameService {
   private Instant lastGameCheck = Instant.now().minusSeconds(1);
 
   public CashGameService(CashGameRepository gameRepository, UserManager userManager, SecurityUtilities securityUtilities,
-                         MongoOperations mongoOperations, VirtualThreadManager threadManager) {
+                         MongoOperations mongoOperations, VirtualThreadManager threadManager, GameServerProperties gameServerProperties) {
     this.gameRepository = gameRepository;
     this.userManager = userManager;
     this.mongoOperations = mongoOperations;
     this.securityUtilities = securityUtilities;
     this.threadManager = threadManager;
 
-    // Set up a scheduled task to run every minute on the "real" clock time.
-    ZonedDateTime now = ZonedDateTime.now();
-    long initialDelay = Duration.between(now, now.plusSeconds(2).withNano(0)).toMillis();
-    gamesScheduler = threadManager.getScheduler().scheduleAtFixedRate(
-        this::processGames, initialDelay, 1000, TimeUnit.MILLISECONDS);
+    // Set up a scheduled task to run a game "tick" based on the game loop interval.
+    if (gameServerProperties.gameLoopIntervalMilliseconds() == 0) {
+      log.info("Game loop is disabled for testing.");
+      gamesScheduler = null;
+    } else {
+      ZonedDateTime now = ZonedDateTime.now();
+      long initialDelay = Duration.between(now, now.plusSeconds(2).withNano(0)).toMillis();
+      gamesScheduler = threadManager.getScheduler().scheduleAtFixedRate(
+          this::processGames, initialDelay, 1000, TimeUnit.MILLISECONDS);
+    }
   }
 
   /**
@@ -82,6 +89,7 @@ public class CashGameService {
         threadManager.getExecutor().submit(this::loadNewGames);
       }
 
+      log.info("Processing {} games", gameManagerMap.size());
       for (GameManager<CashGame> gameManager : List.copyOf(gameManagerMap.values())) {
         if (gameManager.gameStatus() == GameStatus.COMPLETED) {
           // Remove the game manager from the map if the game is completed.
@@ -100,6 +108,7 @@ public class CashGameService {
 
   protected void loadNewGames() {
     try {
+      log.info("Loading new games ");
       lastGameCheck = DateTimeUtils.computeNextWallMinute();
 
       Instant startOfDay = DateTimeUtils.getStartOfDayInCurrentZone();
@@ -122,7 +131,9 @@ public class CashGameService {
 
   @PreDestroy
   public void shutdown() {
-    gamesScheduler.cancel(true);
+    if (gamesScheduler != null) {
+      gamesScheduler.cancel(true);
+    }
   }
 
   /**

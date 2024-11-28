@@ -1,0 +1,4 @@
+game:
+  server:
+    threadModel: SINGLE_THREAD
+    gameLoopIntervalMilliseconds: 0

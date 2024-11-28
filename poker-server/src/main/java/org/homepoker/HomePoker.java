@@ -1,5 +1,6 @@
 package org.homepoker;
 
+import org.homepoker.game.GameServerProperties;
 import org.homepoker.threading.VirtualThreadManager;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -17,8 +18,8 @@ public class HomePoker {
   }
 
   @Bean
-  public VirtualThreadManager virtualThreadManager() {
-    return new VirtualThreadManager();
+  public VirtualThreadManager virtualThreadManager(GameServerProperties properties) {
+    return new VirtualThreadManager(properties);
   }
 
 }
