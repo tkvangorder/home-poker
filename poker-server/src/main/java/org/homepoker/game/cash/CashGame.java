@@ -21,7 +21,6 @@ import java.util.Map;
 public record CashGame(
     String id,
     String name,
-    GameFormat format,
     GameType type,
     Instant startTime,
     @Nullable Instant endTime,
@@ -34,6 +33,11 @@ public record CashGame(
     Map<String, Player> players,
     List<Table> tables
     ) implements Game<CashGame> {
+
+    @Override
+    public GameFormat format() {
+        return GameFormat.CASH;
+    }
 
     public CashGame withPlayer(Player player) {
         Map<String, Player> players = new HashMap<>(this.players);
@@ -52,7 +56,7 @@ public record CashGame(
         private List<Table> tables = List.of();
 
         CashGame build() {
-            return new CashGame(id, name, format, type, startTime, endTime, status, owner, smallBlind, bigBlind,
+            return new CashGame(id, name, type, startTime, endTime, status, owner, smallBlind, bigBlind,
                 maxBuyIn, lastModified, players, tables);
         }
 

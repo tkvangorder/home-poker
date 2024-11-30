@@ -1,22 +1,18 @@
 package org.homepoker.game;
 
 import lombok.extern.slf4j.Slf4j;
-import org.homepoker.event.UserMessage;
+import org.homepoker.event.SystemError;
+import org.homepoker.event.user.UserMessage;
 import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.model.MessageSeverity;
-import org.homepoker.model.command.GameCommand;
-import org.homepoker.model.command.RegisterForGame;
-import org.homepoker.model.command.UnregisterFromGame;
+import org.homepoker.model.command.*;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.game.PlayerStatus;
-import org.homepoker.model.user.User;
 import org.homepoker.security.SecurityUtilities;
 import org.homepoker.user.UserManager;
-import org.jctools.maps.NonBlockingHashMap;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscLinkedQueue;
-import org.springframework.lang.Nullable;
 
 import java.time.Instant;
 import java.util.*;
@@ -34,9 +30,11 @@ public abstract class GameManager<T extends Game<T>> {
   MessagePassingQueue<GameCommand> pendingCommands = new MpscLinkedQueue<>();
 
   /**
-   * This is a map of user ID -> game listener registered for that user.
+   * For now, using an immutable list of listeners. If there are concerns about performance or a need to find listeners
+   * pinned to a specific user, we can use a map for faster lookups.
    */
-  private final Map<String, GameListener> gameListeners = new NonBlockingHashMap<>();
+  private final List<GameListener> gameListeners = List.of();
+
 
   /**
    * The current game state that is being managed by this game manager. Changes to the game state are completely
@@ -59,12 +57,17 @@ public abstract class GameManager<T extends Game<T>> {
     this.securityUtilities = securityUtilities;
   }
 
-  @Nullable
-  public GameListener getGameListener(User user) {
-    return gameListeners.get(user.loginId());
+  @SuppressWarnings("CopyConstructorMissesField")
+  protected GameManager(GameManager<T> copy) {
+    this.gameState = copy.gameState;
+    this.userManager = copy.userManager;
+    this.securityUtilities = copy.securityUtilities;
   }
 
   public void addGameListener(GameListener listener) {
+  }
+  public void removeGameListener(GameListener listener) {
+    // TODO Auto-generated method stub
   }
 
   public String gameId() {
@@ -75,9 +78,6 @@ public abstract class GameManager<T extends Game<T>> {
     return gameState.status();
   }
 
-  public void removeGameListener(GameListener listener) {
-    // TODO Auto-generated method stub
-  }
 
   protected UserManager getUserManager() {
     return userManager;
@@ -109,14 +109,22 @@ public abstract class GameManager<T extends Game<T>> {
           gameContext = applyCommand(command, gameContext);
         } catch (ValidationException e) {
           gameContext = gameContext.queueEvent(UserMessage.builder()
+              .timestamp(Instant.now())
               .userId(command.user().loginId())
               .severity(MessageSeverity.ERROR)
               .message(e.getMessage())
               .build());
-        } catch (Exception e) {
-          log.error("An error occurred while while processing command [" + command + "].\n" + e.getMessage(), e);
-          // TODO It might be useful to emit an event here that can be broadcast to listeners that are interested in such things.
-          throw e;
+        } catch (RuntimeException e) {
+          log.error("An error occurred while while processing command [{}].\n{}", command, e.getMessage(), e);
+          SystemError.SystemErrorBuilder builder = SystemError.builder()
+              .timestamp(Instant.now())
+              .gameId(command.gameId())
+              .userId(command.user().loginId())
+              .exception(e);
+          if (command instanceof TableCommand tableCommand) {
+            builder.tableId(tableCommand.tableId());
+          }
+          gameContext = gameContext.queueEvent(builder.build());
         }
       }
 
@@ -127,8 +135,6 @@ public abstract class GameManager<T extends Game<T>> {
         // TODO Top Level Game Processing
         // TODO ProcessEachTable
       }
-
-      // TODO Process Events
 
       // Update the game state
       this.gameState = gameContext.game();
@@ -144,6 +150,17 @@ public abstract class GameManager<T extends Game<T>> {
       } else {
         // If the game is not active or paused, we can save the game state to the database immediately.
         gameState = saveGame();
+      }
+
+      // Publish events.
+      if (!gameListeners.isEmpty()) {
+        gameContext.events().forEach(event -> {
+          for (GameListener listener : gameListeners) {
+            if (listener.acceptsEvent(event)) {
+              listener.onEvent(event);
+            }
+          }
+        });
       }
     } finally {
       // Release the lock
@@ -171,6 +188,7 @@ public abstract class GameManager<T extends Game<T>> {
     return switch (command) {
       case RegisterForGame gameCommand -> registerForGame(gameCommand, gameContext);
       case UnregisterFromGame gameCommand -> unregisterFromGame(gameCommand, gameContext);
+      case EndGame gameCommand -> endGame(gameCommand, gameContext);
       default ->
         // Allow the subclass to handle any commands that are specific to child game manager.
           applyGameSpecificCommand(command, gameContext);
@@ -213,6 +231,17 @@ public abstract class GameManager<T extends Game<T>> {
     players.remove(registerForGame.user().loginId());
     return gameContext.withGame(game.withPlayers(players)).withForceUpdate(true);
 
+  }
+
+  private GameContext<T> endGame(EndGame gameCommand, GameContext<T> gameContext) {
+    if (gameContext.gameStatus() == GameStatus.COMPLETED) {
+      throw new ValidationException("This game has already completed.");
+    }
+    if (SecurityUtilities.userIsAdmin(gameCommand.user())) {
+      return gameContext.withGame(gameContext.game().withStatus(GameStatus.COMPLETED));
+    } else {
+      throw new ValidationException("Only an admin can end a game.");
+    }
   }
 
   protected GameContext<T> applyGameSpecificCommand(GameCommand command, GameContext<T> gameContext) {

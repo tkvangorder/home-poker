@@ -1,4 +1,4 @@
-package org.homepoker.model.command;
+package org.homepoker.event;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -6,11 +6,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotations used to dynamically map a game command subclass to the commandId when it is being serialized/deserialized
+ * Annotations used to dynamically map a game event subclass to the eventType when it is being serialized/deserialized
  * via Jackson. This annotation is used in combination with JsonUtils.registerSubtypes() to register all annotated game
  * commands with the ObjectMapper.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface GameCommandMarker {
+public @interface EventMarker {
 }

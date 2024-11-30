@@ -1,10 +1,6 @@
 package org.homepoker.rest;
 
-import org.homepoker.game.GameManager;
-import org.homepoker.game.cash.CashGame;
-import org.homepoker.game.cash.CashGameDetails;
-import org.homepoker.game.cash.CashGameService;
-import org.homepoker.game.cash.CashGameConfiguration;
+import org.homepoker.game.cash.*;
 import org.homepoker.model.command.RegisterForGame;
 import org.homepoker.model.command.UnregisterFromGame;
 import org.homepoker.model.game.GameCriteria;
@@ -42,7 +38,7 @@ public class CashGameController {
             .maxBuyIn(request.maxBuyIn())
             .owner(user.toUser())
             .build()
-        );
+    );
   }
 
   @DeleteMapping("/{gameId}")
@@ -54,36 +50,28 @@ public class CashGameController {
   CashGameDetails updateGameDetails(@RequestBody CashGameConfiguration configuration, @RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
     return gameServer.updateGameDetails(
         CashGameDetails.builder()
-        .id(gameId)
-        .name(configuration.name())
-        .type(configuration.gameType())
-        .startTime(configuration.startTime())
-        .smallBlind(configuration.smallBlind())
-        .bigBlind(configuration.bigBlind())
-        .maxBuyIn(configuration.maxBuyIn())
-        .owner(user.toUser())
-        .build());
+            .id(gameId)
+            .name(configuration.name())
+            .type(configuration.gameType())
+            .startTime(configuration.startTime())
+            .smallBlind(configuration.smallBlind())
+            .bigBlind(configuration.bigBlind())
+            .maxBuyIn(configuration.maxBuyIn())
+            .owner(user.toUser())
+            .build());
   }
 
   @PostMapping("/{gameId}/register")
   void registerForGame(@RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
-    GameManager<CashGame> gameManager = gameServer.getGameManger(gameId);
+    CashGameManager gameManager = gameServer.getGameManger(gameId);
 
-    gameServer.getGameManger(gameId).submitCommand(RegisterForGame.builder()
-        .gameId(gameId)
-        .user(user.toUser())
-        .build()
-    );
+    gameServer.getGameManger(gameId).submitCommand(new RegisterForGame(gameId, user.toUser()));
   }
 
   @PostMapping("/{gameId}/unregister")
   void unregisterFromGame(@RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
 
-    gameServer.getGameManger(gameId).submitCommand(UnregisterFromGame.builder()
-        .gameId(gameId)
-        .user(user.toUser())
-        .build()
-    );
+    gameServer.getGameManger(gameId).submitCommand(new UnregisterFromGame(gameId, user.toUser()));
   }
 
 }

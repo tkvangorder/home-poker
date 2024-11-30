@@ -45,10 +45,14 @@ public interface Game<G extends Game<G>> {
    */
   GameStatus status();
 
+  G withStatus(GameStatus status);
+
   /**
    * User that created/owns the game.
    */
   User owner();
+
+  G withOwner(User owner);
 
   /**
    * The players registered/participating in the game.
@@ -67,4 +71,5 @@ public interface Game<G extends Game<G>> {
 
   @LastModifiedDate
   Instant lastModified();
+  G withLastModified(Instant lastModified);
 }

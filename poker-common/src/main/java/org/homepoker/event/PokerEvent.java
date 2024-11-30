@@ -1,57 +1,48 @@
-package org.homepoker.model.command;
+package org.homepoker.event;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeId;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import org.homepoker.lib.exception.SystemException;
 import org.homepoker.lib.util.StringUtils;
-import org.homepoker.model.user.User;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 
+import java.time.Instant;
 import java.util.Set;
 
 /**
- * A command consists of an ID, a game ID, the user issuing the command and any additional data that is specific to
- * that command. A command does not have any behavior and is used to serialize and deserialize commands to and from JSON.
- * <P>
- * As such, the command ID acts as a discriminator for the JSON serialization/deserialization process. The command ID is
- * used to determine the concrete type of the command when deserializing JSON. Any object mapper that is used must
- * have the subtypes registered with it via the {@link GameCommand#registerCommandsWithJackson(ObjectMapper)} method.
- * <P>
- * The user field is NOT included in the JSON serialization/deserialization and is instead injected via Spring
- * Security when the command is submitted to the game manager.
- *
- * @author tyler.vangorder
+ * Base interface for all events emitted by the game server. This interface provides a mechanism for dynamically
+ * registering all event subtypes with Jackson for polymorphic deserialization by calling the static method "registerEventsWithJackson".
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "commandId")
-public interface GameCommand {
+public interface PokerEvent {
 
   @JsonTypeId
-  default String commandId() {
+  default String eventType() {
     return StringUtils.camelToKabobCase(this.getClass().getSimpleName());
   }
 
-  String gameId();
-  @JsonIgnore
-  User user();
+  Instant timestamp();
+
+  @SuppressWarnings("ConstantValue")
+  default boolean isValid() {
+    return timestamp() != null;
+  }
 
   /**
-   * This method will scan for all game commands (annotated with GameCommandMarker) and dynamically register those types with
-   * the given object mapper. This allows the object mapper perform polymorphic deserialization of a GameCommand into
+   * This method will scan for all game events (annotated with GameEventMarker) and dynamically register those types with
+   * the given object mapper. This allows the object mapper perform polymorphic deserialization of a GameEvent into
    * the correct subtype.
    *
    * @param objectMapper The object mapper to register the subtypes with
    */
-  static void registerCommandsWithJackson(ObjectMapper objectMapper) {
+  static void registerEventsWithJackson(ObjectMapper objectMapper) {
     ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
-    scanner.addIncludeFilter(new AnnotationTypeFilter((GameCommandMarker.class)));
+    scanner.addIncludeFilter(new AnnotationTypeFilter((EventMarker.class)));
 
-    Set<BeanDefinition> beanDefinitions = scanner.findCandidateComponents("org.homepoker.model.command");
+    Set<BeanDefinition> beanDefinitions = scanner.findCandidateComponents("org.homepoker.event");
     for (BeanDefinition beanDefinition : beanDefinitions) {
       if (beanDefinition instanceof AnnotatedBeanDefinition annotatedDefinition && beanDefinition.getBeanClassName() != null) {
         int lastDot = beanDefinition.getBeanClassName().lastIndexOf('.');
@@ -69,4 +60,6 @@ public interface GameCommand {
       }
     }
   }
+
 }
+

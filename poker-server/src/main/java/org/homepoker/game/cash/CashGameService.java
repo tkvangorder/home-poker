@@ -45,7 +45,7 @@ public class CashGameService {
 
   //I am using a non-blocking variant of ConcurrentHashMap so I can use an atomic computeIfAbsent
   //without blocking the event loop.
-  private final Map<String, GameManager<CashGame>> gameManagerMap = new NonBlockingHashMap<>();
+  private final Map<String, CashGameManager> gameManagerMap = new NonBlockingHashMap<>();
 
   private Instant lastGameCheck = Instant.now().minusSeconds(1);
 
@@ -174,7 +174,7 @@ public class CashGameService {
    * @param gameId The game Id
    * @return A game manager for the game or an error if the game does not exist.
    */
-  public GameManager<CashGame> getGameManger(String gameId) {
+  public CashGameManager getGameManger(String gameId) {
 
     return gameManagerMap.computeIfAbsent(gameId,
         (id) -> {
@@ -340,7 +340,7 @@ public class CashGameService {
    *
    * @return A copy of the game managerMap.
    */
-  protected Map<String, GameManager<CashGame>> getGameManagerMap() {
+  protected Map<String, CashGameManager> getGameManagerMap() {
     return gameManagerMap;
   }
 }

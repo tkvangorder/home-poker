@@ -1,7 +1,10 @@
 package org.homepoker.game.cash;
 
-import org.homepoker.game.GameManager;
+import org.homepoker.game.Table;
+import org.homepoker.model.command.EndGame;
 import org.homepoker.model.game.GameStatus;
+import org.homepoker.model.game.GameType;
+import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
 import org.homepoker.test.BaseIntegrationTest;
 import org.homepoker.test.TestDataHelper;
@@ -24,7 +27,7 @@ public class CashGameServiceTest extends BaseIntegrationTest {
   @Test
   public void createGame() {
 
-    User user = createUser(TestDataHelper.user("fred", "password", "Fred"));
+    User user = createUser(TestDataHelper.fred());
 
     Instant game1Start = DateTimeUtils.computeNextWallMinute();
     Instant game2Start = game1Start.plus(1, MINUTES);
@@ -68,7 +71,7 @@ public class CashGameServiceTest extends BaseIntegrationTest {
 
   @Test
   public void loadGames() {
-    User user = createUser(TestDataHelper.user("fred", "password", "Fred"));
+    User user = createUser(TestDataHelper.fred());
 
     Instant game1Start = DateTimeUtils.computeNextWallMinute();
     Instant game2Start = game1Start.plus(1, MINUTES);
@@ -87,7 +90,7 @@ public class CashGameServiceTest extends BaseIntegrationTest {
 
       cashGameService.loadNewGames();
 
-      Map<String, GameManager<CashGame>> gameManagerMap = cashGameService.getGameManagerMap();
+      Map<String, CashGameManager> gameManagerMap = cashGameService.getGameManagerMap();
       assertThat(gameManagerMap).hasSize(3);
       assertThat(gameManagerMap.get(details1.id())).isNotNull();
       assertThat(gameManagerMap.get(details2.id())).isNotNull();
@@ -102,8 +105,81 @@ public class CashGameServiceTest extends BaseIntegrationTest {
   }
 
   @Test
+  public void loadGamesNoCompleted() {
+    User user = createUser(TestDataHelper.fred());
+
+    Instant game1Start = DateTimeUtils.computeNextWallMinute();
+
+    try {
+
+      CashGame game1 = cashGameRepository.save(
+        CashGame.builder()
+          .id("game1")
+          .name("Test Game 1")
+          .type(GameType.TEXAS_HOLDEM)
+          .startTime(game1Start)
+          .status(GameStatus.COMPLETED)
+          .maxBuyIn(10000)
+          .smallBlind(25)
+          .bigBlind(50)
+          .player(Player.builder().user(user).build())
+          .table(Table.builder().build())
+          .owner(user)
+          .build());
+      cashGameService.loadNewGames();
+
+      Map<String, CashGameManager> gameManagerMap = cashGameService.getGameManagerMap();
+      assertThat(gameManagerMap).hasSize(0);
+
+    } finally {
+
+      // Clean up afterward.
+      cashGameService.getGameManagerMap().clear();
+      cashGameRepository.deleteAll();
+    }
+  }
+
+  @Test
+  public void processGamesRemovesCompleted() {
+    User user = createUser(TestDataHelper.adminUser());
+
+    Instant game1Start = DateTimeUtils.computeNextWallMinute();
+
+    try {
+      CashGame game1 = cashGameRepository.save(
+          CashGame.builder()
+              .id("game1")
+              .name("Test Game 1")
+              .type(GameType.TEXAS_HOLDEM)
+              .startTime(game1Start)
+              .status(GameStatus.SCHEDULED)
+              .maxBuyIn(10000)
+              .smallBlind(25)
+              .bigBlind(50)
+              .player(Player.builder().user(user).build())
+              .table(Table.builder().build())
+              .owner(user)
+              .build());
+      cashGameService.loadNewGames();
+      CashGameManager gameManager = cashGameService.getGameManagerMap().get("game1");
+      gameManager.submitCommand(new EndGame("game1", user));
+      // First process will execute the end game command
+      cashGameService.processGames();
+      // The second process will remove the game from the map
+      cashGameService.processGames();
+      assertThat(cashGameService.getGameManagerMap()).hasSize(0);
+
+    } finally {
+
+      // Clean up afterward.
+      cashGameService.getGameManagerMap().clear();
+      cashGameRepository.deleteAll();
+    }
+  }
+
+  @Test
   public void processGames() {
-    User user = createUser(TestDataHelper.user("fred", "password", "Fred"));
+    User user = createUser(TestDataHelper.fred());
 
     Instant game1Start = DateTimeUtils.computeNextWallMinute();
     Instant game2Start = game1Start.plus(1, MINUTES);
@@ -123,15 +199,12 @@ public class CashGameServiceTest extends BaseIntegrationTest {
 
       cashGameService.processGames();
 
-      //Thread.sleep(10);
-      Map<String, GameManager<CashGame>> gameManagerMap = cashGameService.getGameManagerMap();
+      Map<String, CashGameManager> gameManagerMap = cashGameService.getGameManagerMap();
       assertThat(gameManagerMap).hasSize(3);
       assertThat(gameManagerMap.get(details1.id())).isNotNull();
       assertThat(gameManagerMap.get(details2.id())).isNotNull();
       assertThat(gameManagerMap.get(details3.id())).isNotNull();
 
-//    } catch (InterruptedException e) {
-//      throw new RuntimeException(e);
     } finally {
 
       // Clean up afterward.

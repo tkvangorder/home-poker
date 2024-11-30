@@ -1,5 +1,7 @@
 package org.homepoker.game;
 
-public class Table {
+import lombok.Builder;
 
+@Builder
+public record Table() {
 }

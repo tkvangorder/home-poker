@@ -26,7 +26,7 @@ public class CommandSerializationTest {
     GameCommand deserializedRegister = JsonUtils.jsonToObject(json, GameCommand.class, objectMapper);
     assertThat(deserializedRegister).isInstanceOf(RegisterForGame.class);
     assert deserializedRegister != null;
-    assertThat(deserializedRegister.commandId()).isEqualTo(GameCommandType.REGISTER_FOR_GAME);
+    assertThat(deserializedRegister.commandId()).isEqualTo("register-for-game");
     assertThat(deserializedRegister.gameId()).isEqualTo("gameId");
     assertThat(deserializedRegister.user()).isNull();
 

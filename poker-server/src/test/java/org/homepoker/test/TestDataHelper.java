@@ -11,6 +11,10 @@ import java.time.Instant;
 
 public class TestDataHelper {
 
+  public static User fred() {
+    return user("fred", "password", "Fred");
+  }
+
   public static User user(String loginId, String password, String name) {
     return User.builder()
         .loginId(loginId)
@@ -34,6 +38,10 @@ public class TestDataHelper {
         .build();
   }
 
+  public static User adminUser() {
+    return adminUser("testAdmin", "testAdmin", "Test Admin");
+  }
+
   public static CashGameDetails cashGameDetails(String name, @Nullable User owner) {
 
         if (owner == null) {
@@ -51,5 +59,6 @@ public class TestDataHelper {
             .owner(owner)
             .build();
   }
+
 
 }

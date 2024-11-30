@@ -2,3 +2,9 @@ game:
   server:
     threadModel: SINGLE_THREAD
     gameLoopIntervalMilliseconds: 0
+
+poker:
+  security:
+    adminUsers:
+      - admin
+      - testAdmin

@@ -13,6 +13,15 @@ public class CashGameManager extends GameManager<CashGame> {
     this.cashGameService = cashGameService;
   }
 
+  private CashGameManager(CashGameManager gameManager) {
+    super(gameManager);
+    this.cashGameService = gameManager.cashGameService;
+  }
+
+  public CashGameManager copy() {
+    return new CashGameManager(this);
+  }
+
   @Override
   protected CashGame persistGameState(CashGame game) {
     return cashGameService.saveGame(game);
