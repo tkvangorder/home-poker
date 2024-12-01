@@ -2,6 +2,7 @@ package org.homepoker.game.cash;
 
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
+import org.homepoker.lib.exception.ResourceNotFound;
 import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.game.*;
 import org.homepoker.model.game.*;
@@ -181,7 +182,7 @@ public class CashGameService {
           //If the game manager is not yet in memory, we retrieve the game from
           //the database and materialize the game manager
           CashGame game = gameRepository.findById(gameId).orElseThrow(
-              () -> new ValidationException("The cash game [" + gameId + "] does not exist.")
+              () -> new ResourceNotFound("The cash game [" + gameId + "] does not exist.")
           );
           return new CashGameManager(game, this,  userManager, securityUtilities);
         });
@@ -212,7 +213,7 @@ public class CashGameService {
   public CashGameDetails updateGameDetails(final CashGameDetails details) {
 
     CashGame game = gameRepository.findById(details.id()).orElseThrow(
-        () -> new ValidationException("The cash game [" + details.id() + "] does not exist.")
+        () -> new ResourceNotFound("The cash game [" + details.id() + "] does not exist.")
     );
 
     //Find the game by ID
@@ -229,7 +230,7 @@ public class CashGameService {
   public CashGameDetails getGameDetails(String gameId) {
     return gameToGameDetails(
         gameRepository.findById(gameId).orElseThrow(
-            () -> new ValidationException("The cash game [" + gameId + "] does not exist.")
+            () -> new ResourceNotFound("The cash game [" + gameId + "] does not exist.")
         )
     );
   }

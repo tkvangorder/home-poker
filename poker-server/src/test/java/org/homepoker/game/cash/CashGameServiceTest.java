@@ -1,7 +1,9 @@
 package org.homepoker.game.cash;
 
 import org.homepoker.game.Table;
+import org.homepoker.lib.exception.ResourceNotFound;
 import org.homepoker.model.command.EndGame;
+import org.homepoker.model.game.GameCriteria;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
@@ -13,14 +15,17 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SuppressWarnings("NotNullFieldNotInitialized")
 public class CashGameServiceTest extends BaseIntegrationTest {
 
+  @SuppressWarnings("NotNullFieldNotInitialized")
   @Autowired
   CashGameService cashGameService;
 
@@ -68,6 +73,128 @@ public class CashGameServiceTest extends BaseIntegrationTest {
       cashGameRepository.deleteAll();
     }
   }
+
+  @Test
+  public void findGames() {
+
+    User user = createUser(TestDataHelper.fred());
+
+    Instant game1Start = DateTimeUtils.computeNextWallMinute().plus(1, DAYS);
+    Instant game2Start = game1Start.plus(2, DAYS);
+    Instant game3Start = game1Start.plus(3, DAYS);
+    try {
+      CashGameDetails details1 = cashGameService.createGame(TestDataHelper.cashGameDetails("Test Game 1", user)
+          .withStartTime(game1Start)
+      );
+      CashGameDetails details2 = cashGameService.createGame(TestDataHelper.cashGameDetails("Test Game 2", user)
+          .withStartTime(game2Start)
+      );
+      CashGameDetails details3 = cashGameService.createGame(TestDataHelper.cashGameDetails("Test Game 3", user)
+          .withStartTime(game3Start)
+      );
+
+      // Only the end time is set
+      List<CashGameDetails> results = cashGameService.findGames(GameCriteria.builder()
+          .endTime(game2Start)
+          .build());
+      assertThat(results).hasSize(2)
+          .extracting(CashGameDetails::startTime)
+          .containsExactly(game1Start, game2Start);
+
+      // Only the start time is set
+      results = cashGameService.findGames(GameCriteria.builder()
+          .startTime(game2Start)
+          .build());
+
+      assertThat(results).hasSize(2)
+          .extracting(CashGameDetails::startTime)
+          .containsExactly(game2Start, game3Start);
+
+    } finally {
+      // Clean up afterward.
+      cashGameService.getGameManagerMap().clear();
+      cashGameRepository.deleteAll();
+    }
+  }
+
+
+  @Test
+  public void createGameNoStartTime() {
+    User user = createUser(TestDataHelper.fred());
+
+    try {
+      CashGameDetails details = cashGameService.createGame(TestDataHelper
+          .cashGameDetails("Test Game 1", user)
+          .withStartTime(null)
+      );
+
+      CashGameDetails gameDetails = cashGameService.getGameDetails(details.id());
+
+      assertThat(gameDetails.players())
+          .hasSize(1)
+          .first()
+          .extracting(Player::userLogin)
+          .isEqualTo(user.loginId());
+      assertThat(gameDetails.status()).isEqualTo(GameStatus.PAUSED);
+    } finally {
+      // Clean up afterward.
+      cashGameService.getGameManagerMap().clear();
+      cashGameRepository.deleteAll();
+    }
+  }
+  @Test
+  public void updateGame() {
+    User user = createUser(TestDataHelper.fred());
+
+    Instant game1Start = DateTimeUtils.computeNextWallMinute().plus(1, DAYS);
+    try {
+      CashGameDetails details = cashGameService.createGame(TestDataHelper
+          .cashGameDetails("Test Game 1", user)
+          .withStartTime(game1Start)
+      );
+
+      CashGameDetails gameDetails = cashGameService.getGameDetails(details.id());
+
+      assertThat(gameDetails.players())
+          .hasSize(1)
+          .first()
+          .extracting(Player::userLogin)
+          .isEqualTo(user.loginId());
+      assertThat(gameDetails.status()).isEqualTo(GameStatus.SCHEDULED);
+      assertThat(gameDetails.startTime()).isEqualTo(game1Start);
+      assertThat(gameDetails.smallBlind()).isEqualTo(25);
+      assertThat(gameDetails.bigBlind()).isEqualTo(50);
+
+      CashGameDetails updatedDetails = cashGameService.updateGameDetails(details.withSmallBlind(100).withBigBlind(200));
+
+      assertThat(updatedDetails.startTime()).isEqualTo(game1Start);
+      assertThat(updatedDetails.smallBlind()).isEqualTo(100);
+      assertThat(updatedDetails.bigBlind()).isEqualTo(200);
+
+    } finally {
+      // Clean up afterward.
+      cashGameService.getGameManagerMap().clear();
+      cashGameRepository.deleteAll();
+    }
+  }
+
+  @Test
+  public void updateNonexistentGame() {
+    User user = createUser(TestDataHelper.fred());
+
+    CashGameDetails details = TestDataHelper.cashGameDetails("Test Game 1", user).withId("123");
+    assertThatThrownBy(() -> cashGameService.updateGameDetails(details))
+        .isInstanceOf(ResourceNotFound.class);
+  }
+
+  @Test
+  public void getNonexistentGameDetails() {
+    User user = createUser(TestDataHelper.fred());
+
+    assertThatThrownBy(() -> cashGameService.getGameDetails("123"))
+        .isInstanceOf(ResourceNotFound.class);
+  }
+
 
   @Test
   public void loadGames() {

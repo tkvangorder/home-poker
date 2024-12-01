@@ -1,7 +1,6 @@
 package org.homepoker.model.game;
 
 import lombok.Builder;
-import lombok.Data;
 import lombok.With;
 import org.homepoker.model.user.User;
 
@@ -13,4 +12,8 @@ import org.homepoker.model.user.User;
 @Builder
 @With
 public record Player(User user, boolean confirmed, PlayerStatus status, Integer chipCount) {
+
+  public String userLogin() {
+    return user.loginId();
+  }
 }
