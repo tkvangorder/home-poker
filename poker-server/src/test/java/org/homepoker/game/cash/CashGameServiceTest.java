@@ -1,12 +1,14 @@
 package org.homepoker.game.cash;
 
-import org.homepoker.game.Table;
+import org.homepoker.model.game.Table;
 import org.homepoker.lib.exception.ResourceNotFound;
 import org.homepoker.model.command.EndGame;
 import org.homepoker.model.game.GameCriteria;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
+import org.homepoker.model.game.cash.CashGame;
+import org.homepoker.model.game.cash.CashGameDetails;
 import org.homepoker.model.user.User;
 import org.homepoker.test.BaseIntegrationTest;
 import org.homepoker.test.TestDataHelper;

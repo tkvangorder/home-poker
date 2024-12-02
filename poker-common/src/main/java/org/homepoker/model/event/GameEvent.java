@@ -1,4 +1,4 @@
-package org.homepoker.event;
+package org.homepoker.model.event;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 

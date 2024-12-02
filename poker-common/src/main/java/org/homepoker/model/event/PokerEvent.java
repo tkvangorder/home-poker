@@ -1,4 +1,4 @@
-package org.homepoker.event;
+package org.homepoker.model.event;
 
 import com.fasterxml.jackson.annotation.JsonTypeId;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,7 +42,7 @@ public interface PokerEvent {
     ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
     scanner.addIncludeFilter(new AnnotationTypeFilter((EventMarker.class)));
 
-    Set<BeanDefinition> beanDefinitions = scanner.findCandidateComponents("org.homepoker.event");
+    Set<BeanDefinition> beanDefinitions = scanner.findCandidateComponents("org.homepoker.model.event");
     for (BeanDefinition beanDefinition : beanDefinitions) {
       if (beanDefinition instanceof AnnotatedBeanDefinition annotatedDefinition && beanDefinition.getBeanClassName() != null) {
         int lastDot = beanDefinition.getBeanClassName().lastIndexOf('.');

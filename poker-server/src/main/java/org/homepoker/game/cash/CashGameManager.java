@@ -1,6 +1,7 @@
 package org.homepoker.game.cash;
 
 import org.homepoker.game.GameManager;
+import org.homepoker.model.game.cash.CashGame;
 import org.homepoker.security.SecurityUtilities;
 import org.homepoker.user.UserManager;
 

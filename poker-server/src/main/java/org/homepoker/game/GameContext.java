@@ -1,7 +1,8 @@
 package org.homepoker.game;
 
 import lombok.With;
-import org.homepoker.event.PokerEvent;
+import org.homepoker.model.event.PokerEvent;
+import org.homepoker.model.game.Game;
 import org.homepoker.model.game.GameStatus;
 
 import java.util.ArrayList;

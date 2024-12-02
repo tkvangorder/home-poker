@@ -1,8 +1,8 @@
-package org.homepoker.event.user;
+package org.homepoker.model.event.user;
 
 import lombok.Builder;
-import org.homepoker.event.EventMarker;
-import org.homepoker.event.UserEvent;
+import org.homepoker.model.event.EventMarker;
+import org.homepoker.model.event.UserEvent;
 import org.homepoker.model.MessageSeverity;
 
 import java.time.Instant;

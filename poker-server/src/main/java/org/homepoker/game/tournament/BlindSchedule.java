@@ -16,7 +16,7 @@ import java.util.List;
 public class BlindSchedule {
 
   private final int blindLevelFactor;
-  private List<Blinds> blindLevels;
+  private final List<Blinds> blindLevels;
   private int currentBlindLevel = 0;
 
   public BlindSchedule(List<Blinds> blindLevels, int blindLevelFactor) {

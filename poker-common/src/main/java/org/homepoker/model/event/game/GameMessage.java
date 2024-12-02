@@ -1,7 +1,7 @@
-package org.homepoker.event.game;
+package org.homepoker.model.event.game;
 
-import org.homepoker.event.EventMarker;
-import org.homepoker.event.GameEvent;
+import org.homepoker.model.event.EventMarker;
+import org.homepoker.model.event.GameEvent;
 
 import java.time.Instant;
 

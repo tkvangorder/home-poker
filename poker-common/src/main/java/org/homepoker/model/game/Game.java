@@ -1,9 +1,5 @@
-package org.homepoker.game;
+package org.homepoker.model.game;
 
-import org.homepoker.model.game.GameFormat;
-import org.homepoker.model.game.GameStatus;
-import org.homepoker.model.game.GameType;
-import org.homepoker.model.game.Player;
 import org.homepoker.model.user.User;
 import org.springframework.data.annotation.LastModifiedDate;
 

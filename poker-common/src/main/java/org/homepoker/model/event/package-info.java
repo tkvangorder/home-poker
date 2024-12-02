@@ -1,4 +1,4 @@
 @NullMarked
-package org.homepoker.event;
+package org.homepoker.model.event;
 
 import org.jspecify.annotations.NullMarked;

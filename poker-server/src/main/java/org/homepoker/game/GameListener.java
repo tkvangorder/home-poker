@@ -1,6 +1,6 @@
 package org.homepoker.game;
 
-import org.homepoker.event.PokerEvent;
+import org.homepoker.model.event.PokerEvent;
 
 public interface GameListener {
   String id();

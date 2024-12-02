@@ -6,6 +6,8 @@ import org.homepoker.lib.exception.ResourceNotFound;
 import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.game.*;
 import org.homepoker.model.game.*;
+import org.homepoker.model.game.cash.CashGame;
+import org.homepoker.model.game.cash.CashGameDetails;
 import org.homepoker.security.SecurityUtilities;
 import org.homepoker.threading.VirtualThreadManager;
 import org.homepoker.user.UserManager;
@@ -296,7 +298,7 @@ public class CashGameService {
     game = game.withOwner(gameDetails.owner());
 
     if (!game.players().containsKey(game.owner().loginId())) {
-      Player player = Player.builder().user(game.owner()).confirmed(true).status(PlayerStatus.AWAY).build();
+      Player player = Player.builder().user(game.owner()).status(PlayerStatus.AWAY).build();
       game = game.withPlayer(player);
     }
     return game;

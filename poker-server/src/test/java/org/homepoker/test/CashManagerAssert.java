@@ -2,7 +2,7 @@ package org.homepoker.test;
 
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.ListAssert;
-import org.homepoker.event.PokerEvent;
+import org.homepoker.model.event.PokerEvent;
 import org.homepoker.game.GameListener;
 import org.homepoker.game.cash.CashGameManager;
 import org.homepoker.model.command.GameCommand;

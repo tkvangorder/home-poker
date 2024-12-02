@@ -1,4 +1,4 @@
-package org.homepoker.game.cash;
+package org.homepoker.model.game.cash;
 
 import lombok.Builder;
 import lombok.With;

@@ -11,7 +11,7 @@ import org.homepoker.model.user.User;
  */
 @Builder
 @With
-public record Player(User user, boolean confirmed, PlayerStatus status, Integer chipCount) {
+public record Player(User user, PlayerStatus status, Integer chipCount, Integer buyInTotal, Integer reBuys, Integer addOns) {
 
   public String userLogin() {
     return user.loginId();

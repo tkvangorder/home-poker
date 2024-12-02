@@ -1,4 +1,4 @@
-package org.homepoker.event;
+package org.homepoker.model.event;
 
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;

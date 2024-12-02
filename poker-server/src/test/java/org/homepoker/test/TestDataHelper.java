@@ -1,6 +1,6 @@
 package org.homepoker.test;
 
-import org.homepoker.game.cash.CashGameDetails;
+import org.homepoker.model.game.cash.CashGameDetails;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.user.User;

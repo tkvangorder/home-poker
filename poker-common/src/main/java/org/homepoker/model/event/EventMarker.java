@@ -1,4 +1,4 @@
-package org.homepoker.event;
+package org.homepoker.model.event;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

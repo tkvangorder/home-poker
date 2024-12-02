@@ -1,12 +1,8 @@
-package org.homepoker.game.cash;
+package org.homepoker.model.game.cash;
 
 import lombok.Builder;
 import lombok.With;
-import org.homepoker.game.*;
-import org.homepoker.model.game.GameFormat;
-import org.homepoker.model.game.GameStatus;
-import org.homepoker.model.game.GameType;
-import org.homepoker.model.game.Player;
+import org.homepoker.model.game.*;
 import org.homepoker.model.user.User;
 import org.jspecify.annotations.Nullable;
 
@@ -55,12 +51,12 @@ public record CashGame(
         private Map<String, Player> players = Map.of();
         private List<Table> tables = List.of();
 
-        CashGame build() {
+        public CashGame build() {
             return new CashGame(id, name, type, startTime, endTime, status, owner, smallBlind, bigBlind,
                 maxBuyIn, lastModified, players, tables);
         }
 
-        CashGameBuilder player(Player player) {
+        public CashGameBuilder player(Player player) {
             if (player.user().id() == null) {
                 throw new IllegalArgumentException("Player must have a user id");
             }
@@ -70,7 +66,7 @@ public record CashGame(
             return this;
         }
 
-        CashGameBuilder table(Table table) {
+        public CashGameBuilder table(Table table) {
             List<Table> tables = new ArrayList<>(this.tables);
             tables.add(table);
             this.tables = List.copyOf(tables);

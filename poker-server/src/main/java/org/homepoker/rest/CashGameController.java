@@ -4,6 +4,7 @@ import org.homepoker.game.cash.*;
 import org.homepoker.model.command.RegisterForGame;
 import org.homepoker.model.command.UnregisterFromGame;
 import org.homepoker.model.game.GameCriteria;
+import org.homepoker.model.game.cash.CashGameDetails;
 import org.homepoker.security.PokerUserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;

@@ -2,11 +2,7 @@ package org.homepoker.game.tournament;
 
 import lombok.Builder;
 import lombok.With;
-import org.homepoker.game.*;
-import org.homepoker.model.game.GameFormat;
-import org.homepoker.model.game.GameStatus;
-import org.homepoker.model.game.GameType;
-import org.homepoker.model.game.Player;
+import org.homepoker.model.game.*;
 import org.homepoker.model.user.User;
 
 import java.time.Instant;

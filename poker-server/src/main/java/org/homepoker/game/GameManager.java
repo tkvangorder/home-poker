@@ -1,11 +1,12 @@
 package org.homepoker.game;
 
 import lombok.extern.slf4j.Slf4j;
-import org.homepoker.event.SystemError;
-import org.homepoker.event.user.UserMessage;
+import org.homepoker.model.event.SystemError;
+import org.homepoker.model.event.user.UserMessage;
 import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.model.MessageSeverity;
 import org.homepoker.model.command.*;
+import org.homepoker.model.game.Game;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.game.PlayerStatus;
@@ -208,7 +209,6 @@ public abstract class GameManager<T extends Game<T>> {
     Map<String, Player> players = new HashMap<>(game.players());
     players.put(registerForGame.user().loginId(), Player.builder()
         .user(registerForGame.user())
-        .confirmed(false)
         .status(PlayerStatus.REGISTERED)
         .build());
 
