@@ -18,6 +18,11 @@ public enum PlayerStatus {
   AWAY,
 
   /**
+   * Player is in the process of buying in to the game or re-buying.
+   */
+  BUYING_IN,
+
+  /**
    * Player has been eliminated from the game.
    */
   OUT,

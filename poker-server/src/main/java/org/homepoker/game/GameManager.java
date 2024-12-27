@@ -1,6 +1,7 @@
 package org.homepoker.game;
 
 import lombok.extern.slf4j.Slf4j;
+import org.homepoker.game.table.TableManager;
 import org.homepoker.model.event.SystemError;
 import org.homepoker.model.event.user.UserMessage;
 import org.homepoker.lib.exception.ValidationException;
@@ -34,15 +35,17 @@ public abstract class GameManager<T extends Game<T>> {
    * For now, using an immutable list of listeners. If there are concerns about performance or a need to find listeners
    * pinned to a specific user, we can use a map for faster lookups.
    */
-  private final List<GameListener> gameListeners = List.of();
+  private List<GameListener> gameListeners = List.of();
 
+
+  private List<TableManager> tableManagers = List.of();
 
   /**
    * The current game state that is being managed by this game manager. Changes to the game state are completely
    * encapsulated within the processGameTick method. An atomic boolean is used to ensure that only one game tick is
    * processed at a time.
    */
-  private T gameState;
+  private T game;
 
   private final UserManager userManager;
   private final SecurityUtilities securityUtilities;
@@ -52,15 +55,15 @@ public abstract class GameManager<T extends Game<T>> {
    */
   private final AtomicBoolean tickLock = new AtomicBoolean(false);
 
-  public GameManager(T gameState, UserManager userManager, SecurityUtilities securityUtilities) {
-    this.gameState = gameState;
+  public GameManager(T game, UserManager userManager, SecurityUtilities securityUtilities) {
+    this.game = game;
     this.userManager = userManager;
     this.securityUtilities = securityUtilities;
   }
 
   @SuppressWarnings("CopyConstructorMissesField")
   protected GameManager(GameManager<T> copy) {
-    this.gameState = copy.gameState;
+    this.game = copy.game;
     this.userManager = copy.userManager;
     this.securityUtilities = copy.securityUtilities;
   }
@@ -72,11 +75,11 @@ public abstract class GameManager<T extends Game<T>> {
   }
 
   public String gameId() {
-    return gameState.id();
+    return game.id();
   }
 
   public GameStatus gameStatus() {
-    return gameState.status();
+    return game.status();
   }
 
 
@@ -99,7 +102,8 @@ public abstract class GameManager<T extends Game<T>> {
       return;
     }
     try {
-      GameContext<T> gameContext = new GameContext<>(gameState, gameSettings());
+      GameContext gameContext = new GameContext(gameSettings());
+      T g = game;
 
       // Process queued Commands
       List<GameCommand> commands = new ArrayList<>();
@@ -107,9 +111,9 @@ public abstract class GameManager<T extends Game<T>> {
 
       for (GameCommand command : commands) {
         try {
-          gameContext = applyCommand(command, gameContext);
+          g = applyCommand(command, g, gameContext);
         } catch (ValidationException e) {
-          gameContext = gameContext.queueEvent(UserMessage.builder()
+          gameContext.queueEvent(UserMessage.builder()
               .timestamp(Instant.now())
               .userId(command.user().loginId())
               .severity(MessageSeverity.ERROR)
@@ -125,32 +129,33 @@ public abstract class GameManager<T extends Game<T>> {
           if (command instanceof TableCommand tableCommand) {
             builder.tableId(tableCommand.tableId());
           }
-          gameContext = gameContext.queueEvent(builder.build());
+          gameContext.queueEvent(builder.build());
         }
       }
 
-      if (gameContext.gameStatus() == GameStatus.ACTIVE || gameContext.gameStatus() == GameStatus.PAUSED) {
+      if (g.status() == GameStatus.ACTIVE || g.status() == GameStatus.PAUSED) {
         // If the game is active or paused, we need to see if the state of the game/tables has changed based on either
         // the commands that were processed or time passing.
 
-        // TODO Top Level Game Processing
         // TODO ProcessEachTable
+
+        // TODO Top Level Game Processing
       }
 
       // Update the game state
-      this.gameState = gameContext.game();
+      this.game = g;
 
-      if (gameContext.gameStatus() == GameStatus.ACTIVE || gameContext.gameStatus() == GameStatus.PAUSED) {
+      if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.PAUSED) {
         // If the game is active or paused, there are active threads firing for each "tick", we want to periodically
         // save the in-memory state of the game to the database.
 
-        if (gameContext.forceUpdate() || gameState.lastModified() == null ||
-            gameState.lastModified().plusSeconds(gameSettings().saveIntervalSeconds).isBefore(Instant.now())) {
-          gameState = saveGame();
+        if (gameContext.forceUpdate() || game.lastModified() == null ||
+            game.lastModified().plusSeconds(gameSettings().saveIntervalSeconds).isBefore(Instant.now())) {
+          game = saveGame();
         }
       } else {
         // If the game is not active or paused, we can save the game state to the database immediately.
-        gameState = saveGame();
+        game = saveGame();
       }
 
       // Publish events.
@@ -176,7 +181,7 @@ public abstract class GameManager<T extends Game<T>> {
    * @return The game state that was saved.
    */
   public final T saveGame() {
-    return persistGameState(gameState);
+    return persistGameState(game);
   }
 
   protected GameSettings gameSettings() {
@@ -184,25 +189,34 @@ public abstract class GameManager<T extends Game<T>> {
   }
   protected abstract T persistGameState(T game);
 
-  protected final GameContext<T> applyCommand(GameCommand command, GameContext<T> gameContext) {
+  /**
+   * This method handles state transitions (at the game level)
+   *
+   * @param gameContext The current game context
+   * @return The updated game context
+   */
+  protected final T transitionGame(T game, GameContext gameContext) {
+    return game;
+  }
+
+  protected final T applyCommand(GameCommand command, T game, GameContext gameContext) {
 
     return switch (command) {
-      case RegisterForGame gameCommand -> registerForGame(gameCommand, gameContext);
-      case UnregisterFromGame gameCommand -> unregisterFromGame(gameCommand, gameContext);
-      case EndGame gameCommand -> endGame(gameCommand, gameContext);
+      case RegisterForGame gameCommand -> registerForGame(gameCommand, game, gameContext);
+      case UnregisterFromGame gameCommand -> unregisterFromGame(gameCommand, game, gameContext);
+      case EndGame gameCommand -> endGame(gameCommand, game, gameContext);
       default ->
         // Allow the subclass to handle any commands that are specific to child game manager.
-          applyGameSpecificCommand(command, gameContext);
+          applyGameSpecificCommand(command, game, gameContext);
     };
   }
 
-  private GameContext<T> registerForGame(RegisterForGame registerForGame, GameContext<T> gameContext) {
+  private T registerForGame(RegisterForGame registerForGame, T game, GameContext gameContext) {
 
-    if (gameContext.gameStatus() == GameStatus.COMPLETED) {
+    if (game.status() == GameStatus.COMPLETED) {
       throw new ValidationException("This game has already completed.");
     }
 
-    T game = gameContext.game();
     if (game.players().containsKey(registerForGame.user().loginId())) {
       throw new ValidationException("You are already registered for this game.");
     }
@@ -211,17 +225,15 @@ public abstract class GameManager<T extends Game<T>> {
         .user(registerForGame.user())
         .status(PlayerStatus.REGISTERED)
         .build());
-
-    return gameContext.withGame(game.withPlayers(players)).withForceUpdate(true);
+    gameContext.forceUpdate(true);
+    return game.withPlayers(players);
   }
 
-  private GameContext<T> unregisterFromGame(UnregisterFromGame registerForGame, GameContext<T> gameContext) {
+  private T unregisterFromGame(UnregisterFromGame registerForGame, T game, GameContext gameContext) {
 
-    if (gameContext.gameStatus() != GameStatus.SCHEDULED) {
+    if (game.status() != GameStatus.SCHEDULED) {
       throw new ValidationException("You can only unregister from the game prior to it starting.");
     }
-
-    T game = gameContext.game();
 
     if (!game.players().containsKey(registerForGame.user().loginId())) {
       throw new ValidationException("You are not registered for this game.");
@@ -229,22 +241,22 @@ public abstract class GameManager<T extends Game<T>> {
 
     Map<String, Player> players = new HashMap<>(game.players());
     players.remove(registerForGame.user().loginId());
-    return gameContext.withGame(game.withPlayers(players)).withForceUpdate(true);
-
+    gameContext.forceUpdate(true);
+    return game.withPlayers(players);
   }
 
-  private GameContext<T> endGame(EndGame gameCommand, GameContext<T> gameContext) {
-    if (gameContext.gameStatus() == GameStatus.COMPLETED) {
+  private T endGame(EndGame gameCommand, T game, GameContext gameContext) {
+    if (game.status() == GameStatus.COMPLETED) {
       throw new ValidationException("This game has already completed.");
     }
     if (SecurityUtilities.userIsAdmin(gameCommand.user())) {
-      return gameContext.withGame(gameContext.game().withStatus(GameStatus.COMPLETED));
+      return game.withStatus(GameStatus.COMPLETED);
     } else {
       throw new ValidationException("Only an admin can end a game.");
     }
   }
 
-  protected GameContext<T> applyGameSpecificCommand(GameCommand command, GameContext<T> gameContext) {
+  protected T applyGameSpecificCommand(GameCommand command, T game, GameContext gameContext) {
     throw new ValidationException("Unknown command: " + command.commandId());
   }
 

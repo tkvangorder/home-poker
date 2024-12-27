@@ -30,7 +30,7 @@ public record Table(List<Seat> seats, Status status, @Nullable Integer dealerPos
   }
 
   public enum Status {
-    PAUSED,
+    PAUSED_AFTER_HAND,
     PLAYING
   }
 }
