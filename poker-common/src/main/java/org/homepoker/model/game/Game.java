@@ -37,19 +37,24 @@ public interface Game<G extends Game<G>> {
    */
   GameType type();
 
+  Instant startTime();
+
+  @Nullable
+  Instant endTime();
+
   /**
    * Current status of the game (useful when persisting the game to storage)
    */
   GameStatus status();
 
-  void setStatus(GameStatus status);
+  Game<G> status(GameStatus status);
 
   /**
    * User that created/owns the game.
    */
   User owner();
 
-  void setOwner(User owner);
+  Game<G> owner(User owner);
 
   /**
    * The players registered/participating in the game.
@@ -74,5 +79,5 @@ public interface Game<G extends Game<G>> {
   Instant lastModified();
 
   @LastModifiedDate
-  void setLastModified(Instant lastModified);
+  Game<G> lastModified(Instant lastModified);
 }

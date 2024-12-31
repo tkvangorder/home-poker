@@ -128,25 +128,15 @@ public abstract class GameManager<T extends Game<T>> {
         }
       }
 
-      if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.PAUSED) {
-        // If the game is active or paused, we need to see if the state of the game/tables has changed based on either
-        // the commands that were processed or time passing.
-
-        // TODO ProcessEachTable
-        for (Table table : game.tables().values()) {
-          tableManager.transitionTable(game, table, gameContext);
-        }
-
-        // TODO Top Level Game Processing
-        transitionGame(game, gameContext);
-      }
+      transitionGame(game, gameContext);
 
       if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.PAUSED) {
         // If the game is active or paused, there are active threads firing for each "tick", we want to periodically
         // save the in-memory state of the game to the database.
 
+        //noinspection DataFlowIssue
         if (gameContext.forceUpdate() || game.lastModified() == null ||
-            game.lastModified().plusSeconds(gameSettings().saveIntervalSeconds).isBefore(Instant.now())) {
+            game.lastModified().plusSeconds(gameSettings().saveIntervalSeconds()).isBefore(Instant.now())) {
           game = saveGame();
         }
       } else {
@@ -191,6 +181,30 @@ public abstract class GameManager<T extends Game<T>> {
    * @param gameContext The current game context
    */
   protected final void transitionGame(T game, GameContext gameContext) {
+    if (game.status() == GameStatus.SCHEDULED && game.startTime().minusSeconds(
+        gameSettings().seatingTimeSeconds()).isBefore(Instant.now())) {
+      game.status(GameStatus.SEATING);
+
+      int tableCount = (game.players().size() / 9) + 1;
+      if (tableCount > game.tables().size()) {
+        for (int i = game.tables().size(); i < tableCount; i++) {
+          game.tables().put("Table-" + i, Table.builder().id("Table-" + i).build());
+        }
+      }
+    } else
+    if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.PAUSED) {
+      // If the game is active or paused, we need to see if the state of the game/tables has changed based on either
+      // the commands that were processed or time passing.
+
+      // TODO ProcessEachTable
+      for (Table table : game.tables().values()) {
+        tableManager.transitionTable(game, table, gameContext);
+      }
+
+      // TODO Top Level Game Processing
+      transitionGame(game, gameContext);
+    }
+
   }
 
   protected final void applyCommand(GameCommand command, T game, GameContext gameContext) {
@@ -247,7 +261,7 @@ public abstract class GameManager<T extends Game<T>> {
       throw new ValidationException("This game has already completed.");
     }
     if (SecurityUtilities.userIsAdmin(gameCommand.user())) {
-      game.setStatus(GameStatus.COMPLETED);
+      game.status(GameStatus.COMPLETED);
     } else {
       throw new ValidationException("Only an admin can end a game.");
     }

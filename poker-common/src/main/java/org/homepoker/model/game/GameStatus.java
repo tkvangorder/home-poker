@@ -7,6 +7,7 @@ package org.homepoker.model.game;
  */
 public enum GameStatus {
   SCHEDULED,
+  SEATING,
   ACTIVE,
   PAUSED,
   COMPLETED

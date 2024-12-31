@@ -6,11 +6,10 @@ import org.homepoker.model.game.Table;
 
 public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> {
   public TexasHoldemTableManager() {
-    super(false);
+    super(false, 9);
   }
 
   @Override
-  protected Table transitionTable(Table table, GameContext gameContext) {
-    return table;
+  public void transitionTable(Game<T> game, Table table, GameContext gameContext) {
   }
 }

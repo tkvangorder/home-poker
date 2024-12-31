@@ -8,13 +8,19 @@ import org.homepoker.model.game.Table;
 public abstract class TableManager<T extends Game<T>> {
 
   private final boolean isTwoBoardGame;
+  private final int numberOfSeats;
 
-  public TableManager(boolean isTwoBoardGame) {
+  public TableManager(boolean isTwoBoardGame, int numberOfSeats) {
     this.isTwoBoardGame = isTwoBoardGame;
+    this.numberOfSeats = numberOfSeats;
   }
 
   public boolean isTwoBoardGame() {
     return isTwoBoardGame;
+  }
+
+  public int numberOfSeats() {
+    return numberOfSeats;
   }
 
   public final void applyCommand(GameCommand command, Game<T> game, Table table, GameContext gameContext) {

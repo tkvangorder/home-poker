@@ -1,12 +1,15 @@
 package org.homepoker.game;
 
-public class GameSettings {
+import lombok.Builder;
 
-  public final static GameSettings DEFAULT = new GameSettings(5);
+@Builder
+public record GameSettings(
+    int saveIntervalSeconds,
+    int seatingTimeSeconds) {
 
-  public final int saveIntervalSeconds;
+  public final static GameSettings DEFAULT = GameSettings.builder()
+      .saveIntervalSeconds(5)
+      .seatingTimeSeconds(60)
+      .build();
 
-  public GameSettings(int saveIntervalSeconds) {
-    this.saveIntervalSeconds = saveIntervalSeconds;
-  }
 }

@@ -11,7 +11,7 @@ import java.util.Set;
  */
 @Builder
 @With
-public record User(@Nullable String id, String loginId, @Nullable String password, String email, String alias, String name, String phone, Set<UserRole> roles) {
+public record User(String id, String loginId, @Nullable String password, String email, String alias, String name, String phone, Set<UserRole> roles) {
 
   public User(@Nullable String id, String loginId, @Nullable String password, String email, @Nullable String alias, String name, String phone, @Nullable Set<UserRole> roles) {
     this.id = id;
