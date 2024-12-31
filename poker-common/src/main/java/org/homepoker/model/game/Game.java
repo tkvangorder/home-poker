@@ -1,6 +1,8 @@
 package org.homepoker.model.game;
 
+import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.model.user.User;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.Instant;
@@ -41,21 +43,26 @@ public interface Game<G extends Game<G>> {
    */
   GameStatus status();
 
-  G withStatus(GameStatus status);
+  void setStatus(GameStatus status);
 
   /**
    * User that created/owns the game.
    */
   User owner();
 
-  G withOwner(User owner);
+  void setOwner(User owner);
 
   /**
    * The players registered/participating in the game.
    */
   Map<String, Player> players();
 
-  G withPlayers(Map<String, Player> players);
+  default void addPlayer(Player player) {
+    if (players().containsKey(player.userId())) {
+      throw new ValidationException("Player is already registered for this game.");
+    }
+    players().put(player.userId(), player);
+  };
 
   /**
    * A game may have multiple tables depending on how many players are registered/participating in the game.
@@ -63,9 +70,12 @@ public interface Game<G extends Game<G>> {
    */
   List<Table> tables();
 
-  G withTables(List<Table> tables);
+  void setTables(List<Table> tables);
 
   @LastModifiedDate
+  @Nullable
   Instant lastModified();
-  G withLastModified(Instant lastModified);
+
+  @LastModifiedDate
+  void setLastModified(Instant lastModified);
 }

@@ -288,18 +288,17 @@ public class CashGameService {
       }
     }
 
-    game = game.withName(gameDetails.name());
-    game = game.withType(gameType);
-    game = game.withStatus(status);
-    game = game.withStartTime(startTime);
-    game = game.withMaxBuyIn(gameDetails.maxBuyIn());
-    game = game.withSmallBlind(gameDetails.smallBlind());
-    game = game.withBigBlind(bigBlind);
-    game = game.withOwner(gameDetails.owner());
+    game.setName(gameDetails.name());
+    game.setType(gameType);
+    game.setStatus(status);
+    game.setStartTime(startTime);
+    game.setMaxBuyIn(gameDetails.maxBuyIn());
+    game.setSmallBlind(gameDetails.smallBlind());
+    game.setBigBlind(bigBlind);
+    game.setOwner(gameDetails.owner());
 
-    if (!game.players().containsKey(game.owner().loginId())) {
-      Player player = Player.builder().user(game.owner()).status(PlayerStatus.AWAY).build();
-      game = game.withPlayer(player);
+    if (!game.players().containsKey(game.owner().id())) {
+      game.addPlayer(Player.builder().user(game.owner()).status(PlayerStatus.AWAY).build());
     }
     return game;
   }

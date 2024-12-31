@@ -14,13 +14,15 @@ public class CashGameManager extends GameManager<CashGame> {
     this.cashGameService = cashGameService;
   }
 
-  private CashGameManager(CashGameManager gameManager) {
-    super(gameManager);
-    this.cashGameService = gameManager.cashGameService;
-  }
-
+  /**
+   * This is used to create a copy of the game manager for the purpose of integration testing. This should not be used
+   * outside of testing.
+   *
+   * @return A copy of the game manager
+   *
+   */
   public CashGameManager copy() {
-    return new CashGameManager(this);
+    return new CashGameManager(game().copy(), cashGameService, userManager(), securityUtilities());
   }
 
   @Override

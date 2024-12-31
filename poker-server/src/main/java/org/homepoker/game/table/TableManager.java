@@ -7,11 +7,9 @@ import org.homepoker.model.game.Table;
 
 public abstract class TableManager<T extends Game<T>> {
 
-  private final String tableId;
   private final boolean isTwoBoardGame;
 
-  public TableManager(String tableId, boolean isTwoBoardGame) {
-    this.tableId = tableId;
+  public TableManager(boolean isTwoBoardGame) {
     this.isTwoBoardGame = isTwoBoardGame;
   }
 
@@ -43,7 +41,7 @@ public abstract class TableManager<T extends Game<T>> {
    * @param gameContext The current game context
    * @return The updated game context
    */
-  protected Table applySubcommand(GameCommand command, Table table, GameContext<T> gameContext) {
+  protected Table applySubcommand(GameCommand command, Table table, GameContext gameContext) {
     return table;
   }
 }

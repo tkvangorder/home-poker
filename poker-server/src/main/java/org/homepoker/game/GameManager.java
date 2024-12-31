@@ -61,17 +61,14 @@ public abstract class GameManager<T extends Game<T>> {
     this.securityUtilities = securityUtilities;
   }
 
-  @SuppressWarnings("CopyConstructorMissesField")
-  protected GameManager(GameManager<T> copy) {
-    this.game = copy.game;
-    this.userManager = copy.userManager;
-    this.securityUtilities = copy.securityUtilities;
-  }
-
   public void addGameListener(GameListener listener) {
   }
   public void removeGameListener(GameListener listener) {
     // TODO Auto-generated method stub
+  }
+
+  protected final T game() {
+    return game;
   }
 
   public String gameId() {
@@ -82,12 +79,11 @@ public abstract class GameManager<T extends Game<T>> {
     return game.status();
   }
 
-
-  protected UserManager getUserManager() {
+  protected UserManager userManager() {
     return userManager;
   }
 
-  protected SecurityUtilities getSecurityUtilities() {
+  protected SecurityUtilities securityUtilities() {
     return securityUtilities;
   }
 
@@ -103,7 +99,6 @@ public abstract class GameManager<T extends Game<T>> {
     }
     try {
       GameContext gameContext = new GameContext(gameSettings());
-      T g = game;
 
       // Process queued Commands
       List<GameCommand> commands = new ArrayList<>();
@@ -111,7 +106,7 @@ public abstract class GameManager<T extends Game<T>> {
 
       for (GameCommand command : commands) {
         try {
-          g = applyCommand(command, g, gameContext);
+          applyCommand(command, game, gameContext);
         } catch (ValidationException e) {
           gameContext.queueEvent(UserMessage.builder()
               .timestamp(Instant.now())
@@ -133,7 +128,7 @@ public abstract class GameManager<T extends Game<T>> {
         }
       }
 
-      if (g.status() == GameStatus.ACTIVE || g.status() == GameStatus.PAUSED) {
+      if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.PAUSED) {
         // If the game is active or paused, we need to see if the state of the game/tables has changed based on either
         // the commands that were processed or time passing.
 
@@ -141,9 +136,6 @@ public abstract class GameManager<T extends Game<T>> {
 
         // TODO Top Level Game Processing
       }
-
-      // Update the game state
-      this.game = g;
 
       if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.PAUSED) {
         // If the game is active or paused, there are active threads firing for each "tick", we want to periodically
@@ -199,9 +191,9 @@ public abstract class GameManager<T extends Game<T>> {
     return game;
   }
 
-  protected final T applyCommand(GameCommand command, T game, GameContext gameContext) {
+  protected final void applyCommand(GameCommand command, T game, GameContext gameContext) {
 
-    return switch (command) {
+    switch (command) {
       case RegisterForGame gameCommand -> registerForGame(gameCommand, game, gameContext);
       case UnregisterFromGame gameCommand -> unregisterFromGame(gameCommand, game, gameContext);
       case EndGame gameCommand -> endGame(gameCommand, game, gameContext);
@@ -211,7 +203,7 @@ public abstract class GameManager<T extends Game<T>> {
     };
   }
 
-  private T registerForGame(RegisterForGame registerForGame, T game, GameContext gameContext) {
+  private void registerForGame(RegisterForGame registerForGame, T game, GameContext gameContext) {
 
     if (game.status() == GameStatus.COMPLETED) {
       throw new ValidationException("This game has already completed.");
@@ -220,16 +212,13 @@ public abstract class GameManager<T extends Game<T>> {
     if (game.players().containsKey(registerForGame.user().loginId())) {
       throw new ValidationException("You are already registered for this game.");
     }
-    Map<String, Player> players = new HashMap<>(game.players());
-    players.put(registerForGame.user().loginId(), Player.builder()
-        .user(registerForGame.user())
-        .status(PlayerStatus.REGISTERED)
-        .build());
+    game.addPlayer(
+        Player.builder().user(registerForGame.user()).status(PlayerStatus.REGISTERED).build()
+    );
     gameContext.forceUpdate(true);
-    return game.withPlayers(players);
   }
 
-  private T unregisterFromGame(UnregisterFromGame registerForGame, T game, GameContext gameContext) {
+  private void unregisterFromGame(UnregisterFromGame registerForGame, T game, GameContext gameContext) {
 
     if (game.status() != GameStatus.SCHEDULED) {
       throw new ValidationException("You can only unregister from the game prior to it starting.");
@@ -239,24 +228,22 @@ public abstract class GameManager<T extends Game<T>> {
       throw new ValidationException("You are not registered for this game.");
     }
 
-    Map<String, Player> players = new HashMap<>(game.players());
-    players.remove(registerForGame.user().loginId());
+    game.players().remove(registerForGame.user().loginId());
     gameContext.forceUpdate(true);
-    return game.withPlayers(players);
   }
 
-  private T endGame(EndGame gameCommand, T game, GameContext gameContext) {
+  private void endGame(EndGame gameCommand, T game, GameContext gameContext) {
     if (game.status() == GameStatus.COMPLETED) {
       throw new ValidationException("This game has already completed.");
     }
     if (SecurityUtilities.userIsAdmin(gameCommand.user())) {
-      return game.withStatus(GameStatus.COMPLETED);
+      game.setStatus(GameStatus.COMPLETED);
     } else {
       throw new ValidationException("Only an admin can end a game.");
     }
   }
 
-  protected T applyGameSpecificCommand(GameCommand command, T game, GameContext gameContext) {
+  protected void applyGameSpecificCommand(GameCommand command, T game, GameContext gameContext) {
     throw new ValidationException("Unknown command: " + command.commandId());
   }
 
