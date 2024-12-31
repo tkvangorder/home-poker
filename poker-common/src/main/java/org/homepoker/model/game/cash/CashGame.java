@@ -26,7 +26,7 @@ public class CashGame implements Game<CashGame> {
   private Integer maxBuyIn;
   private Instant lastModified;
   private Map<String, Player> players;
-  private List<Table> tables;
+  private Map<String, Table> tables;
 
   @Override
   public GameFormat format() {
@@ -89,7 +89,7 @@ public class CashGame implements Game<CashGame> {
   }
 
   @Override
-  public List<Table> tables() {
+  public Map<String, Table> tables() {
     return tables;
   }
 
@@ -107,15 +107,15 @@ public class CashGame implements Game<CashGame> {
         .maxBuyIn(maxBuyIn)
         .lastModified(lastModified)
         .players(new HashMap<>(players))
-        .tables(new ArrayList<>(tables))
+        .tables(new HashMap<>(tables))
         .build();
   }
   public static class CashGameBuilder {
 
     @SuppressWarnings("FieldMayBeFinal")
     private GameStatus status = GameStatus.SCHEDULED;
-    private Map<String, Player> players = new HashMap<>();
-    private List<Table> tables = new ArrayList<>();
+    private final Map<String, Player> players = new HashMap<>();
+    private final Map<String, Table> tables = new HashMap<>();
 
     public CashGame build() {
       return new CashGame(id, name, type, startTime, endTime, status, owner, smallBlind, bigBlind,
@@ -126,16 +126,12 @@ public class CashGame implements Game<CashGame> {
       if (player.user().id() == null) {
         throw new IllegalArgumentException("Player must have a user id");
       }
-      Map<String, Player> players = new HashMap<>(this.players);
       players.put(player.user().id(), player);
-      this.players = Map.copyOf(players);
       return this;
     }
 
     public CashGameBuilder table(Table table) {
-      List<Table> tables = new ArrayList<>(this.tables);
-      tables.add(table);
-      this.tables = List.copyOf(tables);
+      tables.put(table.id(), table);
       return this;
     }
   }

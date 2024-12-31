@@ -6,7 +6,6 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -22,7 +21,7 @@ public interface Game<G extends Game<G>> {
   String id();
 
   /**
-   * A human readable name for the game.
+   * A human-readable name for the game.
    */
   String name();
 
@@ -62,15 +61,13 @@ public interface Game<G extends Game<G>> {
       throw new ValidationException("Player is already registered for this game.");
     }
     players().put(player.userId(), player);
-  };
+  }
 
   /**
    * A game may have multiple tables depending on how many players are registered/participating in the game.
    * Each table can hold up to nine players and as players come and go, the players may be moved to different tables.
    */
-  List<Table> tables();
-
-  void setTables(List<Table> tables);
+  Map<String, Table> tables();
 
   @LastModifiedDate
   @Nullable

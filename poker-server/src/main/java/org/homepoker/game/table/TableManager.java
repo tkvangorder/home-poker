@@ -17,13 +17,13 @@ public abstract class TableManager<T extends Game<T>> {
     return isTwoBoardGame;
   }
 
-  public final Table applyCommand(GameCommand command, Table table, GameContext gameContext) {
+  public final void applyCommand(GameCommand command, Game<T> game, Table table, GameContext gameContext) {
 
-    return switch (command) {
+    switch (command) {
       default ->
           // Allow the subclass to handle any commands that are specific to the game type.
-          applySubcommand(command, table, gameContext);
-    };
+          applySubcommand(command, game, table, gameContext);
+    }
   }
 
   /**
@@ -31,17 +31,14 @@ public abstract class TableManager<T extends Game<T>> {
    * handle transitions specific to the game type.
    *
    * @param gameContext The current game context
-   * @return The updated game context
    */
-  protected abstract Table transitionTable(Table table, GameContext gameContext);
+  public abstract void transitionTable(Game<T> game, Table table, GameContext gameContext);
 
   /**
    * Give subclasses the opportunity to handle any commands that are specific to the game type.
    * @param command The command to apply
    * @param gameContext The current game context
-   * @return The updated game context
    */
-  protected Table applySubcommand(GameCommand command, Table table, GameContext gameContext) {
-    return table;
+  protected void applySubcommand(GameCommand command, Game<T> game, Table table, GameContext gameContext) {
   }
 }

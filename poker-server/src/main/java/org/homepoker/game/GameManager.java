@@ -2,15 +2,13 @@ package org.homepoker.game;
 
 import lombok.extern.slf4j.Slf4j;
 import org.homepoker.game.table.TableManager;
+import org.homepoker.game.table.TexasHoldemTableManager;
 import org.homepoker.model.event.SystemError;
 import org.homepoker.model.event.user.UserMessage;
 import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.model.MessageSeverity;
 import org.homepoker.model.command.*;
-import org.homepoker.model.game.Game;
-import org.homepoker.model.game.GameStatus;
-import org.homepoker.model.game.Player;
-import org.homepoker.model.game.PlayerStatus;
+import org.homepoker.model.game.*;
 import org.homepoker.security.SecurityUtilities;
 import org.homepoker.user.UserManager;
 import org.jctools.queues.MessagePassingQueue;
@@ -29,16 +27,16 @@ public abstract class GameManager<T extends Game<T>> {
    * <p>
    * The game loop thread is the only thread that will drain the commands and manipulate the game state.
    */
-  MessagePassingQueue<GameCommand> pendingCommands = new MpscLinkedQueue<>();
+  private final MessagePassingQueue<GameCommand> pendingCommands = new MpscLinkedQueue<>();
 
   /**
    * For now, using an immutable list of listeners. If there are concerns about performance or a need to find listeners
    * pinned to a specific user, we can use a map for faster lookups.
    */
-  private List<GameListener> gameListeners = List.of();
+  private final List<GameListener> gameListeners = new ArrayList<>();
 
 
-  private List<TableManager> tableManagers = List.of();
+  private final TableManager<T> tableManager;
 
   /**
    * The current game state that is being managed by this game manager. Changes to the game state are completely
@@ -59,6 +57,8 @@ public abstract class GameManager<T extends Game<T>> {
     this.game = game;
     this.userManager = userManager;
     this.securityUtilities = securityUtilities;
+    // TODO, as we add other game types, we can switch on game.type() to determine which table manager to use.
+    this.tableManager = new TexasHoldemTableManager<>();
   }
 
   public void addGameListener(GameListener listener) {
@@ -133,8 +133,12 @@ public abstract class GameManager<T extends Game<T>> {
         // the commands that were processed or time passing.
 
         // TODO ProcessEachTable
+        for (Table table : game.tables().values()) {
+          tableManager.transitionTable(game, table, gameContext);
+        }
 
         // TODO Top Level Game Processing
+        transitionGame(game, gameContext);
       }
 
       if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.PAUSED) {
@@ -185,14 +189,20 @@ public abstract class GameManager<T extends Game<T>> {
    * This method handles state transitions (at the game level)
    *
    * @param gameContext The current game context
-   * @return The updated game context
    */
-  protected final T transitionGame(T game, GameContext gameContext) {
-    return game;
+  protected final void transitionGame(T game, GameContext gameContext) {
   }
 
   protected final void applyCommand(GameCommand command, T game, GameContext gameContext) {
 
+    if (command instanceof TableCommand tableCommand) {
+      Table table = game.tables().get(tableCommand.tableId());
+      if (table == null) {
+        throw new ValidationException("Table not found: " + tableCommand.tableId());
+      }
+      tableManager.applyCommand(command, game, table, gameContext);
+      return;
+    }
     switch (command) {
       case RegisterForGame gameCommand -> registerForGame(gameCommand, game, gameContext);
       case UnregisterFromGame gameCommand -> unregisterFromGame(gameCommand, game, gameContext);
@@ -200,7 +210,7 @@ public abstract class GameManager<T extends Game<T>> {
       default ->
         // Allow the subclass to handle any commands that are specific to child game manager.
           applyGameSpecificCommand(command, game, gameContext);
-    };
+    }
   }
 
   private void registerForGame(RegisterForGame registerForGame, T game, GameContext gameContext) {

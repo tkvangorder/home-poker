@@ -5,7 +5,6 @@ import org.homepoker.model.game.*;
 import org.homepoker.model.user.User;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 
 @Builder
@@ -23,7 +22,7 @@ public final class TournamentGame implements Game<TournamentGame> {
   private GameStatus status;
   private User owner;
   private Map<String, Player> players;
-  private List<Table> tables;
+  private Map<String, Table> tables;
   private Integer buyInChips;
   private Integer buyInAmount;
   private int blindIntervalMinutes;
@@ -82,7 +81,7 @@ public final class TournamentGame implements Game<TournamentGame> {
   }
 
   @Override
-  public List<Table> tables() {
+  public Map<String, Table> tables() {
     return tables;
   }
 
