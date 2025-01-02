@@ -5,6 +5,7 @@ import lombok.experimental.Accessors;
 import org.homepoker.model.poker.Card;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -22,7 +23,6 @@ public final class Table {
   private List<Card> communityCards;
   private List<Pot> pots;
 
-
   /**
    * A pot represents the collection of chips that are in play for a given hand, along with the seat (positions) that
    * are eligible to win the pot.
@@ -34,7 +34,14 @@ public final class Table {
   }
 
   public enum Status {
-    PAUSED_AFTER_HAND,
+    PAUSE_AFTER_HAND,
+    PAUSED,
     PLAYING
+  }
+
+  public static class TableBuilder {
+    private Status status = Status.PAUSED;
+    private List<Card> communityCards = new ArrayList<>();
+    private List<Pot> pots = new ArrayList<>();
   }
 }

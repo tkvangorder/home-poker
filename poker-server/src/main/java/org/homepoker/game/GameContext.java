@@ -14,6 +14,10 @@ public class GameContext {
     this.settings = settings;
   }
 
+  public GameSettings settings() {
+    return settings;
+  }
+
   public boolean forceUpdate() {
     return forceUpdate;
   }
@@ -25,7 +29,6 @@ public class GameContext {
     this.forceUpdate = forceUpdate;
   }
 
-
   public void queueEvent(PokerEvent event) {
 
     if (!event.isValid()) {
@@ -33,6 +36,4 @@ public class GameContext {
     }
     events.add(event);
   }
-
-
 }

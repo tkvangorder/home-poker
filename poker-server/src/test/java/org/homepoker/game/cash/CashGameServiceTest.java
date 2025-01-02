@@ -1,5 +1,6 @@
 package org.homepoker.game.cash;
 
+import org.homepoker.lib.util.DateTimeUtils;
 import org.homepoker.model.game.Table;
 import org.homepoker.lib.exception.ResourceNotFound;
 import org.homepoker.model.command.EndGame;
@@ -12,7 +13,6 @@ import org.homepoker.model.game.cash.CashGameDetails;
 import org.homepoker.model.user.User;
 import org.homepoker.test.BaseIntegrationTest;
 import org.homepoker.test.TestDataHelper;
-import org.homepoker.utils.DateTimeUtils;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 

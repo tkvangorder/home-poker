@@ -45,6 +45,7 @@ public abstract class GameManager<T extends Game<T>> {
    */
   private T game;
 
+  private final GameSettings gameSettings;
   private final UserManager userManager;
   private final SecurityUtilities securityUtilities;
 
@@ -58,7 +59,8 @@ public abstract class GameManager<T extends Game<T>> {
     this.userManager = userManager;
     this.securityUtilities = securityUtilities;
     // TODO, as we add other game types, we can switch on game.type() to determine which table manager to use.
-    this.tableManager = new TexasHoldemTableManager<>();
+    this.gameSettings = GameSettings.TEXAS_HOLDEM_SETTINGS;
+    this.tableManager = new TexasHoldemTableManager<>(gameSettings);
   }
 
   public void addGameListener(GameListener listener) {
@@ -171,8 +173,9 @@ public abstract class GameManager<T extends Game<T>> {
   }
 
   protected GameSettings gameSettings() {
-    return GameSettings.DEFAULT;
+    return gameSettings;
   }
+
   protected abstract T persistGameState(T game);
 
   /**
@@ -183,13 +186,13 @@ public abstract class GameManager<T extends Game<T>> {
   protected final void transitionGame(T game, GameContext gameContext) {
     if (game.status() == GameStatus.SCHEDULED && game.startTime().minusSeconds(
         gameSettings().seatingTimeSeconds()).isBefore(Instant.now())) {
+
+      // Transition the game from scheduled to seating and initial the game/table state.
       game.status(GameStatus.SEATING);
 
       int tableCount = (game.players().size() / 9) + 1;
-      if (tableCount > game.tables().size()) {
-        for (int i = game.tables().size(); i < tableCount; i++) {
-          game.tables().put("Table-" + i, Table.builder().id("Table-" + i).build());
-        }
+      for (int i = 0; i < tableCount; i++) {
+          game.tables().put("TABLE-" + i, Table.builder().id("Table-" + i).build());
       }
     } else
     if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.PAUSED) {

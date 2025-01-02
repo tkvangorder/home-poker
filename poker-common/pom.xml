@@ -11,9 +11,6 @@
   <version>0.0.1-SNAPSHOT</version>
   <name>poker-common</name>
   <description>Common libraries and models shared across the server and client</description>
-  <properties>
-    <java.version>20</java.version>
-  </properties>
   <dependencies>
     <dependency>
       <groupId>org.springframework</groupId>

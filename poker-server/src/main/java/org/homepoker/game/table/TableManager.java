@@ -1,26 +1,21 @@
 package org.homepoker.game.table;
 
 import org.homepoker.game.GameContext;
+import org.homepoker.game.GameSettings;
 import org.homepoker.model.command.GameCommand;
 import org.homepoker.model.game.Game;
 import org.homepoker.model.game.Table;
 
 public abstract class TableManager<T extends Game<T>> {
 
-  private final boolean isTwoBoardGame;
-  private final int numberOfSeats;
+  private final GameSettings gameSettings;
 
-  public TableManager(boolean isTwoBoardGame, int numberOfSeats) {
-    this.isTwoBoardGame = isTwoBoardGame;
-    this.numberOfSeats = numberOfSeats;
+  public TableManager(GameSettings gameSettings) {
+    this.gameSettings = gameSettings;
   }
 
-  public boolean isTwoBoardGame() {
-    return isTwoBoardGame;
-  }
-
-  public int numberOfSeats() {
-    return numberOfSeats;
+  protected GameSettings gameSettings() {
+    return gameSettings;
   }
 
   public final void applyCommand(GameCommand command, Game<T> game, Table table, GameContext gameContext) {
@@ -47,4 +42,6 @@ public abstract class TableManager<T extends Game<T>> {
    */
   protected void applySubcommand(GameCommand command, Game<T> game, Table table, GameContext gameContext) {
   }
+
+  public abstract Table createTable(String tableId);
 }
