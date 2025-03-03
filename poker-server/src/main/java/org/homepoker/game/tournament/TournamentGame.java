@@ -7,6 +7,7 @@ import org.homepoker.model.user.User;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.NavigableMap;
 
 @Builder
 @Data
@@ -21,7 +22,7 @@ public final class TournamentGame implements Game<TournamentGame> {
   private GameStatus status;
   private User owner;
   private Map<String, Player> players;
-  private Map<String, Table> tables;
+  private NavigableMap<String, Table> tables;
   private Integer buyInChips;
   private Integer buyInAmount;
   private int blindIntervalMinutes;

@@ -16,8 +16,22 @@ public class RandomUtils {
       .create();
 
 
+  /**
+   * Shuffles the specified collection using the default random number generator.
+   *
+   * @param collection the collection to shuffle
+   */
   public static synchronized void shuffleCollection(List<?> collection) {
     Collections.shuffle(collection, sourceGenerator);
   }
 
+  /**
+   * Returns a random integer between 0 (inclusive) and the specified bound (exclusive).
+   *
+   * @param bound the upper bound (exclusive). Must be positive.
+   * @return the random integer
+   */
+  public static synchronized int randomInt(int bound) {
+    return sourceGenerator.nextInt(bound);
+  }
 }

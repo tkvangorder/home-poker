@@ -25,7 +25,7 @@ public class CashGame implements Game<CashGame> {
   private Integer maxBuyIn;
   private Instant lastModified;
   private final Map<String, Player> players;
-  private final Map<String, Table> tables;
+  private final NavigableMap<String, Table> tables;
 
   @Override
   public GameFormat format() {
@@ -46,7 +46,7 @@ public class CashGame implements Game<CashGame> {
         .maxBuyIn(maxBuyIn)
         .lastModified(lastModified)
         .players(new HashMap<>(players))
-        .tables(new HashMap<>(tables))
+        .tables(new TreeMap<>(tables))
         .build();
   }
 
@@ -54,7 +54,7 @@ public class CashGame implements Game<CashGame> {
   public static class CashGameBuilder {
     private GameStatus status = GameStatus.SCHEDULED;
     private Map<String, Player> players = new HashMap<>();
-    private Map<String, Table> tables = new HashMap<>();
+    private NavigableMap<String, Table> tables = new TreeMap<>();
 
     public CashGameBuilder player(Player player) {
       if (player.user().id() == null) {

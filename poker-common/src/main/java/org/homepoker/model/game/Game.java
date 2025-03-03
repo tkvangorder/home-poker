@@ -7,6 +7,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.NavigableMap;
 
 /**
  * An interface to define common properties and operations regardless of the game format : CASH/TOURNAMENT
@@ -72,7 +73,7 @@ public interface Game<G extends Game<G>> {
    * A game may have multiple tables depending on how many players are registered/participating in the game.
    * Each table can hold up to nine players and as players come and go, the players may be moved to different tables.
    */
-  Map<String, Table> tables();
+  NavigableMap<String, Table> tables();
 
   @LastModifiedDate
   @Nullable

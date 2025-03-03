@@ -23,6 +23,11 @@ public final class Table {
   private List<Card> communityCards;
   private List<Pot> pots;
 
+
+  public int numberOfPlayers() {
+    return (int) seats.stream().filter(seat -> seat.status() != Seat.Status.EMPTY).count();
+  }
+
   /**
    * A pot represents the collection of chips that are in play for a given hand, along with the seat (positions) that
    * are eligible to win the pot.
@@ -43,5 +48,13 @@ public final class Table {
     private Status status = Status.PAUSED;
     private List<Card> communityCards = new ArrayList<>();
     private List<Pot> pots = new ArrayList<>();
+
+    public TableBuilder emptySeats(int numberOfSeats) {
+      this.seats = new ArrayList<>(seats);
+      for (int i = 0; i < numberOfSeats; i++) {
+        this.seats.add(Seat.builder().build());
+      }
+      return this;
+    }
   }
 }

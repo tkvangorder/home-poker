@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.homepoker.model.user.User;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This class represents the state of a player in the game and is always linked with a user.
@@ -20,6 +21,9 @@ public final class Player {
   private Integer buyInTotal;
   private Integer reBuys;
   private Integer addOns;
+
+  @Nullable
+  private String tableId;
 
   public String userId() {
     return user.id();
