@@ -64,9 +64,10 @@ public abstract class GameManager<T extends Game<T>> {
   }
 
   public void addGameListener(GameListener listener) {
+    gameListeners.add(listener);
   }
   public void removeGameListener(GameListener listener) {
-    // TODO Auto-generated method stub
+    gameListeners.remove(listener);
   }
 
   protected final T game() {
@@ -204,8 +205,7 @@ public abstract class GameManager<T extends Game<T>> {
         tableManager.transitionTable(game, table, gameContext);
       }
 
-      // TODO Top Level Game Processing
-      transitionGame(game, gameContext);
+      // TODO: game-level processing (table balancing, pause detection)
     }
 
   }

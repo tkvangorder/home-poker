@@ -27,7 +27,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class CashGameServiceTest extends BaseIntegrationTest {
 
-  @SuppressWarnings("NotNullFieldNotInitialized")
   @Autowired
   CashGameService cashGameService;
 
@@ -252,7 +251,7 @@ public class CashGameServiceTest extends BaseIntegrationTest {
           .smallBlind(25)
           .bigBlind(50)
           .player(Player.builder().user(user).build())
-          .table(Table.builder().build())
+          .table(Table.builder().id("1").build())
           .owner(user)
           .build());
       cashGameService.loadNewGames();
@@ -286,7 +285,7 @@ public class CashGameServiceTest extends BaseIntegrationTest {
               .smallBlind(25)
               .bigBlind(50)
               .player(Player.builder().user(user).build())
-              .table(Table.builder().build())
+              .table(Table.builder().id("1").build())
               .owner(user)
               .build());
       cashGameService.loadNewGames();

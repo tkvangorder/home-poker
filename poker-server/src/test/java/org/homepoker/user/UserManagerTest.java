@@ -34,7 +34,7 @@ public class UserManagerTest {
 
   @Test
   public void createAndGetUser() {
-    User user = userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
+    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
     User savedUser = userRepository.findByLoginId("fred");
 
     // Ensure the user returned from the user manager has its password filtered out.
@@ -56,7 +56,7 @@ public class UserManagerTest {
     assertThatThrownBy(() -> userManager.registerUser(null))
         .isInstanceOf(IllegalArgumentException.class);
 
-    User user = TestDataHelper.user("fred", "password", "Fred");
+    User user = TestDataHelper.user(null, "fred", "password", "Fred");
 
     assertThatThrownBy(() -> userManager.registerUser(user.withId("nonnull")))
         .isInstanceOf(IllegalArgumentException.class);
@@ -80,7 +80,7 @@ public class UserManagerTest {
 
   @Test
   public void updatePassword() {
-    User user = userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
+    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
 
     UserPasswordChangeRequest request = new UserPasswordChangeRequest("fred", "password", "newpassword");
     userManager.updateUserPassword(request);
@@ -92,7 +92,7 @@ public class UserManagerTest {
 
   @Test
   public void updateUserInformation() {
-    User user = userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
+    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
 
     UserInformationUpdate update = UserInformationUpdate.builder()
         .loginId("fred")
@@ -116,7 +116,7 @@ public class UserManagerTest {
 
   @Test
   public void updateUserVaidation() {
-    User user = userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
+    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
 
     UserInformationUpdate update = UserInformationUpdate.builder()
         .loginId("fred")
@@ -141,7 +141,7 @@ public class UserManagerTest {
 
   @Test
   void deleteUser() {
-    User user = userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
+    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
     assertThat(userManager.getUser("fred")).isNotNull();
     userManager.deleteUser("fred");
     assertThatThrownBy(() -> userManager.getUser("fred")).isInstanceOf(ValidationException.class);

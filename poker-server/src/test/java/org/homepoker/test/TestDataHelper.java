@@ -10,15 +10,17 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class TestDataHelper {
 
   public static User fred() {
-    return user("fred", "password", "Fred");
+    return user(null,"fred", "password", "Fred");
   }
 
-  public static User user(String loginId, String password, String name) {
+  public static User user(@Nullable String userId, String loginId, String password, String name) {
     return User.builder()
+				.id(userId)
         .loginId(loginId)
         .name(name)
         .alias(name)
@@ -28,7 +30,7 @@ public class TestDataHelper {
         .role(UserRole.USER)
         .build();
   }
-  public static User adminUser(String loginId, String password, String name) {
+  public static User adminUser(@Nullable String userId, String loginId, String password, String name) {
     return User.builder()
         .loginId(loginId)
         .name(name)
@@ -41,13 +43,13 @@ public class TestDataHelper {
   }
 
   public static User adminUser() {
-    return adminUser("testAdmin", "testAdmin", "Test Admin");
+    return adminUser(null, "testAdmin", "testAdmin", "Test Admin");
   }
 
-  public static List<Player> generatePlayers(CashGame game, int count) {
+	public static List<Player> generatePlayers(CashGame game, int count, boolean generateIds) {
     List<Player> players = new ArrayList<>();
     for (int i = 0; i < count; i++) {
-      players.add(player(game, user("user" + i, "password", "User" + i)));
+      players.add(player(game, user(generateIds ? UUID.randomUUID().toString() : null, "user" + i, "password", "User" + i)));
     }
     return players;
   }
@@ -76,7 +78,7 @@ public class TestDataHelper {
   public static CashGameDetails cashGameDetails(String name, @Nullable User owner) {
 
         if (owner == null) {
-            owner = adminUser("fred", "fred", "Fred");
+            owner = adminUser(null, "fred", "fred", "Fred");
         }
 
         return CashGameDetails.builder()
@@ -94,7 +96,7 @@ public class TestDataHelper {
   public static CashGame cashGame(String name, @Nullable User owner) {
 
     if (owner == null) {
-      owner = adminUser("fred", "fred", "Fred");
+      owner = adminUser(null, "fred", "fred", "Fred");
     }
 
     return CashGame.builder()

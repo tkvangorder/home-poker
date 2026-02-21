@@ -36,11 +36,8 @@ public class GameStateTransitions {
     for (Player player : game.players().values()) {
       Table table = tables.get(tableIds[tableIndex]);
       TableUtils.assignPlayerToRandomSeat(player, table);
-      if (tableIndex < tableCount - 1) {
-        tableIndex++;
-      } else if (tableIndex == tableCount) {
-        tableIndex = 0;
-      }
+      tableIndex = (tableIndex + 1) % tableCount;
     }
+    game.tables().putAll(tables);
   }
 }

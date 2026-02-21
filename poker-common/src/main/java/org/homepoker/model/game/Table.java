@@ -50,7 +50,7 @@ public final class Table {
     private List<Pot> pots = new ArrayList<>();
 
     public TableBuilder emptySeats(int numberOfSeats) {
-      this.seats = new ArrayList<>(seats);
+      this.seats = new ArrayList<>(numberOfSeats);
       for (int i = 0; i < numberOfSeats; i++) {
         this.seats.add(Seat.builder().build());
       }

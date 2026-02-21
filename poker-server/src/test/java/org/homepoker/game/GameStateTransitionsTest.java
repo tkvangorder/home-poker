@@ -20,32 +20,35 @@ public class GameStateTransitionsTest {
   public void testResetSeating() {
 
     CashGame game = TestDataHelper.cashGame("test", null);
-    List<Player> players = TestDataHelper.generatePlayers(game, 10);
+    List<Player> players = TestDataHelper.generatePlayers(game, 10, true);
     players.forEach(game::addPlayer);
 
     // Call the method
     GameStateTransitions.resetSeating(game, context);
 
+    assertTableCountsAreBalanced(game);
   }
 
   private static void assertTableCountsAreBalanced(CashGame game) {
     int playerCount = game.players().size();
     int expectedTableCount = (playerCount / context.settings().numberOfSeats()) + 1;
-    int averageTableCount = playerCount / expectedTableCount;
+    int minPerTable = playerCount / expectedTableCount;
+    int maxPerTable = minPerTable + 1;
 
     assertThat(game.tables().size()).isEqualTo(expectedTableCount);
 
     for (Table table : game.tables().values()) {
-      assertThat(table.numberOfPlayers()).isEqualTo(5);
+      assertThat(table.numberOfPlayers()).isBetween(minPerTable, maxPerTable);
     }
 
     // Verify that the players are correctly assigned to tables.
     Map<String, Integer> tablePlayerCount = new HashMap<>();
     for (Player player : game.players().values()) {
       String tableId = player.tableId();
+      assertThat(tableId).isNotNull();
       tablePlayerCount.put(tableId, tablePlayerCount.getOrDefault(tableId, 0) + 1);
     }
-
+    assertThat(tablePlayerCount).hasSize(expectedTableCount);
   }
 
 }
