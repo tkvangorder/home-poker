@@ -1,14 +1,15 @@
 package org.homepoker.model.event;
 
 import com.fasterxml.jackson.annotation.JsonTypeId;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
+import tools.jackson.databind.JacksonModule;
+import tools.jackson.databind.jsontype.NamedType;
 import org.homepoker.lib.exception.SystemException;
 import org.homepoker.lib.util.StringUtils;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
+import tools.jackson.databind.module.SimpleModule;
 
 import java.time.Instant;
 import java.util.Set;
@@ -33,18 +34,18 @@ public interface PokerEvent {
 
   /**
    * This method will scan for all game events (annotated with GameEventMarker) and dynamically register those types with
-   * the given object mapper. This allows the object mapper perform polymorphic deserialization of a GameEvent into
-   * the correct subtype.
-   *
-   * @param objectMapper The object mapper to register the subtypes with
+   * within a JacksonModule. The module can be added to the object mapper via the builder and  allows the object mapper
+	 * perform polymorphic deserialization of a GameEvent into the correct subtype.
    */
-  static void registerEventsWithJackson(ObjectMapper objectMapper) {
+  static JacksonModule pokerEventModule() {
     ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
     scanner.addIncludeFilter(new AnnotationTypeFilter((EventMarker.class)));
 
     Set<BeanDefinition> beanDefinitions = scanner.findCandidateComponents("org.homepoker.model.event");
+		SimpleModule module = new SimpleModule("PokerEventsModule");
+
     for (BeanDefinition beanDefinition : beanDefinitions) {
-      if (beanDefinition instanceof AnnotatedBeanDefinition annotatedDefinition && beanDefinition.getBeanClassName() != null) {
+      if (beanDefinition instanceof AnnotatedBeanDefinition && beanDefinition.getBeanClassName() != null) {
         int lastDot = beanDefinition.getBeanClassName().lastIndexOf('.');
         if (lastDot == -1) {
           continue;
@@ -52,14 +53,14 @@ public interface PokerEvent {
         String classSimpleName = StringUtils.camelToKabobCase(beanDefinition.getBeanClassName().substring(lastDot + 1));
 
         try {
-          objectMapper.registerSubtypes(new NamedType(Class.forName(beanDefinition.getBeanClassName()), classSimpleName));
+          module.registerSubtypes(new NamedType(Class.forName(beanDefinition.getBeanClassName()), classSimpleName));
         } catch (ClassNotFoundException e) {
           throw new SystemException("Failed to register JSON subtype [" + beanDefinition.getBeanClassName()
               + "] under the name [" + classSimpleName + "]", e);
         }
       }
     }
+		return module;
   }
 
 }
-

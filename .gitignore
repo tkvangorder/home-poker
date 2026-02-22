@@ -4,11 +4,13 @@
 *.zip
 *.jar
 *~
-target
 bin
 .metadata
 *.DS_Store
-pom.xml.versionsBackup
+
+# Gradle
+.gradle/
+build/
 
 #VS Code
 .vscode/
@@ -30,9 +32,6 @@ atlassian-ide-plugin.xml
 # Vagrant
 vagrant/
 .vagrant/**
-
-# Bower Packages
-pom.xml.versionsBackup
 
 # node
 node_modules/

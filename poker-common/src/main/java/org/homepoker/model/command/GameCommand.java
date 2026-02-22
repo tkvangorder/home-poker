@@ -3,8 +3,8 @@ package org.homepoker.model.command;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeId;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
+import tools.jackson.databind.JacksonModule;
+import tools.jackson.databind.jsontype.NamedType;
 import org.homepoker.lib.exception.SystemException;
 import org.homepoker.lib.util.StringUtils;
 import org.homepoker.model.user.User;
@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
+import tools.jackson.databind.module.SimpleModule;
 
 import java.util.Set;
 
@@ -21,7 +22,7 @@ import java.util.Set;
  * <P>
  * As such, the command ID acts as a discriminator for the JSON serialization/deserialization process. The command ID is
  * used to determine the concrete type of the command when deserializing JSON. Any object mapper that is used must
- * have the subtypes registered with it via the {@link GameCommand#registerCommandsWithJackson(ObjectMapper)} method.
+ * have the GameCommandModule registered with it. The module can be instantiated by using the {@link GameCommand#gameCommandsModule()} method.
  * <P>
  * The user field is NOT included in the JSON serialization/deserialization and is instead injected via Spring
  * Security when the command is submitted to the game manager.
@@ -41,19 +42,20 @@ public interface GameCommand {
   User user();
 
   /**
-   * This method will scan for all game commands (annotated with GameCommandMarker) and dynamically register those types with
-   * the given object mapper. This allows the object mapper perform polymorphic deserialization of a GameCommand into
-   * the correct subtype.
-   *
-   * @param objectMapper The object mapper to register the subtypes with
+   * This module scan for all game commands (annotated with GameCommandMarker) and dynamically register those types with
+   * the module. This allows the object mapper perform polymorphic deserialization of a GameCommand into
+   * the correct subtype. The module can be added to the JsonMapper using the builder.
    */
-  static void registerCommandsWithJackson(ObjectMapper objectMapper) {
+  static JacksonModule gameCommandsModule() {
+
     ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
     scanner.addIncludeFilter(new AnnotationTypeFilter((GameCommandMarker.class)));
 
     Set<BeanDefinition> beanDefinitions = scanner.findCandidateComponents("org.homepoker.model.command");
+		SimpleModule module = new SimpleModule("GameCommandsModule");
+
     for (BeanDefinition beanDefinition : beanDefinitions) {
-      if (beanDefinition instanceof AnnotatedBeanDefinition annotatedDefinition && beanDefinition.getBeanClassName() != null) {
+      if (beanDefinition instanceof AnnotatedBeanDefinition && beanDefinition.getBeanClassName() != null) {
         int lastDot = beanDefinition.getBeanClassName().lastIndexOf('.');
         if (lastDot == -1) {
           continue;
@@ -61,12 +63,14 @@ public interface GameCommand {
         String classSimpleName = StringUtils.camelToKabobCase(beanDefinition.getBeanClassName().substring(lastDot + 1));
 
         try {
-          objectMapper.registerSubtypes(new NamedType(Class.forName(beanDefinition.getBeanClassName()), classSimpleName));
+
+          module.registerSubtypes(new NamedType(Class.forName(beanDefinition.getBeanClassName()), classSimpleName));
         } catch (ClassNotFoundException e) {
           throw new SystemException("Failed to register JSON subtype [" + beanDefinition.getBeanClassName()
               + "] under the name [" + classSimpleName + "]", e);
         }
       }
     }
+		return module;
   }
 }

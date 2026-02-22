@@ -1,0 +1,22 @@
+plugins {
+    id 'poker-application-conventions'
+}
+
+dependencies {
+    implementation project(':poker-common')
+    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation "org.springframework.boot:spring-boot-starter-security"
+    implementation "org.springframework.boot:spring-boot-starter-websocket"
+    implementation "org.springframework.boot:spring-boot-starter-data-mongodb"
+    implementation "io.jsonwebtoken:jjwt-impl:0.13.0"
+    implementation "io.jsonwebtoken:jjwt-jackson:0.13.0"
+    implementation "org.jctools:jctools-core:3.1.0"
+    implementation "org.jspecify:jspecify"
+    implementation "tools.jackson.core:jackson-databind"
+
+    annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
+    testImplementation 'org.springframework.boot:spring-boot-starter-mongodb-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation "org.testcontainers:testcontainers-mongodb"
+}

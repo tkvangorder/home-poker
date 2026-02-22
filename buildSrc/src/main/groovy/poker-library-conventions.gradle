@@ -1,0 +1,15 @@
+plugins {
+    id 'poker-base-conventions'
+    id 'java-library'
+    id 'io.spring.dependency-management'
+}
+
+dependencies {
+    api("org.jspecify:jspecify")
+}
+
+dependencyManagement {
+    imports {
+        mavenBom org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES
+    }
+}

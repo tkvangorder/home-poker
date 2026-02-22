@@ -1,23 +1,20 @@
 package org.homepoker.model.command;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.homepoker.lib.util.JsonUtils;
 import org.homepoker.test.TestUtils;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class CommandSerializationTest {
 
-  private static final ObjectMapper objectMapper = new ObjectMapper();
-
-  @BeforeAll
-  static void setup() {
-    objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-    GameCommand.registerCommandsWithJackson(objectMapper);
-  }
+  private static final ObjectMapper objectMapper = JsonMapper.builder()
+			.addModule(GameCommand.gameCommandsModule())
+      .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+      .build();
 
   @Test
   void testCommandSerialization() {

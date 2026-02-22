@@ -4,16 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Spring Boot-based poker server simulating a private home poker game. Java 21 with Maven multi-module build.
+A Spring Boot-based poker server simulating a private home poker game. Java 25 with Gradle multi-module build.
 
 ## Build & Run
 
 ```bash
 # Build all modules
-./mvnw clean install
+./gradlew clean build
 
 # Run the server (requires MongoDB)
-./mvnw spring-boot:run -pl poker-server
+./gradlew :poker-server:bootRun
 
 # Start MongoDB via Docker Compose
 docker-compose up
@@ -23,17 +23,17 @@ docker-compose up
 
 ```bash
 # Run all tests
-./mvnw clean test
+./gradlew clean test
 
 # Run tests for a specific module
-./mvnw clean test -pl poker-server
-./mvnw clean test -pl poker-common
+./gradlew :poker-server:test
+./gradlew :poker-common:test
 
 # Run a specific test class
-./mvnw clean test -pl poker-server -Dtest=ClassicPokerRankerTest
+./gradlew :poker-server:test --tests "org.homepoker.poker.ClassicPokerRankerTest"
 
 # Run a specific test method
-./mvnw clean test -pl poker-server -Dtest=ClassicPokerRankerTest#testFiveCardHandResults
+./gradlew :poker-server:test --tests "org.homepoker.poker.ClassicPokerRankerTest.testFiveCardHandResults"
 ```
 
 Integration tests use TestContainers (automatic MongoDB container) via `BaseIntegrationTest`.

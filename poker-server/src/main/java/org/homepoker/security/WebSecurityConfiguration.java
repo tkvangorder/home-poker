@@ -50,7 +50,7 @@ public class WebSecurityConfiguration {
   }
 
   /**
-   * This bean is used to authenticate a user based on the provided username and password. This provider uses is an
+   * This bean is used to authenticate a user based on the provided username and password. This provider is an
    * instance of Spring's DaoAuthenticationProvider which is configured to use the userDetailsService and passwordEncoder.
    *
    * @param userDetailsService The service used to load user details from the database.
@@ -59,8 +59,7 @@ public class WebSecurityConfiguration {
    */
   @Bean
   AuthenticationProvider authenticationProvider(UserDetailsService userDetailsService, SecurityUtilities securityUtilities) {
-    DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-    provider.setUserDetailsService(userDetailsService);
+    DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
     provider.setPasswordEncoder(securityUtilities.getPasswordEncoder());
     return provider;
   }
@@ -82,7 +81,7 @@ public class WebSecurityConfiguration {
    * @throws Exception
    */
   @Bean
-  public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+  public AuthenticationManager authenticationManager(AuthenticationConfiguration config) {
     return config.getAuthenticationManager();
   }
 }

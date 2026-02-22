@@ -22,7 +22,7 @@ first and then build (or recruit someone to build) a client using something like
 
 == Dev Setup
 
-This project is built with Java 20 and you will need to have a Java 20 JDK installed on your machine. I recommend
+This project is built with Java 25 and you will need to have a Java 25 JDK installed on your machine. I recommend
 https://sdkman.io/ for managing your Java installations. This project provides a docker-compose file for starting up a
 mongo server within a docker container.
 
