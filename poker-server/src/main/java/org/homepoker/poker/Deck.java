@@ -1,11 +1,11 @@
 package org.homepoker.poker;
 
+import org.homepoker.lib.util.RandomUtils;
 import org.homepoker.model.poker.Card;
 import org.homepoker.model.poker.CardSuit;
 import org.homepoker.model.poker.CardValue;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -27,13 +27,13 @@ public class Deck {
         cards.add(new Card(value, suit));
       }
     }
-    Collections.shuffle(cards);
+    RandomUtils.shuffleCollection(cards);
   }
 
   public List<Card> drawCards(int numberOfCards) {
     List<Card> drawnCards = new ArrayList<>(numberOfCards);
     for (int index = 0; index < numberOfCards; index++) {
-      drawnCards.add(cards.remove(0));
+      drawnCards.add(cards.removeFirst());
     }
     return drawnCards;
   }
