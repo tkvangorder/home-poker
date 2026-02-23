@@ -67,6 +67,12 @@ Integration tests use TestContainers (automatic MongoDB container) via `BaseInte
 
 **Extensibility:** `GameManager<T>` is generic over the game type, enabling cash games and tournaments to share the command/event infrastructure.
 
+**Multi-table Support:** A GameManager manages the top level game state and allows multiple tables to be created to acocomodate more players. Each table has its own game loop and state.
+
+## Game and Table State Machine
+
+** See `cash-game-state-management.md` for details on the game and table state and game flow. **
+
 ## Configuration
 
 - `poker-server/src/main/resources/application.yml` — Production config (logging, JWT expiration, admin users, registration passcode)
