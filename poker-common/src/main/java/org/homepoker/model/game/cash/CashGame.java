@@ -24,6 +24,7 @@ public class CashGame implements Game<CashGame> {
   private Integer bigBlind;
   private Integer maxBuyIn;
   private Instant lastModified;
+  private @Nullable Instant tableExcessSince;
   private final Map<String, Player> players;
   private final NavigableMap<String, Table> tables;
 
@@ -45,6 +46,7 @@ public class CashGame implements Game<CashGame> {
         .bigBlind(bigBlind)
         .maxBuyIn(maxBuyIn)
         .lastModified(lastModified)
+        .tableExcessSince(tableExcessSince)
         .players(new HashMap<>(players))
         .tables(new TreeMap<>(tables))
         .build();

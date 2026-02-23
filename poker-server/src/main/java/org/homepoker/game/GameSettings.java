@@ -19,7 +19,11 @@ public record GameSettings(
     int saveIntervalSeconds,
     int seatingTimeSeconds,
     int actionTimeSeconds,
-    int reviewHandTimeSeconds
+    int reviewHandTimeSeconds,
+    int predealTimeSeconds,
+    int tableMergeGraceSeconds,
+    boolean allowPostToPlay,
+    boolean requireMissedBlindPost
 ) {
 
   public final static GameSettings TEXAS_HOLDEM_SETTINGS = GameSettings.builder()
@@ -29,6 +33,10 @@ public record GameSettings(
       .seatingTimeSeconds(60)
       .actionTimeSeconds(30)
       .reviewHandTimeSeconds(8)
+      .predealTimeSeconds(15)
+      .tableMergeGraceSeconds(60)
+      .allowPostToPlay(true)
+      .requireMissedBlindPost(false)
       .build();
 
 }

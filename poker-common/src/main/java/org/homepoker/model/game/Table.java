@@ -22,6 +22,7 @@ public final class Table {
   private @Nullable Integer actionPosition;
   private List<Card> communityCards;
   private List<Pot> pots;
+  private List<PendingMove> pendingMoves;
 
 
   public int numberOfPlayers() {
@@ -38,6 +39,16 @@ public final class Table {
   public record Pot(int amount, List<Integer> seatPositions) {
   }
 
+  /**
+   * A pending move represents a deferred table balance move. When a player is in an active hand and needs to be moved,
+   * the move is recorded as pending and executed during the next PREDEAL phase.
+   *
+   * @param seatPosition  The seat position of the player to move.
+   * @param targetTableId The ID of the table to move the player to.
+   */
+  public record PendingMove(int seatPosition, String targetTableId) {
+  }
+
   public enum Status {
     PAUSE_AFTER_HAND,
     PAUSED,
@@ -48,6 +59,7 @@ public final class Table {
     private Status status = Status.PAUSED;
     private List<Card> communityCards = new ArrayList<>();
     private List<Pot> pots = new ArrayList<>();
+    private List<PendingMove> pendingMoves = new ArrayList<>();
 
     public TableBuilder emptySeats(int numberOfSeats) {
       this.seats = new ArrayList<>(numberOfSeats);
