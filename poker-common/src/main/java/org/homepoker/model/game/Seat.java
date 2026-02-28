@@ -16,6 +16,11 @@ public final class Seat {
   private @Nullable Player player;
   private @Nullable List<SeatCard> cards;
   private @Nullable PlayerAction action;
+  private int currentBetAmount;
+  private boolean isAllIn;
+  private boolean mustPostBlind;
+  private boolean missedBigBlind;
+  private @Nullable PlayerAction pendingIntent;
 
   public enum Status {
     ACTIVE,

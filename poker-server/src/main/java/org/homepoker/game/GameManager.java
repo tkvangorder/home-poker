@@ -156,7 +156,7 @@ public abstract class GameManager<T extends Game<T>> {
 
       transitionGame(game, gameContext);
 
-      if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.PAUSED) {
+      if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.BALANCING || game.status() == GameStatus.PAUSED) {
         // If the game is active or paused, there are active threads firing for each "tick", we want to periodically
         // save the in-memory state of the game to the database.
 
@@ -213,6 +213,7 @@ public abstract class GameManager<T extends Game<T>> {
       case SCHEDULED -> transitionFromScheduled(game, gameContext);
       case SEATING -> transitionFromSeating(game, gameContext);
       case ACTIVE -> transitionFromActive(game, gameContext);
+      case BALANCING -> transitionFromBalancing(game, gameContext);
       case PAUSED -> transitionFromPaused(game, gameContext);
       case COMPLETED -> { /* Terminal state, no transitions */ }
     }
@@ -260,9 +261,6 @@ public abstract class GameManager<T extends Game<T>> {
       tableManager.transitionTable(game, table, gameContext);
     }
 
-    // Table balancing
-    balanceTables(game, gameContext);
-
     // Check if all tables are paused (two-phase pause/end detection)
     if (allTablesPaused(game)) {
       if (endGameRequested) {
@@ -281,7 +279,75 @@ public abstract class GameManager<T extends Game<T>> {
         gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game is now paused."));
         gameContext.forceUpdate(true);
       }
+      return;
     }
+
+    // Check if we need to create a new table for overflow
+    checkForNewTable(game);
+
+    // Check if tables need rebalancing (only when no pause/end is pending)
+    if (!pauseGameRequested && !endGameRequested && tablesNeedBalancing(game)) {
+      GameStatus oldStatus = game.status();
+      game.status(GameStatus.BALANCING);
+
+      // Signal all tables to finish their current hand
+      for (Table table : game.tables().values()) {
+        if (table.status() == Table.Status.PLAYING) {
+          table.status(Table.Status.PAUSE_AFTER_HAND);
+        }
+      }
+
+      gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.BALANCING));
+      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Balancing tables after current hands complete."));
+      gameContext.forceUpdate(true);
+    }
+  }
+
+  private void transitionFromBalancing(T game, GameContext gameContext) {
+    // Continue transitioning tables so hands can finish
+    for (Table table : game.tables().values()) {
+      tableManager.transitionTable(game, table, gameContext);
+    }
+
+    if (!allTablesPaused(game)) {
+      return;
+    }
+
+    // All tables are paused — check if pause/end was requested during balancing
+    if (endGameRequested) {
+      endGameRequested = false;
+      pauseGameRequested = false;
+      GameStatus oldStatus = game.status();
+      game.status(GameStatus.COMPLETED);
+      gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.COMPLETED));
+      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game has ended."));
+      gameContext.forceUpdate(true);
+      return;
+    }
+    if (pauseGameRequested) {
+      pauseGameRequested = false;
+      GameStatus oldStatus = game.status();
+      game.status(GameStatus.PAUSED);
+      gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.PAUSED));
+      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game is now paused."));
+      gameContext.forceUpdate(true);
+      return;
+    }
+
+    // Redistribute players across tables
+    redistributePlayers(game, gameContext);
+
+    // Transition back to ACTIVE
+    GameStatus oldStatus = game.status();
+    game.status(GameStatus.ACTIVE);
+
+    for (Table table : game.tables().values()) {
+      table.status(Table.Status.PLAYING);
+    }
+
+    gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.ACTIVE));
+    gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Tables balanced. Game resumed."));
+    gameContext.forceUpdate(true);
   }
 
   private void transitionFromPaused(T game, GameContext gameContext) {
@@ -355,7 +421,7 @@ public abstract class GameManager<T extends Game<T>> {
       throw new ValidationException("Only an admin can end a game.");
     }
 
-    if (game.status() == GameStatus.ACTIVE) {
+    if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.BALANCING) {
       // Two-phase shutdown: signal tables to pause after current hand
       endGameRequested = true;
       for (Table table : game.tables().values()) {
@@ -388,7 +454,7 @@ public abstract class GameManager<T extends Game<T>> {
   }
 
   private void pauseGame(PauseGame gameCommand, T game, GameContext gameContext) {
-    if (game.status() != GameStatus.ACTIVE) {
+    if (game.status() != GameStatus.ACTIVE && game.status() != GameStatus.BALANCING) {
       throw new ValidationException("The game can only be paused when it is active.");
     }
     if (!SecurityUtilities.userIsAdmin(gameCommand.user())) {
@@ -557,124 +623,89 @@ public abstract class GameManager<T extends Game<T>> {
    */
   private int getMaxBuyIn(T game) {
     if (game instanceof CashGame cashGame) {
-      return cashGame.maxBuyIn() != null ? cashGame.maxBuyIn() : Integer.MAX_VALUE;
+      return cashGame.maxBuyIn();
     }
     return Integer.MAX_VALUE;
   }
 
   /**
-   * Balance tables when the game is ACTIVE. Moves players between tables to keep them
-   * within 1 player of each other.
+   * Check if tables need rebalancing. Returns true if there is an imbalance of 2+ players
+   * between the largest and smallest tables, or if there are more tables than needed.
    */
-  private void balanceTables(T game, GameContext gameContext) {
+  private boolean tablesNeedBalancing(T game) {
+    // Remove empty tables first
+    game.tables().entrySet().removeIf(entry -> entry.getValue().numberOfPlayers() == 0);
+
     if (game.tables().size() < 2) {
-      // Check if we need to create a new table
-      checkForNewTable(game);
+      return false;
+    }
+
+    int maxPlayers = Integer.MIN_VALUE;
+    int minPlayers = Integer.MAX_VALUE;
+    int totalPlayers = 0;
+
+    for (Table table : game.tables().values()) {
+      int count = table.numberOfPlayers();
+      maxPlayers = Math.max(maxPlayers, count);
+      minPlayers = Math.min(minPlayers, count);
+      totalPlayers += count;
+    }
+
+    // Check for player count imbalance
+    if (maxPlayers - minPlayers >= 2) {
+      return true;
+    }
+
+    // Check for excess tables (more tables than needed)
+    int minTables = (int) Math.ceil((double) totalPlayers / gameSettings.numberOfSeats());
+    return game.tables().size() > Math.max(minTables, 1);
+  }
+
+  /**
+   * Redistribute all seated players evenly across the optimal number of tables.
+   * Called during the BALANCING state when all tables are paused.
+   */
+  private void redistributePlayers(T game, GameContext gameContext) {
+    // Gather all seated players
+    List<Player> seatedPlayers = new ArrayList<>();
+    for (Table table : game.tables().values()) {
+      for (Seat seat : table.seats()) {
+        if (seat.player() != null && seat.status() != Seat.Status.EMPTY) {
+          seatedPlayers.add(seat.player());
+          seat.status(Seat.Status.EMPTY);
+          seat.player(null);
+        }
+      }
+    }
+
+    if (seatedPlayers.isEmpty()) {
       return;
     }
 
-    boolean moved = true;
-    while (moved) {
-      moved = false;
+    // Determine optimal number of tables
+    int optimalTableCount = (int) Math.ceil((double) seatedPlayers.size() / gameSettings.numberOfSeats());
+    optimalTableCount = Math.max(optimalTableCount, 1);
 
-      // Find largest and smallest tables
-      Table largest = null;
-      Table smallest = null;
-      int maxPlayers = Integer.MIN_VALUE;
-      int minPlayers = Integer.MAX_VALUE;
-
-      for (Table table : game.tables().values()) {
-        int count = effectivePlayerCount(table);
-        if (count > maxPlayers) {
-          maxPlayers = count;
-          largest = table;
-        }
-        if (count < minPlayers) {
-          minPlayers = count;
-          smallest = table;
-        }
-      }
-
-      if (largest == null || smallest == null || maxPlayers - minPlayers < 2) {
-        break;
-      }
-
-      // Select player to move from largest table
-      Player playerToMove = selectPlayerToMove(largest);
-      if (playerToMove == null) {
-        break;
-      }
-
-      // Find the seat of the player
-      int seatPosition = -1;
-      Seat playerSeat = null;
-      for (int i = 0; i < largest.seats().size(); i++) {
-        Seat seat = largest.seats().get(i);
-        if (seat.player() != null && seat.player().userId().equals(playerToMove.userId())) {
-          seatPosition = i;
-          playerSeat = seat;
-          break;
-        }
-      }
-
-      if (playerSeat == null) {
-        break;
-      }
-
-      if (playerSeat.status() == Seat.Status.ACTIVE) {
-        // Player is in an active hand, defer the move
-        largest.pendingMoves().add(new Table.PendingMove(seatPosition, smallest.id()));
-      } else {
-        // Execute move immediately
-        executePlayerMove(playerToMove, playerSeat, largest, smallest, game, gameContext);
-      }
-      moved = true;
+    // Remove excess tables or create new ones as needed
+    while (game.tables().size() > optimalTableCount) {
+      String lastKey = game.tables().lastKey();
+      game.tables().remove(lastKey);
+    }
+    while (game.tables().size() < optimalTableCount) {
+      String newTableId = "TABLE-" + game.tables().size();
+      Table newTable = tableManager.createTable(newTableId);
+      game.tables().put(newTableId, newTable);
     }
 
-    checkForNewTable(game);
-    checkForTableMerge(game, gameContext);
-  }
-
-  /**
-   * Returns the effective player count for a table, accounting for pending outbound moves.
-   */
-  private int effectivePlayerCount(Table table) {
-    return table.numberOfPlayers() - table.pendingMoves().size();
-  }
-
-  /**
-   * Select a player to move from the given table, prioritizing JOINED_WAITING players.
-   */
-  private Player selectPlayerToMove(Table table) {
-    // Priority 1: JOINED_WAITING players (not yet in a hand)
-    for (Seat seat : table.seats()) {
-      if (seat.status() == Seat.Status.JOINED_WAITING && seat.player() != null) {
-        return seat.player();
-      }
+    // Distribute players round-robin across tables
+    String[] tableIds = game.tables().keySet().toArray(new String[0]);
+    int tableIndex = 0;
+    for (Player player : seatedPlayers) {
+      Table table = game.tables().get(tableIds[tableIndex]);
+      TableUtils.assignPlayerToRandomSeat(player, table);
+      gameContext.queueEvent(new PlayerMoved(Instant.now(), game.id(), player.userId(), null, table.id()));
+      tableIndex = (tableIndex + 1) % tableIds.length;
     }
-    // Priority 2: Any non-empty player (prefer those not in active hand)
-    for (Seat seat : table.seats()) {
-      if (seat.player() != null && seat.status() != Seat.Status.EMPTY) {
-        return seat.player();
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Execute the immediate move of a player from one table to another.
-   */
-  private void executePlayerMove(Player player, Seat sourceSeat, Table sourceTable, Table targetTable, T game, GameContext gameContext) {
-    String fromTableId = sourceTable.id();
-
-    // Remove from source table
-    sourceSeat.status(Seat.Status.EMPTY);
-    sourceSeat.player(null);
-
-    // Assign to target table
-    TableUtils.assignPlayerToRandomSeat(player, targetTable);
-
-    gameContext.queueEvent(new PlayerMoved(Instant.now(), game.id(), player.userId(), fromTableId, targetTable.id()));
   }
 
   /**
@@ -707,125 +738,6 @@ public abstract class GameManager<T extends Game<T>> {
         }
         game.tables().put(newTableId, newTable);
       }
-    }
-  }
-
-  /**
-   * Check if tables can be merged (excess tables after players leave).
-   */
-  private void checkForTableMerge(T game, GameContext gameContext) {
-    // Remove empty tables immediately
-    game.tables().entrySet().removeIf(entry -> entry.getValue().numberOfPlayers() == 0);
-
-    if (game.tables().size() <= 1) {
-      clearTableExcessSince(game);
-      return;
-    }
-
-    int totalPlayers = 0;
-    for (Table table : game.tables().values()) {
-      totalPlayers += table.numberOfPlayers();
-    }
-
-    int minTables = (int) Math.ceil((double) totalPlayers / gameSettings.numberOfSeats());
-    if (minTables < 1) {
-      minTables = 1;
-    }
-
-    if (game.tables().size() > minTables) {
-      Instant excessSince = getTableExcessSince(game);
-      if (excessSince == null) {
-        setTableExcessSince(game, Instant.now());
-      } else if (excessSince.plusSeconds(gameSettings.tableMergeGraceSeconds()).isBefore(Instant.now())) {
-        // Grace period elapsed, merge the smallest table
-        mergeSmallestTable(game, gameContext);
-        clearTableExcessSince(game);
-      }
-    } else {
-      clearTableExcessSince(game);
-    }
-  }
-
-  /**
-   * Merge the smallest table into other tables.
-   */
-  private void mergeSmallestTable(T game, GameContext gameContext) {
-    Table smallest = null;
-    int minPlayers = Integer.MAX_VALUE;
-    for (Table table : game.tables().values()) {
-      if (table.numberOfPlayers() < minPlayers) {
-        minPlayers = table.numberOfPlayers();
-        smallest = table;
-      }
-    }
-    if (smallest == null) {
-      return;
-    }
-
-    // Move all players from the smallest table to other tables
-    for (Seat seat : smallest.seats()) {
-      if (seat.player() != null && seat.status() != Seat.Status.EMPTY) {
-        Player player = seat.player();
-
-        if (seat.status() == Seat.Status.ACTIVE) {
-          // Player is in active hand, defer
-          // Find a target table
-          Table target = findTableWithFewestPlayers(game, smallest.id());
-          if (target != null) {
-            int seatPos = smallest.seats().indexOf(seat);
-            smallest.pendingMoves().add(new Table.PendingMove(seatPos, target.id()));
-          }
-        } else {
-          // Execute move immediately
-          Table target = findTableWithFewestPlayers(game, smallest.id());
-          if (target != null) {
-            executePlayerMove(player, seat, smallest, target, game, gameContext);
-          }
-        }
-      }
-    }
-
-    // If all players moved, remove the table
-    if (smallest.numberOfPlayers() == 0) {
-      game.tables().remove(smallest.id());
-    }
-  }
-
-  /**
-   * Find the table with the fewest players, excluding the specified table.
-   */
-  private Table findTableWithFewestPlayers(T game, String excludeTableId) {
-    Table target = null;
-    int minPlayers = Integer.MAX_VALUE;
-    for (Map.Entry<String, Table> entry : game.tables().entrySet()) {
-      if (!entry.getKey().equals(excludeTableId)) {
-        int count = entry.getValue().numberOfPlayers();
-        if (count < minPlayers) {
-          minPlayers = count;
-          target = entry.getValue();
-        }
-      }
-    }
-    return target;
-  }
-
-  // Table excess tracking helpers (uses CashGame-specific field when available)
-  private Instant getTableExcessSince(T game) {
-    if (game instanceof CashGame cashGame) {
-      return cashGame.tableExcessSince();
-    }
-    return null;
-  }
-
-  private void setTableExcessSince(T game, Instant instant) {
-    if (game instanceof CashGame cashGame) {
-      cashGame.tableExcessSince(instant);
-    }
-  }
-
-  private void clearTableExcessSince(T game) {
-    if (game instanceof CashGame cashGame) {
-      cashGame.tableExcessSince(null);
     }
   }
 }

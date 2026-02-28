@@ -5,6 +5,7 @@ import lombok.experimental.Accessors;
 import org.homepoker.model.poker.Card;
 import org.jspecify.annotations.Nullable;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,11 +19,19 @@ public final class Table {
   private final String id;
   private List<Seat> seats;
   private Status status;
+  private HandPhase handPhase;
   private @Nullable Integer dealerPosition;
   private @Nullable Integer actionPosition;
+  private @Nullable Integer smallBlindPosition;
+  private @Nullable Integer bigBlindPosition;
+  private @Nullable Integer lastRaiserPosition;
+  private int currentBet;
+  private int minimumRaise;
+  private int handNumber;
+  private @Nullable Instant phaseStartedAt;
+  private @Nullable Instant actionDeadline;
   private List<Card> communityCards;
   private List<Pot> pots;
-  private List<PendingMove> pendingMoves;
 
 
   public int numberOfPlayers() {
@@ -39,15 +48,6 @@ public final class Table {
   public record Pot(int amount, List<Integer> seatPositions) {
   }
 
-  /**
-   * A pending move represents a deferred table balance move. When a player is in an active hand and needs to be moved,
-   * the move is recorded as pending and executed during the next PREDEAL phase.
-   *
-   * @param seatPosition  The seat position of the player to move.
-   * @param targetTableId The ID of the table to move the player to.
-   */
-  public record PendingMove(int seatPosition, String targetTableId) {
-  }
 
   public enum Status {
     PAUSE_AFTER_HAND,
@@ -57,9 +57,9 @@ public final class Table {
 
   public static class TableBuilder {
     private Status status = Status.PAUSED;
+    private HandPhase handPhase = HandPhase.WAITING_FOR_PLAYERS;
     private List<Card> communityCards = new ArrayList<>();
     private List<Pot> pots = new ArrayList<>();
-    private List<PendingMove> pendingMoves = new ArrayList<>();
 
     public TableBuilder emptySeats(int numberOfSeats) {
       this.seats = new ArrayList<>(numberOfSeats);

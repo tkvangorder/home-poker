@@ -9,6 +9,7 @@ public enum GameStatus {
   SCHEDULED,
   SEATING,
   ACTIVE,
+  BALANCING,
   PAUSED,
   COMPLETED
 }

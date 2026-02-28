@@ -81,4 +81,7 @@ public interface Game<G extends Game<G>> {
 
   @LastModifiedDate
   Game<G> lastModified(Instant lastModified);
+
+  int smallBlind();
+  int bigBlind();
 }

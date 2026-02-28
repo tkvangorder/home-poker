@@ -1,6 +1,6 @@
 package org.homepoker.model.game;
 
-public interface PlayerAction {
+public sealed interface PlayerAction {
 
   record Fold() implements PlayerAction {
   }

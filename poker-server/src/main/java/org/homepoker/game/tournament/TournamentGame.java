@@ -42,4 +42,13 @@ public final class TournamentGame implements Game<TournamentGame> {
     return GameFormat.TOURNAMENT;
   }
 
+  @Override
+  public int smallBlind() {
+    return 0;
+  }
+
+  @Override
+  public int bigBlind() {
+    return 0;
+  }
 }

@@ -138,7 +138,8 @@ public class GameManagerTest {
   // --- ACTIVE -> PAUSED (two-phase) ---
 
   @Test
-  void activeToPaused_twoPhase() {
+  void activeToPaused_immediateWhenNoHandInProgress() {
+    // When no hand is in progress (players haven't bought in), pause happens immediately
     CashGame game = buildGameInActive(3);
 
     TestableGameManager manager = createManager(game);
@@ -147,19 +148,12 @@ public class GameManagerTest {
     manager.submitCommand(new PauseGame(game.id(), adminUser));
     manager.processGameTick();
 
-    // Tables should be PAUSE_AFTER_HAND, game still ACTIVE
-    assertThat(manager.getGame().status()).isEqualTo(GameStatus.ACTIVE);
-    manager.getGame().tables().values().forEach(table ->
-        assertThat(table.status()).isEqualTo(Table.Status.PAUSE_AFTER_HAND)
-    );
-
-    // Simulate all tables completing their hands and transitioning to PAUSED
-    manager.getGame().tables().values().forEach(table -> table.status(Table.Status.PAUSED));
-
-    // Next tick should detect all tables paused and transition game to PAUSED
-    manager.processGameTick();
-
+    // With no hand in progress, tables transition PAUSE_AFTER_HAND -> PAUSED immediately
+    // which triggers the game to transition to PAUSED in the same tick
     assertThat(manager.getGame().status()).isEqualTo(GameStatus.PAUSED);
+    manager.getGame().tables().values().forEach(table ->
+        assertThat(table.status()).isEqualTo(Table.Status.PAUSED)
+    );
     assertThat(manager.savedEvents()).anyMatch(e -> e instanceof GameStatusChanged gsc &&
         gsc.oldStatus() == GameStatus.ACTIVE && gsc.newStatus() == GameStatus.PAUSED);
   }
@@ -263,23 +257,16 @@ public class GameManagerTest {
   }
 
   @Test
-  void endGame_fromActive_twoPhase() {
+  void endGame_fromActive_immediateWhenNoHandInProgress() {
+    // When no hand is in progress (players haven't bought in), end happens immediately
     CashGame game = buildGameInActive(3);
 
     TestableGameManager manager = createManager(game);
     manager.submitCommand(new EndGame(game.id(), adminUser));
     manager.processGameTick();
 
-    // Game should still be ACTIVE, tables set to PAUSE_AFTER_HAND
-    assertThat(manager.getGame().status()).isEqualTo(GameStatus.ACTIVE);
-    manager.getGame().tables().values().forEach(table ->
-        assertThat(table.status()).isEqualTo(Table.Status.PAUSE_AFTER_HAND)
-    );
-
-    // Simulate all tables pausing
-    manager.getGame().tables().values().forEach(table -> table.status(Table.Status.PAUSED));
-    manager.processGameTick();
-
+    // With no hand in progress, tables transition PAUSE_AFTER_HAND -> PAUSED immediately
+    // which triggers the game to transition to COMPLETED in the same tick
     assertThat(manager.getGame().status()).isEqualTo(GameStatus.COMPLETED);
   }
 
@@ -451,21 +438,42 @@ public class GameManagerTest {
   // --- Table balancing ---
 
   @Test
-  void tableBalancing_triggersWhenImbalanceGte2() {
+  void tableBalancing_transitionsToBalancingState() {
     CashGame game = buildGameInActive(0);
+    // Clear any auto-created tables and players from buildGameInActive
+    game.tables().clear();
+    game.players().clear();
     // Manually create two tables with imbalanced player counts
-    Table table1 = buildTableWithPlayers("TABLE-0", 5, game);
-    Table table2 = buildTableWithPlayers("TABLE-1", 2, game);
+    // Use REGISTERED player status so the table manager doesn't try to deal a hand
+    Table table1 = buildTableWithPlayers("TABLE-0", 5, game, PlayerStatus.REGISTERED);
+    Table table2 = buildTableWithPlayers("TABLE-1", 2, game, PlayerStatus.REGISTERED);
     game.tables().put(table1.id(), table1);
     game.tables().put(table2.id(), table2);
 
     TestableGameManager manager = createManager(game);
     manager.processGameTick();
 
-    // After balancing, tables should be within 1 of each other
-    int t1Count = manager.getGame().tables().get("TABLE-0").numberOfPlayers();
-    int t2Count = manager.getGame().tables().get("TABLE-1").numberOfPlayers();
-    assertThat(Math.abs(t1Count - t2Count)).isLessThanOrEqualTo(1);
+    // Game should transition to BALANCING and tables set to PAUSE_AFTER_HAND
+    assertThat(manager.getGame().status()).isEqualTo(GameStatus.BALANCING);
+
+    // Since no hands are in progress, tables immediately transition to PAUSED
+    // and then the next tick redistributes and goes back to ACTIVE
+    manager.processGameTick();
+
+    assertThat(manager.getGame().status()).isEqualTo(GameStatus.ACTIVE);
+
+    // After redistribution, tables should be within 1 player of each other
+    int total = 0;
+    int maxCount = Integer.MIN_VALUE;
+    int minCount = Integer.MAX_VALUE;
+    for (Table table : manager.getGame().tables().values()) {
+      int count = table.numberOfPlayers();
+      total += count;
+      maxCount = Math.max(maxCount, count);
+      minCount = Math.min(minCount, count);
+    }
+    assertThat(total).isEqualTo(7); // 5 + 2 original players
+    assertThat(maxCount - minCount).isLessThanOrEqualTo(1);
   }
 
   // --- Helper methods ---
@@ -513,18 +521,19 @@ public class GameManagerTest {
   private CashGame buildGameInPaused(int playerCount) {
     CashGame game = buildGameInActive(playerCount);
 
+    // With no hands in progress, PauseGame transitions immediately
     TestableGameManager tempManager = createManager(game);
     tempManager.submitCommand(new PauseGame(game.id(), adminUser));
-    tempManager.processGameTick();
-
-    // Simulate tables completing their hands
-    game.tables().values().forEach(table -> table.status(Table.Status.PAUSED));
     tempManager.processGameTick();
 
     return tempManager.game();
   }
 
   private Table buildTableWithPlayers(String tableId, int playerCount, CashGame game) {
+    return buildTableWithPlayers(tableId, playerCount, game, PlayerStatus.ACTIVE);
+  }
+
+  private Table buildTableWithPlayers(String tableId, int playerCount, CashGame game, PlayerStatus playerStatus) {
     Table table = Table.builder()
         .id(tableId)
         .emptySeats(GameSettings.TEXAS_HOLDEM_SETTINGS.numberOfSeats())
@@ -536,7 +545,7 @@ public class GameManagerTest {
       User user = TestDataHelper.user(uniqueId, uniqueId, "password", "Player " + uniqueId);
       Player player = Player.builder()
           .user(user)
-          .status(PlayerStatus.ACTIVE)
+          .status(playerStatus)
           .chipCount(10000)
           .buyInTotal(10000)
           .reBuys(0)
