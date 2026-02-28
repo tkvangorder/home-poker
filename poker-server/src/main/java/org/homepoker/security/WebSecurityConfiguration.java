@@ -21,13 +21,13 @@ public class WebSecurityConfiguration {
 
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter,
-      AuthenticationProvider authenticationProvider) throws Exception {
+      AuthenticationProvider authenticationProvider) {
 
     return http
         .csrf(AbstractHttpConfigurer::disable)
         .authorizeHttpRequests(
             (requests) -> requests
-                .requestMatchers("/auth/**").permitAll() // No security required on auth endpoints
+                .requestMatchers("/auth/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated() // Everything else will require authentication
         )
         .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -78,7 +78,6 @@ public class WebSecurityConfiguration {
   /**
    * @param config The configuration used to create the authentication manager.
    * @return The authentication manager is used by Spring Security to authenticate users.
-   * @throws Exception
    */
   @Bean
   public AuthenticationManager authenticationManager(AuthenticationConfiguration config) {
