@@ -285,8 +285,11 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
         Instant.now(), game.id(), table.id(), newCards, phaseName
     ));
 
-    // Clear pending intents
-    clearPendingIntents(table);
+    // Clear actions and intents from previous betting round
+    for (Seat seat : table.seats()) {
+      seat.action(null);
+      seat.pendingIntent(null);
+    }
 
     // Reset for new betting round
     table.currentBet(0);
@@ -523,6 +526,19 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
     seat.pendingIntent(null); // Clear any pending intent after acting
 
+    // If aggressive action (bet/raise), clear other active players' actions
+    // so they must act again before the round can complete
+    if (action instanceof PlayerAction.Bet || action instanceof PlayerAction.Raise) {
+      for (int i = 0; i < table.seats().size(); i++) {
+        if (i != seatPosition) {
+          Seat s = table.seats().get(i);
+          if (s.status() == Seat.Status.ACTIVE && !s.isAllIn()) {
+            s.action(null);
+          }
+        }
+      }
+    }
+
     // Emit event
     int chipCount = player != null ? player.chipCount() : 0;
     gameContext.queueEvent(new PlayerActed(
@@ -588,30 +604,14 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
   }
 
   private boolean isBettingRoundComplete(Table table) {
-    Integer actionPos = table.actionPosition();
-    Integer lastRaiser = table.lastRaiserPosition();
-
-    if (actionPos == null || lastRaiser == null) {
-      return true;
+    // The round is complete when every active non-all-in player has acted.
+    // When a bet/raise occurs, other players' actions are cleared so they must act again.
+    for (Seat seat : table.seats()) {
+      if (seat.status() == Seat.Status.ACTIVE && !seat.isAllIn() && seat.action() == null) {
+        return false;
+      }
     }
-
-    // Check if any active non-all-in player still needs to act
-    // The round is complete when action comes back to the lastRaiserPosition
-    // AND every active non-all-in player has acted
-    Seat actionSeat = table.seats().get(actionPos);
-    if (actionSeat.status() != Seat.Status.ACTIVE || actionSeat.isAllIn()) {
-      // Shouldn't happen since advanceActionPosition skips these
-      return true;
-    }
-
-    // If the action hasn't reached the last raiser, the round continues
-    // The action is on a player whose action is null => they haven't acted yet
-    if (actionSeat.action() == null) {
-      return false;
-    }
-
-    // If everyone has acted and action returns to the last raiser, the round is complete
-    return actionPos.equals(lastRaiser) && actionSeat.action() != null;
+    return true;
   }
 
   private void advanceActionPosition(Table table, int currentPosition) {
@@ -1108,9 +1108,4 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return -1;
   }
 
-  private void clearPendingIntents(Table table) {
-    for (Seat seat : table.seats()) {
-      seat.pendingIntent(null);
-    }
-  }
 }
