@@ -17,10 +17,10 @@ import org.jspecify.annotations.Nullable;
 public final class Player {
   private final User user;
   private PlayerStatus status;
-  private Integer chipCount;
-  private Integer buyInTotal;
-  private Integer reBuys;
-  private Integer addOns;
+  private int chipCount;
+  private int buyInTotal;
+  private int reBuys;
+  private int addOns;
 
   @Nullable
   private String tableId;

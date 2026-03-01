@@ -7,12 +7,12 @@ import org.homepoker.model.command.*;
 import org.homepoker.model.event.table.*;
 import org.homepoker.model.game.*;
 import org.homepoker.model.game.Seat.SeatCard;
-import org.homepoker.model.game.cash.CashGame;
 import org.homepoker.model.poker.Card;
 import org.homepoker.poker.BitwisePokerRanker;
 import org.homepoker.poker.ClassicPokerRanker;
 import org.homepoker.poker.Deck;
 import org.homepoker.poker.HandResult;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.*;
@@ -20,75 +20,111 @@ import java.util.*;
 public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> {
 
   private final ClassicPokerRanker pokerRanker = new BitwisePokerRanker();
-  private final Map<String, Deck> activeDecks = new HashMap<>();
 
-  public TexasHoldemTableManager(GameSettings gameSettings) {
-    super(gameSettings);
+  @Nullable
+  private Deck deck;
+
+  private TexasHoldemTableManager(GameSettings gameSettings, Table table) {
+    super(gameSettings, table);
+  }
+
+  /**
+   * Creates a new table manager for a brand-new table with empty seats.
+   */
+  public static <T extends Game<T>> TexasHoldemTableManager<T> forNewTable(String tableId, GameSettings settings) {
+    List<Seat> seats = new ArrayList<>();
+    for (int i = 0; i < settings.numberOfSeats(); i++) {
+      seats.add(Seat.builder().build());
+    }
+    Table table = Table.builder()
+        .id(tableId)
+        .seats(seats)
+        .build();
+    return new TexasHoldemTableManager<>(settings, table);
+  }
+
+  /**
+   * Creates a table manager for an existing (persisted) table. If the table is mid-hand,
+   * the deck is recovered from the dealt cards.
+   */
+  public static <T extends Game<T>> TexasHoldemTableManager<T> forExistingTable(Table table, GameSettings settings) {
+    TexasHoldemTableManager<T> manager = new TexasHoldemTableManager<>(settings, table);
+    manager.recoverDeck();
+    return manager;
+  }
+
+  /**
+   * If the table is mid-hand, reconstructs the deck from dealt cards (hole cards + community cards).
+   */
+  private void recoverDeck() {
+    if (table.handPhase() == HandPhase.WAITING_FOR_PLAYERS ||
+        table.handPhase() == HandPhase.PREDEAL ||
+        table.handPhase() == HandPhase.DEAL) {
+      return;
+    }
+    List<Card> dealt = new ArrayList<>();
+    for (Seat seat : table.seats()) {
+      if (seat.cards() != null) {
+        for (SeatCard sc : seat.cards()) {
+          dealt.add(sc.card());
+        }
+      }
+    }
+    dealt.addAll(table.communityCards());
+    this.deck = Deck.fromRemainingCards(dealt);
   }
 
   @Override
-  public void transitionTable(Game<T> game, Table table, GameContext gameContext) {
+  public void transitionTable(Game<T> game, GameContext gameContext) {
     if (table.status() != Table.Status.PLAYING && table.status() != Table.Status.PAUSE_AFTER_HAND) {
       return;
     }
 
     switch (table.handPhase()) {
-      case WAITING_FOR_PLAYERS -> transitionFromWaitingForPlayers(game, table, gameContext);
-      case PREDEAL -> transitionFromPredeal(game, table, gameContext);
-      case DEAL -> transitionFromDeal(game, table, gameContext);
-      case PRE_FLOP_BETTING -> transitionFromBetting(game, table, gameContext, HandPhase.FLOP);
-      case FLOP -> transitionFromCommunityCard(game, table, gameContext, 3, "Flop", HandPhase.FLOP_BETTING);
-      case FLOP_BETTING -> transitionFromBetting(game, table, gameContext, HandPhase.TURN);
-      case TURN -> transitionFromCommunityCard(game, table, gameContext, 1, "Turn", HandPhase.TURN_BETTING);
-      case TURN_BETTING -> transitionFromBetting(game, table, gameContext, HandPhase.RIVER);
-      case RIVER -> transitionFromCommunityCard(game, table, gameContext, 1, "River", HandPhase.RIVER_BETTING);
-      case RIVER_BETTING -> transitionFromBetting(game, table, gameContext, HandPhase.SHOWDOWN);
-      case SHOWDOWN -> transitionFromShowdown(game, table, gameContext);
-      case HAND_COMPLETE -> transitionFromHandComplete(game, table, gameContext);
+      case WAITING_FOR_PLAYERS -> transitionFromWaitingForPlayers(game, gameContext);
+      case PREDEAL -> transitionFromPredeal(game, gameContext);
+      case DEAL -> transitionFromDeal(game, gameContext);
+      case PRE_FLOP_BETTING -> transitionFromBetting(game, gameContext, HandPhase.FLOP);
+      case FLOP -> transitionFromCommunityCard(game, gameContext, 3, "Flop", HandPhase.FLOP_BETTING);
+      case FLOP_BETTING -> transitionFromBetting(game, gameContext, HandPhase.TURN);
+      case TURN -> transitionFromCommunityCard(game, gameContext, 1, "Turn", HandPhase.TURN_BETTING);
+      case TURN_BETTING -> transitionFromBetting(game, gameContext, HandPhase.RIVER);
+      case RIVER -> transitionFromCommunityCard(game, gameContext, 1, "River", HandPhase.RIVER_BETTING);
+      case RIVER_BETTING -> transitionFromBetting(game, gameContext, HandPhase.SHOWDOWN);
+      case SHOWDOWN -> transitionFromShowdown(game, gameContext);
+      case HAND_COMPLETE -> transitionFromHandComplete(game, gameContext);
     }
   }
 
   @Override
-  protected void applySubcommand(GameCommand command, Game<T> game, Table table, GameContext gameContext) {
+  protected void applySubcommand(GameCommand command, Game<T> game, GameContext gameContext) {
     switch (command) {
-      case PlayerActionCommand pac -> applyPlayerAction(pac, game, table, gameContext);
-      case PlayerIntent pi -> applyPlayerIntent(pi, table);
-      case ShowCards sc -> applyShowCards(sc, table);
-      case PostBlind pb -> applyPostBlind(pb, table);
+      case PlayerActionCommand pac -> applyPlayerAction(pac, game, gameContext);
+      case PlayerIntent pi -> applyPlayerIntent(pi);
+      case ShowCards sc -> applyShowCards(sc);
+      case PostBlind pb -> applyPostBlind(pb);
       default -> throw new ValidationException("Unknown table command: " + command.commandId());
     }
   }
 
-  @Override
-  public Table createTable(String tableId) {
-    List<Seat> seats = new ArrayList<>();
-    for (int i = 0; i < gameSettings().numberOfSeats(); i++) {
-      seats.add(Seat.builder().build());
-    }
-    return Table.builder()
-        .id(tableId)
-        .seats(seats)
-        .build();
-  }
-
   // ========== State Transition Methods ==========
 
-  private void transitionFromWaitingForPlayers(Game<T> game, Table table, GameContext gameContext) {
+  private void transitionFromWaitingForPlayers(Game<T> game, GameContext gameContext) {
     // If PAUSE_AFTER_HAND, transition to PAUSED since no hand is in progress
     if (table.status() == Table.Status.PAUSE_AFTER_HAND) {
       table.status(Table.Status.PAUSED);
       return;
     }
 
-    int activeCount = countActivePlayers(table);
+    int activeCount = countActivePlayers();
     if (activeCount >= 2) {
       // Skip PREDEAL for now and go directly to DEAL
       table.handPhase(HandPhase.DEAL);
-      transitionFromDeal(game, table, gameContext);
+      transitionFromDeal(game, gameContext);
     }
   }
 
-  private void transitionFromPredeal(Game<T> game, Table table, GameContext gameContext) {
+  private void transitionFromPredeal(Game<T> game, GameContext gameContext) {
     Instant phaseStarted = table.phaseStartedAt();
     if (phaseStarted == null) {
       table.phaseStartedAt(Instant.now());
@@ -96,17 +132,17 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
 
     boolean timerExpired = phaseStarted.plusSeconds(gameSettings().predealTimeSeconds()).isBefore(Instant.now());
-    boolean noBuyingInPlayers = noBuyingInPlayers(table);
+    boolean noBuyingInPlayers = noBuyingInPlayers();
 
     if (timerExpired || noBuyingInPlayers) {
       // Activate JOINED_WAITING players
-      activateWaitingPlayers(table);
+      activateWaitingPlayers();
 
-      int activeCount = countActivePlayers(table);
+      int activeCount = countActivePlayers();
       if (activeCount >= 2) {
         table.phaseStartedAt(null);
         table.handPhase(HandPhase.DEAL);
-        transitionFromDeal(game, table, gameContext);
+        transitionFromDeal(game, gameContext);
       } else {
         table.phaseStartedAt(null);
         table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
@@ -114,21 +150,21 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
   }
 
-  private void transitionFromDeal(Game<T> game, Table table, GameContext gameContext) {
+  private void transitionFromDeal(Game<T> game, GameContext gameContext) {
     int smallBlind = game.smallBlind();
     int bigBlind = game.bigBlind();
 
     // Activate JOINED_WAITING players for this hand
-    activateWaitingPlayers(table);
+    activateWaitingPlayers();
 
-    int activeCount = countActivePlayers(table);
+    int activeCount = countActivePlayers();
     if (activeCount < 2) {
       table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
       return;
     }
 
     // Rotate dealer button
-    int dealerPosition = rotateDealerButton(table);
+    int dealerPosition = rotateDealerButton();
     table.dealerPosition(dealerPosition);
 
     // Compute blind positions
@@ -139,22 +175,21 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     if (headsUp) {
       // Heads-up: dealer is small blind
       sbPosition = dealerPosition;
-      bbPosition = nextActivePosition(table, dealerPosition);
+      bbPosition = nextActivePosition(dealerPosition);
     } else {
-      sbPosition = nextActivePosition(table, dealerPosition);
-      bbPosition = nextActivePosition(table, sbPosition);
+      sbPosition = nextActivePosition(dealerPosition);
+      bbPosition = nextActivePosition(sbPosition);
     }
 
     table.smallBlindPosition(sbPosition);
     table.bigBlindPosition(bbPosition);
 
     // Create a new deck
-    Deck deck = new Deck();
-    activeDecks.put(table.id(), deck);
+    this.deck = new Deck();
 
     // Post blinds
-    postBlind(table, sbPosition, smallBlind);
-    postBlind(table, bbPosition, bigBlind);
+    postBlind(sbPosition, smallBlind);
+    postBlind(bbPosition, bigBlind);
 
     // Set current bet and minimum raise
     table.currentBet(bigBlind);
@@ -173,7 +208,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
 
     // Set action position (UTG = first active seat after BB)
-    int utgPosition = nextActiveNonAllInPosition(table, bbPosition);
+    int utgPosition = nextActiveNonAllInPosition(bbPosition);
     table.actionPosition(utgPosition);
 
     // lastRaiserPosition = BB (BB has the option to raise)
@@ -209,7 +244,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     gameContext.forceUpdate(true);
   }
 
-  private void transitionFromBetting(Game<T> game, Table table, GameContext gameContext, HandPhase nextPhase) {
+  private void transitionFromBetting(Game<T> game, GameContext gameContext, HandPhase nextPhase) {
     // Check player timeout
     if (table.actionDeadline() != null && table.actionDeadline().isBefore(Instant.now())) {
       Integer actionPos = table.actionPosition();
@@ -230,22 +265,22 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
               defaultAction
           ));
 
-          executePlayerAction(table, actionPos, actionSeat, defaultAction, game, gameContext);
+          executePlayerAction(actionPos, actionSeat, defaultAction, game, gameContext);
         }
       }
     }
 
     // Check if all but one have folded
-    int activeSeatCount = countNonFoldedPlayers(table);
+    int activeSeatCount = countNonFoldedPlayers();
     if (activeSeatCount <= 1) {
       // Award pot to the last remaining player
-      awardPotToLastPlayer(game, table, gameContext);
+      awardPotToLastPlayer(game, gameContext);
       return;
     }
 
     // Check if betting round is complete
-    if (isBettingRoundComplete(table)) {
-      collectBetsIntoPots(table);
+    if (isBettingRoundComplete()) {
+      collectBetsIntoPots();
 
       gameContext.queueEvent(new BettingRoundComplete(
           Instant.now(), game.id(), table.id(),
@@ -253,11 +288,11 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       ));
 
       // Check for all-in shortcut: if all non-folded players are all-in, deal remaining cards
-      if (allNonFoldedAreAllIn(table) || countActiveNonAllInPlayers(table) <= 1) {
+      if (allNonFoldedAreAllIn() || countActiveNonAllInPlayers() <= 1) {
         // Deal remaining community cards and go to showdown
-        dealRemainingCommunityCards(game, table, gameContext);
+        dealRemainingCommunityCards(game, gameContext);
         table.handPhase(HandPhase.SHOWDOWN);
-        transitionFromShowdown(game, table, gameContext);
+        transitionFromShowdown(game, gameContext);
         return;
       }
 
@@ -265,15 +300,14 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       table.handPhase(nextPhase);
 
       if (nextPhase == HandPhase.SHOWDOWN) {
-        transitionFromShowdown(game, table, gameContext);
+        transitionFromShowdown(game, gameContext);
       }
       // FLOP/TURN/RIVER are transient - they'll be handled on the next tick
     }
   }
 
-  private void transitionFromCommunityCard(Game<T> game, Table table, GameContext gameContext,
+  private void transitionFromCommunityCard(Game<T> game, GameContext gameContext,
                                            int cardCount, String phaseName, HandPhase nextBettingPhase) {
-    Deck deck = activeDecks.get(table.id());
     if (deck == null) {
       throw new IllegalStateException("No deck found for table " + table.id());
     }
@@ -296,11 +330,11 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.minimumRaise(game.bigBlind());
 
     // Set action position to first active non-all-in seat left of dealer
-    Integer firstActor = firstActiveNonAllInAfterDealer(table);
+    Integer firstActor = firstActiveNonAllInAfterDealer();
     if (firstActor == null) {
       // All remaining players are all-in, skip to showdown
       table.handPhase(HandPhase.SHOWDOWN);
-      transitionFromShowdown(game, table, gameContext);
+      transitionFromShowdown(game, gameContext);
       return;
     }
 
@@ -312,16 +346,16 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.phaseStartedAt(Instant.now());
 
     // Apply pending intent if the current player has one
-    tryApplyPendingIntent(game, table, gameContext);
+    tryApplyPendingIntent(game, gameContext);
   }
 
-  private void transitionFromShowdown(Game<T> game, Table table, GameContext gameContext) {
+  private void transitionFromShowdown(Game<T> game, GameContext gameContext) {
     // Evaluate hands and award pots
     List<ShowdownResult.PotResult> potResults = new ArrayList<>();
 
     for (int potIndex = 0; potIndex < table.pots().size(); potIndex++) {
       Table.Pot pot = table.pots().get(potIndex);
-      List<ShowdownResult.Winner> winners = evaluatePotWinners(game, table, pot, potIndex);
+      List<ShowdownResult.Winner> winners = evaluatePotWinners(pot, potIndex);
       potResults.add(new ShowdownResult.PotResult(potIndex, pot.amount(), winners));
     }
 
@@ -330,14 +364,14 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     ));
 
     // Mark winning cards as showCard = true
-    markShowdownCards(table, potResults);
+    markShowdownCards(potResults);
 
     table.handPhase(HandPhase.HAND_COMPLETE);
     table.phaseStartedAt(Instant.now());
     gameContext.forceUpdate(true);
   }
 
-  private void transitionFromHandComplete(Game<T> game, Table table, GameContext gameContext) {
+  private void transitionFromHandComplete(Game<T> game, GameContext gameContext) {
     Instant phaseStarted = table.phaseStartedAt();
     if (phaseStarted == null) {
       table.phaseStartedAt(Instant.now());
@@ -356,13 +390,13 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     ));
 
     // Remove departed players (status == OUT) and handle busted players
-    handlePostHandPlayerStatus(game, table);
+    handlePostHandPlayerStatus(game);
 
     // Clear hand state
-    clearHandState(table);
+    clearHandState();
 
     // Clean up deck
-    activeDecks.remove(table.id());
+    this.deck = null;
 
     // Check for PAUSE_AFTER_HAND
     if (table.status() == Table.Status.PAUSE_AFTER_HAND) {
@@ -373,14 +407,14 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
 
     // Determine next phase
-    if (hasBuyingInPlayers(table)) {
+    if (hasBuyingInPlayers()) {
       table.handPhase(HandPhase.PREDEAL);
       table.phaseStartedAt(Instant.now());
     } else {
-      int activeCount = countActivePlayers(table);
+      int activeCount = countActivePlayers();
       if (activeCount >= 2) {
         table.handPhase(HandPhase.DEAL);
-        transitionFromDeal(game, table, gameContext);
+        transitionFromDeal(game, gameContext);
       } else {
         table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
       }
@@ -390,14 +424,14 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
   // ========== Command Handlers ==========
 
-  private void applyPlayerAction(PlayerActionCommand command, Game<T> game, Table table, GameContext gameContext) {
+  private void applyPlayerAction(PlayerActionCommand command, Game<T> game, GameContext gameContext) {
     // Validate it's a betting phase
     if (!isBettingPhase(table.handPhase())) {
       throw new ValidationException("Player actions are only valid during a betting phase.");
     }
 
     // Find the player's seat
-    int seatPosition = findPlayerSeat(table, command.user().id());
+    int seatPosition = findPlayerSeat(command.user().id());
     if (seatPosition < 0) {
       throw new ValidationException("You are not seated at this table.");
     }
@@ -413,16 +447,16 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
 
     // Validate and execute the action
-    validateAction(command.action(), seat, table, game);
-    executePlayerAction(table, seatPosition, seat, command.action(), game, gameContext);
+    validateAction(command.action(), seat, game);
+    executePlayerAction(seatPosition, seat, command.action(), game, gameContext);
   }
 
-  private void applyPlayerIntent(PlayerIntent command, Table table) {
+  private void applyPlayerIntent(PlayerIntent command) {
     if (!isBettingPhase(table.handPhase())) {
       throw new ValidationException("Intents are only valid during a betting phase.");
     }
 
-    int seatPosition = findPlayerSeat(table, command.user().id());
+    int seatPosition = findPlayerSeat(command.user().id());
     if (seatPosition < 0) {
       throw new ValidationException("You are not seated at this table.");
     }
@@ -435,12 +469,12 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     seat.pendingIntent(command.action());
   }
 
-  private void applyShowCards(ShowCards command, Table table) {
+  private void applyShowCards(ShowCards command) {
     if (table.handPhase() != HandPhase.HAND_COMPLETE) {
       throw new ValidationException("You can only show cards during the hand review period.");
     }
 
-    int seatPosition = findPlayerSeat(table, command.user().id());
+    int seatPosition = findPlayerSeat(command.user().id());
     if (seatPosition < 0) {
       throw new ValidationException("You are not seated at this table.");
     }
@@ -454,12 +488,12 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
   }
 
-  private void applyPostBlind(PostBlind command, Table table) {
+  private void applyPostBlind(PostBlind command) {
     if (table.handPhase() != HandPhase.PREDEAL && table.handPhase() != HandPhase.WAITING_FOR_PLAYERS) {
       throw new ValidationException("You can only post a blind during the predeal phase.");
     }
 
-    int seatPosition = findPlayerSeat(table, command.user().id());
+    int seatPosition = findPlayerSeat(command.user().id());
     if (seatPosition < 0) {
       throw new ValidationException("You are not seated at this table.");
     }
@@ -471,7 +505,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
   // ========== Action Execution ==========
 
-  private void executePlayerAction(Table table, int seatPosition, Seat seat, PlayerAction action, Game<T> game, GameContext gameContext) {
+  private void executePlayerAction(int seatPosition, Seat seat, PlayerAction action, Game<T> game, GameContext gameContext) {
     Player player = seat.player();
     int chipsBefore = player != null ? player.chipCount() : 0;
 
@@ -480,10 +514,8 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
         seat.status(Seat.Status.FOLDED);
         seat.action(fold);
       }
-      case PlayerAction.Check check -> {
-        seat.action(check);
-      }
-      case PlayerAction.Call call -> {
+      case PlayerAction.Check check -> seat.action(check);
+      case PlayerAction.Call _ -> {
         int amountToCall = table.currentBet() - seat.currentBetAmount();
         int actualCall = Math.min(amountToCall, chipsBefore);
         deductChips(seat, actualCall);
@@ -548,27 +580,27 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     ));
 
     // Advance action position
-    advanceActionPosition(table, seatPosition);
+    advanceActionPosition(seatPosition);
 
     // Try to apply pending intent for the next player
-    tryApplyPendingIntent(game, table, gameContext);
+    tryApplyPendingIntent(game, gameContext);
   }
 
   // ========== Betting Logic ==========
 
-  private void validateAction(PlayerAction action, Seat seat, Table table, Game<T> game) {
+  private void validateAction(PlayerAction action, Seat seat, Game<T> game) {
     int chipCount = seat.player() != null ? seat.player().chipCount() : 0;
 
     switch (action) {
-      case PlayerAction.Fold fold -> {
+      case PlayerAction.Fold _ -> {
         // Always valid
       }
-      case PlayerAction.Check check -> {
+      case PlayerAction.Check _ -> {
         if (seat.currentBetAmount() < table.currentBet()) {
           throw new ValidationException("You cannot check when there is a bet to call.");
         }
       }
-      case PlayerAction.Call call -> {
+      case PlayerAction.Call _ -> {
         if (seat.currentBetAmount() >= table.currentBet()) {
           throw new ValidationException("There is nothing to call.");
         }
@@ -603,7 +635,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
   }
 
-  private boolean isBettingRoundComplete(Table table) {
+  private boolean isBettingRoundComplete() {
     // The round is complete when every active non-all-in player has acted.
     // When a bet/raise occurs, other players' actions are cleared so they must act again.
     for (Seat seat : table.seats()) {
@@ -614,8 +646,8 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return true;
   }
 
-  private void advanceActionPosition(Table table, int currentPosition) {
-    Integer nextPos = nextActiveNonAllInPositionOrNull(table, currentPosition);
+  private void advanceActionPosition(int currentPosition) {
+    Integer nextPos = nextActiveNonAllInPositionOrNull(currentPosition);
     if (nextPos == null) {
       // No more players can act
       table.actionPosition(table.lastRaiserPosition());
@@ -627,7 +659,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.actionDeadline(Instant.now().plusSeconds(gameSettings().actionTimeSeconds()));
   }
 
-  private void tryApplyPendingIntent(Game<T> game, Table table, GameContext gameContext) {
+  private void tryApplyPendingIntent(Game<T> game, GameContext gameContext) {
     Integer actionPos = table.actionPosition();
     if (actionPos == null) return;
 
@@ -636,11 +668,11 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
     // Validate the pending intent is still legal
     try {
-      validateAction(seat.pendingIntent(), seat, table, game);
+      validateAction(seat.pendingIntent(), seat, game);
       // Intent is valid, auto-execute it
       PlayerAction intent = seat.pendingIntent();
       seat.pendingIntent(null);
-      executePlayerAction(table, actionPos, seat, intent, game, gameContext);
+      executePlayerAction(actionPos, seat, intent, game, gameContext);
     } catch (ValidationException e) {
       // Intent is no longer valid, clear it and wait for manual action
       seat.pendingIntent(null);
@@ -653,7 +685,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
    * Collects all outstanding bets into pots using the "peeling" algorithm.
    * This correctly handles side pots when players go all-in for different amounts.
    */
-  private void collectBetsIntoPots(Table table) {
+  private void collectBetsIntoPots() {
     // Gather all non-zero bets with their seat positions
     List<int[]> bets = new ArrayList<>(); // [seatPosition, betAmount]
     for (int i = 0; i < table.seats().size(); i++) {
@@ -715,9 +747,9 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
   }
 
-  private void awardPotToLastPlayer(Game<T> game, Table table, GameContext gameContext) {
+  private void awardPotToLastPlayer(Game<T> game, GameContext gameContext) {
     // Collect any outstanding bets first
-    collectBetsIntoPots(table);
+    collectBetsIntoPots();
 
     // Find the last non-folded player
     int winnerPosition = -1;
@@ -760,7 +792,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
   // ========== Showdown Logic ==========
 
-  private List<ShowdownResult.Winner> evaluatePotWinners(Game<T> game, Table table, Table.Pot pot, int potIndex) {
+  private List<ShowdownResult.Winner> evaluatePotWinners(Table.Pot pot, int potIndex) {
     List<ShowdownResult.Winner> winners = new ArrayList<>();
 
     // Build hand results for eligible seats
@@ -816,7 +848,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return winners;
   }
 
-  private void markShowdownCards(Table table, List<ShowdownResult.PotResult> potResults) {
+  private void markShowdownCards(List<ShowdownResult.PotResult> potResults) {
     Set<Integer> winnerPositions = new HashSet<>();
     for (ShowdownResult.PotResult pr : potResults) {
       for (ShowdownResult.Winner w : pr.winners()) {
@@ -835,8 +867,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
   }
 
-  private void dealRemainingCommunityCards(Game<T> game, Table table, GameContext gameContext) {
-    Deck deck = activeDecks.get(table.id());
+  private void dealRemainingCommunityCards(Game<T> game, GameContext gameContext) {
     if (deck == null) return;
 
     int currentCount = table.communityCards().size();
@@ -864,7 +895,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
   // ========== Hand Complete Helpers ==========
 
-  private void handlePostHandPlayerStatus(Game<T> game, Table table) {
+  private void handlePostHandPlayerStatus(Game<T> game) {
     for (Seat seat : table.seats()) {
       if (seat.player() == null) continue;
       Player player = seat.player();
@@ -878,14 +909,14 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       }
 
       // Handle busted players (no chips)
-      if (player.chipCount() != null && player.chipCount() <= 0) {
+      if (player.chipCount() <= 0) {
         seat.status(Seat.Status.JOINED_WAITING);
         player.status(PlayerStatus.BUYING_IN);
       }
     }
   }
 
-  private void clearHandState(Table table) {
+  private void clearHandState() {
     for (Seat seat : table.seats()) {
       seat.cards(null);
       seat.action(null);
@@ -910,7 +941,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.phaseStartedAt(null);
   }
 
-  private void activateWaitingPlayers(Table table) {
+  private void activateWaitingPlayers() {
     for (Seat seat : table.seats()) {
       if (seat.status() == Seat.Status.JOINED_WAITING && isPlayerReadyToPlay(seat.player())) {
         seat.status(Seat.Status.ACTIVE);
@@ -920,20 +951,20 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
   // ========== Position Helpers ==========
 
-  private int rotateDealerButton(Table table) {
+  private int rotateDealerButton() {
     Integer current = table.dealerPosition();
     if (current == null) {
       // First hand: pick a random active position
-      List<Integer> activePositions = getActivePositions(table);
+      List<Integer> activePositions = getActivePositions();
       return activePositions.get(new Random().nextInt(activePositions.size()));
     }
-    return nextActivePosition(table, current);
+    return nextActivePosition(current);
   }
 
   /**
    * Finds the next ACTIVE seat position clockwise from the given position.
    */
-  private int nextActivePosition(Table table, int fromPosition) {
+  private int nextActivePosition(int fromPosition) {
     int size = table.seats().size();
     for (int i = 1; i <= size; i++) {
       int pos = (fromPosition + i) % size;
@@ -948,7 +979,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
   /**
    * Finds the next ACTIVE, non-all-in seat position clockwise from the given position.
    */
-  private int nextActiveNonAllInPosition(Table table, int fromPosition) {
+  private int nextActiveNonAllInPosition(int fromPosition) {
     int size = table.seats().size();
     for (int i = 1; i <= size; i++) {
       int pos = (fromPosition + i) % size;
@@ -960,7 +991,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return fromPosition;
   }
 
-  private Integer nextActiveNonAllInPositionOrNull(Table table, int fromPosition) {
+  private Integer nextActiveNonAllInPositionOrNull(int fromPosition) {
     int size = table.seats().size();
     for (int i = 1; i <= size; i++) {
       int pos = (fromPosition + i) % size;
@@ -973,7 +1004,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return null;
   }
 
-  private Integer firstActiveNonAllInAfterDealer(Table table) {
+  private Integer firstActiveNonAllInAfterDealer() {
     Integer dealer = table.dealerPosition();
     if (dealer == null) return null;
     int size = table.seats().size();
@@ -987,7 +1018,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return null;
   }
 
-  private List<Integer> getActivePositions(Table table) {
+  private List<Integer> getActivePositions() {
     List<Integer> positions = new ArrayList<>();
     for (int i = 0; i < table.seats().size(); i++) {
       if (table.seats().get(i).status() == Seat.Status.ACTIVE) {
@@ -1003,7 +1034,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
    * Counts players who are eligible to play in a hand. This includes ACTIVE seats
    * and JOINED_WAITING seats with a player that has chips and is not OUT or BUYING_IN.
    */
-  private int countActivePlayers(Table table) {
+  private int countActivePlayers() {
     int count = 0;
     for (Seat seat : table.seats()) {
       if (seat.status() == Seat.Status.ACTIVE || seat.status() == Seat.Status.JOINED_WAITING) {
@@ -1015,14 +1046,14 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return count;
   }
 
-  private boolean isPlayerReadyToPlay(Player player) {
+  private boolean isPlayerReadyToPlay(@Nullable Player player) {
     if (player == null) return false;
-    if (player.chipCount() == null || player.chipCount() <= 0) return false;
+    if (player.chipCount() <= 0) return false;
     // Only ACTIVE and AWAY players can be dealt into a hand
     return player.status() == PlayerStatus.ACTIVE || player.status() == PlayerStatus.AWAY;
   }
 
-  private int countNonFoldedPlayers(Table table) {
+  private int countNonFoldedPlayers() {
     int count = 0;
     for (Seat seat : table.seats()) {
       if (seat.status() == Seat.Status.ACTIVE) {
@@ -1032,7 +1063,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return count;
   }
 
-  private int countActiveNonAllInPlayers(Table table) {
+  private int countActiveNonAllInPlayers() {
     int count = 0;
     for (Seat seat : table.seats()) {
       if (seat.status() == Seat.Status.ACTIVE && !seat.isAllIn()) {
@@ -1042,7 +1073,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return count;
   }
 
-  private boolean allNonFoldedAreAllIn(Table table) {
+  private boolean allNonFoldedAreAllIn() {
     for (Seat seat : table.seats()) {
       if (seat.status() == Seat.Status.ACTIVE && !seat.isAllIn()) {
         return false;
@@ -1051,7 +1082,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return true;
   }
 
-  private boolean noBuyingInPlayers(Table table) {
+  private boolean noBuyingInPlayers() {
     for (Seat seat : table.seats()) {
       if (seat.player() != null && seat.player().status() == PlayerStatus.BUYING_IN) {
         return false;
@@ -1060,18 +1091,18 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return true;
   }
 
-  private boolean hasBuyingInPlayers(Table table) {
-    return !noBuyingInPlayers(table);
+  private boolean hasBuyingInPlayers() {
+    return !noBuyingInPlayers();
   }
 
   // ========== Blind / Chip Helpers ==========
 
-  private void postBlind(Table table, int position, int blindAmount) {
+  private void postBlind(int position, int blindAmount) {
     Seat seat = table.seats().get(position);
     Player player = seat.player();
     if (player == null) return;
 
-    int chips = player.chipCount() != null ? player.chipCount() : 0;
+    int chips = player.chipCount();
     int actualPost = Math.min(blindAmount, chips);
     player.chipCount(chips - actualPost);
     seat.currentBetAmount(actualPost);
@@ -1084,8 +1115,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
   private void deductChips(Seat seat, int amount) {
     Player player = seat.player();
     if (player == null) return;
-    int chips = player.chipCount() != null ? player.chipCount() : 0;
-    player.chipCount(chips - amount);
+    player.chipCount(player.chipCount() - amount);
   }
 
   // ========== Utility Helpers ==========
@@ -1097,7 +1127,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
            phase == HandPhase.RIVER_BETTING;
   }
 
-  private int findPlayerSeat(Table table, String userId) {
+  private int findPlayerSeat(String userId) {
     for (int i = 0; i < table.seats().size(); i++) {
       Seat seat = table.seats().get(i);
       if (seat.player() != null && seat.player().userId() != null

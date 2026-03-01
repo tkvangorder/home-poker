@@ -1,6 +1,5 @@
 package org.homepoker.game.table;
 
-import org.homepoker.game.GameContext;
 import org.homepoker.game.GameListener;
 import org.homepoker.game.GameManager;
 import org.homepoker.game.GameSettings;
@@ -723,9 +722,7 @@ class TexasHoldemTableManagerTest {
 
     // Count chips on players
     for (Player player : game.players().values()) {
-      if (player.chipCount() != null) {
         total += player.chipCount();
-      }
     }
 
     // Count chips in pots and outstanding bets (only during active hand phases,

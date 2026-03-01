@@ -41,8 +41,10 @@ public abstract class GameManager<T extends Game<T>> {
    */
   private final List<GameListener> gameListeners = new ArrayList<>();
 
-
-  private final TableManager<T> tableManager;
+  /**
+   * Per-table manager instances. Each table has its own manager that owns the Table reference and transient state (e.g. Deck).
+   */
+  private final NavigableMap<String, TableManager<T>> tableManagers = new TreeMap<>();
 
   /**
    * The current game state that is being managed by this game manager. Changes to the game state are completely
@@ -83,7 +85,11 @@ public abstract class GameManager<T extends Game<T>> {
     this.securityUtilities = securityUtilities;
     // TODO, as we add other game types, we can switch on game.type() to determine which table manager to use.
     this.gameSettings = GameSettings.TEXAS_HOLDEM_SETTINGS;
-    this.tableManager = new TexasHoldemTableManager<>(gameSettings);
+
+    // Create table managers for any existing tables (handles persistence reload + deck recovery)
+    for (Table table : game.tables().values()) {
+      tableManagers.put(table.id(), createTableManagerForExistingTable(table));
+    }
   }
 
   public void addGameListener(GameListener listener) {
@@ -200,7 +206,25 @@ public abstract class GameManager<T extends Game<T>> {
     return gameSettings;
   }
 
+  protected NavigableMap<String, TableManager<T>> tableManagers() {
+    return tableManagers;
+  }
+
   protected abstract T persistGameState(T game);
+
+  /**
+   * Creates a new table manager (and its underlying Table) for a brand-new table.
+   */
+  protected TableManager<T> createTableManager(String tableId) {
+    return TexasHoldemTableManager.forNewTable(tableId, gameSettings);
+  }
+
+  /**
+   * Creates a table manager for an existing (persisted) table, recovering transient state if mid-hand.
+   */
+  protected TableManager<T> createTableManagerForExistingTable(Table table) {
+    return TexasHoldemTableManager.forExistingTable(table, gameSettings);
+  }
 
   /**
    * This method handles state transitions (at the game level)
@@ -225,7 +249,7 @@ public abstract class GameManager<T extends Game<T>> {
       game.status(GameStatus.SEATING);
 
       // Use GameStateTransitions to create tables and distribute players
-      GameStateTransitions.resetSeating(game, gameContext);
+      GameStateTransitions.resetSeating(game, gameContext, tableManagers, this::createTableManager);
 
       // Set all table statuses to PAUSED (tables don't start playing until ACTIVE)
       for (Table table : game.tables().values()) {
@@ -257,8 +281,8 @@ public abstract class GameManager<T extends Game<T>> {
 
   private void transitionFromActive(T game, GameContext gameContext) {
     // Transition each table
-    for (Table table : game.tables().values()) {
-      tableManager.transitionTable(game, table, gameContext);
+    for (TableManager<T> tm : tableManagers.values()) {
+      tm.transitionTable(game, gameContext);
     }
 
     // Check if all tables are paused (two-phase pause/end detection)
@@ -305,8 +329,8 @@ public abstract class GameManager<T extends Game<T>> {
 
   private void transitionFromBalancing(T game, GameContext gameContext) {
     // Continue transitioning tables so hands can finish
-    for (Table table : game.tables().values()) {
-      tableManager.transitionTable(game, table, gameContext);
+    for (TableManager<T> tm : tableManagers.values()) {
+      tm.transitionTable(game, gameContext);
     }
 
     if (!allTablesPaused(game)) {
@@ -357,11 +381,11 @@ public abstract class GameManager<T extends Game<T>> {
   protected final void applyCommand(GameCommand command, T game, GameContext gameContext) {
 
     if (command instanceof TableCommand tableCommand) {
-      Table table = game.tables().get(tableCommand.tableId());
-      if (table == null) {
+      TableManager<T> tm = tableManagers.get(tableCommand.tableId());
+      if (tm == null) {
         throw new ValidationException("Table not found: " + tableCommand.tableId());
       }
-      tableManager.applyCommand(command, game, table, gameContext);
+      tm.applyCommand(command, game, gameContext);
       return;
     }
     switch (command) {
@@ -509,11 +533,11 @@ public abstract class GameManager<T extends Game<T>> {
       throw new ValidationException("Buy-in amount exceeds the maximum of " + maxBuyIn + ".");
     }
 
-    int currentChips = player.chipCount() != null ? player.chipCount() : 0;
+    int currentChips = player.chipCount();
     int newChipCount = currentChips + gameCommand.amount();
     player.chipCount(newChipCount);
 
-    int currentBuyInTotal = player.buyInTotal() != null ? player.buyInTotal() : 0;
+    int currentBuyInTotal = player.buyInTotal();
     player.buyInTotal(currentBuyInTotal + gameCommand.amount());
 
     if (player.status() == PlayerStatus.REGISTERED || player.status() == PlayerStatus.BUYING_IN) {
@@ -633,8 +657,18 @@ public abstract class GameManager<T extends Game<T>> {
    * between the largest and smallest tables, or if there are more tables than needed.
    */
   private boolean tablesNeedBalancing(T game) {
-    // Remove empty tables first
-    game.tables().entrySet().removeIf(entry -> entry.getValue().numberOfPlayers() == 0);
+    // Remove empty tables first (from both game.tables() and tableManagers)
+    List<String> emptyTableIds = new ArrayList<>();
+    game.tables().entrySet().removeIf(entry -> {
+      if (entry.getValue().numberOfPlayers() == 0) {
+        emptyTableIds.add(entry.getKey());
+        return true;
+      }
+      return false;
+    });
+    for (String id : emptyTableIds) {
+      tableManagers.remove(id);
+    }
 
     if (game.tables().size() < 2) {
       return false;
@@ -690,11 +724,13 @@ public abstract class GameManager<T extends Game<T>> {
     while (game.tables().size() > optimalTableCount) {
       String lastKey = game.tables().lastKey();
       game.tables().remove(lastKey);
+      tableManagers.remove(lastKey);
     }
     while (game.tables().size() < optimalTableCount) {
       String newTableId = "TABLE-" + game.tables().size();
-      Table newTable = tableManager.createTable(newTableId);
-      game.tables().put(newTableId, newTable);
+      TableManager<T> tm = createTableManager(newTableId);
+      tableManagers.put(newTableId, tm);
+      game.tables().put(newTableId, tm.table());
     }
 
     // Distribute players round-robin across tables
@@ -732,11 +768,12 @@ public abstract class GameManager<T extends Game<T>> {
 
       if (hasUnassigned) {
         String newTableId = "TABLE-" + game.tables().size();
-        Table newTable = tableManager.createTable(newTableId);
+        TableManager<T> tm = createTableManager(newTableId);
         if (game.status() == GameStatus.ACTIVE) {
-          newTable.status(Table.Status.PLAYING);
+          tm.table().status(Table.Status.PLAYING);
         }
-        game.tables().put(newTableId, newTable);
+        tableManagers.put(newTableId, tm);
+        game.tables().put(newTableId, tm.table());
       }
     }
   }

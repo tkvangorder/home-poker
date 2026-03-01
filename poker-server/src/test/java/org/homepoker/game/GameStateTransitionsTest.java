@@ -1,5 +1,7 @@
 package org.homepoker.game;
 
+import org.homepoker.game.table.TableManager;
+import org.homepoker.game.table.TexasHoldemTableManager;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.game.Table;
 import org.homepoker.model.game.cash.CashGame;
@@ -9,12 +11,15 @@ import org.junit.jupiter.api.Test;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.NavigableMap;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class GameStateTransitionsTest {
 
-  private static final GameContext context = new GameContext(GameSettings.TEXAS_HOLDEM_SETTINGS);
+  private static final GameSettings settings = GameSettings.TEXAS_HOLDEM_SETTINGS;
+  private static final GameContext context = new GameContext(settings);
 
   @Test
   public void testResetSeating() {
@@ -23,10 +28,14 @@ public class GameStateTransitionsTest {
     List<Player> players = TestDataHelper.generatePlayers(game, 10, true);
     players.forEach(game::addPlayer);
 
+    NavigableMap<String, TableManager<CashGame>> tableManagers = new TreeMap<>();
+
     // Call the method
-    GameStateTransitions.resetSeating(game, context);
+    GameStateTransitions.resetSeating(game, context, tableManagers,
+        tableId -> TexasHoldemTableManager.forNewTable(tableId, settings));
 
     assertTableCountsAreBalanced(game);
+    assertThat(tableManagers).hasSameSizeAs(game.tables());
   }
 
   private static void assertTableCountsAreBalanced(CashGame game) {

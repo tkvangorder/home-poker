@@ -9,21 +9,27 @@ import org.homepoker.model.game.Table;
 public abstract class TableManager<T extends Game<T>> {
 
   private final GameSettings gameSettings;
+  protected final Table table;
 
-  public TableManager(GameSettings gameSettings) {
+  public TableManager(GameSettings gameSettings, Table table) {
     this.gameSettings = gameSettings;
+    this.table = table;
   }
 
   protected GameSettings gameSettings() {
     return gameSettings;
   }
 
-  public final void applyCommand(GameCommand command, Game<T> game, Table table, GameContext gameContext) {
+  public Table table() {
+    return table;
+  }
+
+  public final void applyCommand(GameCommand command, Game<T> game, GameContext gameContext) {
 
     switch (command) {
       default ->
           // Allow the subclass to handle any commands that are specific to the game type.
-          applySubcommand(command, game, table, gameContext);
+          applySubcommand(command, game, gameContext);
     }
   }
 
@@ -33,15 +39,13 @@ public abstract class TableManager<T extends Game<T>> {
    *
    * @param gameContext The current game context
    */
-  public abstract void transitionTable(Game<T> game, Table table, GameContext gameContext);
+  public abstract void transitionTable(Game<T> game, GameContext gameContext);
 
   /**
    * Give subclasses the opportunity to handle any commands that are specific to the game type.
    * @param command The command to apply
    * @param gameContext The current game context
    */
-  protected void applySubcommand(GameCommand command, Game<T> game, Table table, GameContext gameContext) {
+  protected void applySubcommand(GameCommand command, Game<T> game, GameContext gameContext) {
   }
-
-  public abstract Table createTable(String tableId);
 }
