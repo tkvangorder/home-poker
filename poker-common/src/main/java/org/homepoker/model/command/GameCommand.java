@@ -1,6 +1,6 @@
 package org.homepoker.model.command;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeId;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import tools.jackson.databind.JacksonModule;
@@ -24,8 +24,9 @@ import java.util.Set;
  * used to determine the concrete type of the command when deserializing JSON. Any object mapper that is used must
  * have the GameCommandModule registered with it. The module can be instantiated by using the {@link GameCommand#gameCommandsModule()} method.
  * <P>
- * The user field is NOT included in the JSON serialization/deserialization and is instead injected via Spring
- * Security when the command is submitted to the game manager.
+ * The user field is excluded from JSON serialization but can be populated during deserialization
+ * (WRITE_ONLY access). On the server, the user is injected into the JSON tree from the authenticated
+ * session before deserializing the command.
  *
  * @author tyler.vangorder
  */
@@ -38,7 +39,7 @@ public interface GameCommand {
   }
 
   String gameId();
-  @JsonIgnore
+  @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
   User user();
 
   /**
