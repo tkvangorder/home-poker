@@ -12,6 +12,69 @@ This document catalogs all commands and events in the poker server. It serves as
 
 ---
 
+## WebSocket Connection
+
+### Endpoint
+
+```
+ws://<host>/ws/games/{gameId}?token=<jwt>
+```
+
+### Authentication
+
+The browser WebSocket API does not support custom headers, so the JWT token is passed as a **query parameter** during the initial connection handshake.
+
+1. **Obtain a JWT token** — Authenticate via the REST API (`POST /api/auth/login`) to receive a JWT token.
+2. **Connect with the token** — Open a WebSocket connection with the token as a query parameter:
+   ```
+   ws://localhost:8080/ws/games/abc123?token=eyJhbGciOiJIUzI1NiJ9...
+   ```
+3. **Handshake validation** — The server intercepts the handshake and:
+   - Extracts the `token` query parameter
+   - Validates the JWT and resolves the authenticated user
+   - Extracts the `gameId` from the URL path
+   - Rejects the connection (HTTP 403) if the token is missing, invalid, or expired
+
+Once connected, the authenticated user identity is stored in the WebSocket session and automatically injected into all subsequent commands — clients never need to include user information in command payloads.
+
+### JavaScript Example
+
+```javascript
+// 1. Authenticate via REST to get a JWT token
+const response = await fetch('/api/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ loginId: 'player1', password: 'secret' })
+});
+const { token } = await response.json();
+
+// 2. Open WebSocket with token as query parameter
+const gameId = 'abc123';
+const ws = new WebSocket(`ws://localhost:8080/ws/games/${gameId}?token=${token}`);
+
+// 3. Listen for events from the server
+ws.onmessage = (event) => {
+  const pokerEvent = JSON.parse(event.data);
+  console.log(pokerEvent.eventType, pokerEvent);
+};
+
+// 4. Send commands (no user field needed — server injects it)
+ws.send(JSON.stringify({
+  commandId: 'register-for-game',
+  gameId: gameId
+}));
+```
+
+### Connection Lifecycle
+
+| Phase | Description |
+|-------|-------------|
+| **Handshake** | JWT validated, user resolved, gameId extracted. Connection rejected if any step fails. |
+| **Connected** | Client receives game events and sends commands as JSON text messages. |
+| **Disconnected** | Server cleans up the game listener. The player remains in the game but stops receiving events. |
+
+---
+
 ## Commands
 
 ### Game-Level Commands
