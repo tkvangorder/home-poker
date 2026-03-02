@@ -1,5 +1,10 @@
 package org.homepoker.rest;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.homepoker.file.FileService;
 import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.model.file.UploadedFile;
@@ -16,6 +21,7 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/files")
+@Tag(name = "Files", description = "File upload and download")
 public class FileController {
 
   private static final int MAX_FILE_SIZE_BYTES = 1024 * 1024 * 2;
@@ -26,6 +32,12 @@ public class FileController {
   }
 
   @PostMapping("")
+  @Operation(summary = "Upload a file", description = "Upload a file (max 2MB). Returns the file ID that can be used to download it later.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "File uploaded successfully, returns the file ID"),
+      @ApiResponse(responseCode = "400", description = "File is too large or could not be read"),
+      @ApiResponse(responseCode = "401", description = "Not authenticated")
+  })
   public String uploadFile(@RequestParam("file") MultipartFile file) {
     if (file.getSize() > MAX_FILE_SIZE_BYTES) {
       throw new ValidationException("The file is too large.");
@@ -40,7 +52,13 @@ public class FileController {
   }
 
   @GetMapping("/{fileId}")
-  public ResponseEntity<ByteArrayResource> download(@PathVariable String fileId) {
+  @Operation(summary = "Download a file", description = "Download a previously uploaded file by its ID.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "File returned as an attachment"),
+      @ApiResponse(responseCode = "401", description = "Not authenticated"),
+      @ApiResponse(responseCode = "404", description = "File not found")
+  })
+  public ResponseEntity<ByteArrayResource> download(@Parameter(description = "ID of the file to download") @PathVariable String fileId) {
     UploadedFile file = fileService.getFile(fileId);
 
     return ResponseEntity.ok()
