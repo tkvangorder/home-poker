@@ -27,7 +27,7 @@ public class PokerUserDetails implements UserDetails {
   }
 
   public User toUser() {
-    return user;
+    return user.withPassword(null);
   }
   
   @Override
@@ -42,27 +42,8 @@ public class PokerUserDetails implements UserDetails {
 
   @Override
   public String getPassword() {
-    return user.password();
-  }
-
-  @Override
-  public boolean isAccountNonExpired() {
-    return true;
-  }
-
-  @Override
-  public boolean isAccountNonLocked() {
-    return true;
-  }
-
-  @Override
-  public boolean isCredentialsNonExpired() {
-    return true;
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return true;
+		//noinspection DataFlowIssue
+		return user.password();
   }
 
 }

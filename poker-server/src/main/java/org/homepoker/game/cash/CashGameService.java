@@ -85,14 +85,12 @@ public class CashGameService {
     }
 
     try {
-      log.info("Processing Games " + Instant.now());
 
       if (Instant.now().isAfter(lastGameCheck)) {
         // Spin up a new thread to load any new games that are not yet in memory (we do this once a minute)
         threadManager.getExecutor().submit(this::loadNewGames);
       }
 
-      log.info("Processing {} games", gameManagerMap.size());
       for (GameManager<CashGame> gameManager : List.copyOf(gameManagerMap.values())) {
         if (gameManager.gameStatus() == GameStatus.COMPLETED) {
           // Remove the game manager from the map if the game is completed.
@@ -111,7 +109,6 @@ public class CashGameService {
 
   protected void loadNewGames() {
     try {
-      log.info("Loading new games ");
       lastGameCheck = DateTimeUtils.computeNextWallMinute();
 
       Instant startOfDay = DateTimeUtils.getStartOfDayInCurrentZone();
@@ -164,7 +161,6 @@ public class CashGameService {
     } else if (criteria.endTime() != null) {
       mongoCriteria.and("startTime").lte(criteria.endTime());
     }
-
     return mongoOperations.query(CashGame.class)
         .matching(query(mongoCriteria))
         .all().stream()
@@ -180,7 +176,7 @@ public class CashGameService {
   public CashGameManager getGameManger(String gameId) {
 
     return gameManagerMap.computeIfAbsent(gameId,
-        (id) -> {
+        (_) -> {
           //If the game manager is not yet in memory, we retrieve the game from
           //the database and materialize the game manager
           CashGame game = gameRepository.findById(gameId).orElseThrow(

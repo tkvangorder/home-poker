@@ -114,6 +114,7 @@ public class CashGameController {
       @ApiResponse(responseCode = "404", description = "Game not found")
   })
   void registerForGame(@Parameter(description = "ID of the game to join") @RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
+
     gameServer.getGameManger(gameId).submitCommand(new RegisterForGame(gameId, user.toUser()));
   }
 

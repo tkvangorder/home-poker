@@ -1,5 +1,6 @@
 package org.homepoker.model.game;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.Accessors;
 import org.homepoker.model.poker.Card;
@@ -16,21 +17,45 @@ import java.util.List;
 @Builder
 @Accessors(fluent = true)
 public final class Table {
+  @JsonProperty
   private final String id;
+  @JsonProperty
   private List<Seat> seats;
+  @JsonProperty
   private Status status;
+  @JsonProperty
   private HandPhase handPhase;
-  private @Nullable Integer dealerPosition;
-  private @Nullable Integer actionPosition;
-  private @Nullable Integer smallBlindPosition;
-  private @Nullable Integer bigBlindPosition;
-  private @Nullable Integer lastRaiserPosition;
+  @Nullable
+  @JsonProperty
+  private Integer dealerPosition;
+
+  @Nullable
+  @JsonProperty
+  private Integer actionPosition;
+  @Nullable
+  @JsonProperty
+  private Integer smallBlindPosition;
+  @Nullable
+  @JsonProperty
+  private Integer bigBlindPosition;
+  @JsonProperty
+  @Nullable
+  private Integer lastRaiserPosition;
+  @JsonProperty
   private int currentBet;
+  @JsonProperty
   private int minimumRaise;
+  @JsonProperty
   private int handNumber;
-  private @Nullable Instant phaseStartedAt;
-  private @Nullable Instant actionDeadline;
+  @Nullable
+  @JsonProperty
+  private Instant phaseStartedAt;
+  @Nullable
+  @JsonProperty
+  private Instant actionDeadline;
+  @JsonProperty
   private List<Card> communityCards;
+  @JsonProperty
   private List<Pot> pots;
 
 
@@ -55,7 +80,8 @@ public final class Table {
     PLAYING
   }
 
-  public static class TableBuilder {
+  @SuppressWarnings({"unused", "FieldMayBeFinal"})
+	public static class TableBuilder {
     private Status status = Status.PAUSED;
     private HandPhase handPhase = HandPhase.WAITING_FOR_PLAYERS;
     private List<Card> communityCards = new ArrayList<>();

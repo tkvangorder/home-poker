@@ -1,5 +1,6 @@
 package org.homepoker.model.game;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import lombok.experimental.Accessors;
 import org.homepoker.model.poker.Card;
@@ -12,15 +13,28 @@ import java.util.List;
 @Accessors(fluent = true)
 public final class Seat {
 
+  @JsonProperty
   private Status status;
-  private @Nullable Player player;
-  private @Nullable List<SeatCard> cards;
-  private @Nullable PlayerAction action;
+  @Nullable
+  @JsonProperty
+  private Player player;
+  @Nullable
+  @JsonProperty
+  private List<SeatCard> cards;
+  @Nullable
+  @JsonProperty
+  private PlayerAction action;
+  @JsonProperty
   private int currentBetAmount;
+  @JsonProperty
   private boolean isAllIn;
+  @JsonProperty
   private boolean mustPostBlind;
+  @JsonProperty
   private boolean missedBigBlind;
-  private @Nullable PlayerAction pendingIntent;
+  @Nullable
+  @JsonProperty
+  private PlayerAction pendingIntent;
 
   public enum Status {
     ACTIVE,
