@@ -1,6 +1,7 @@
 package org.homepoker.model.event;
 
 import com.fasterxml.jackson.annotation.JsonTypeId;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import tools.jackson.databind.JacksonModule;
 import tools.jackson.databind.jsontype.NamedType;
 import org.homepoker.lib.exception.SystemException;
@@ -18,6 +19,7 @@ import java.util.Set;
  * Base interface for all events emitted by the game server. This interface provides a mechanism for dynamically
  * registering all event subtypes with Jackson for polymorphic deserialization by calling the static method "registerEventsWithJackson".
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "eventType")
 public interface PokerEvent {
 
   @JsonTypeId
