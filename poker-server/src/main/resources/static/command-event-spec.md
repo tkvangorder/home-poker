@@ -581,6 +581,102 @@ A snapshot of a specific table's state, sent in response to a `GetTableState` co
 
 ---
 
+---
+
+## Model Reference
+
+### Table
+
+The `Table` object represents the full state of a poker table. It is nested within the `TableSnapshot` event.
+
+| Field                | Type         | Nullable | Description                               |
+|----------------------|--------------|----------|-------------------------------------------|
+| `id`                 | String       | No       | Unique table identifier                   |
+| `seats`              | List<Seat>   | No       | Ordered list of seats at the table        |
+| `status`             | Table.Status | No       | Current table status                      |
+| `handPhase`          | HandPhase    | No       | Current phase of the hand in progress     |
+| `dealerPosition`     | Integer      | Yes      | Seat index of the dealer button           |
+| `actionPosition`     | Integer      | Yes      | Seat index of the player whose turn it is |
+| `smallBlindPosition` | Integer      | Yes      | Seat index of the small blind             |
+| `bigBlindPosition`   | Integer      | Yes      | Seat index of the big blind               |
+| `lastRaiserPosition` | Integer      | Yes      | Seat index of the last player who raised  |
+| `currentBet`         | int          | No       | The current bet amount to be matched      |
+| `minimumRaise`       | int          | No       | The minimum raise amount                  |
+| `handNumber`         | int          | No       | Monotonically increasing hand counter     |
+| `phaseStartedAt`     | Instant      | Yes      | When the current phase began              |
+| `actionDeadline`     | Instant      | Yes      | Deadline for the current player to act    |
+| `communityCards`     | List<Card>   | No       | Community cards dealt so far              |
+| `pots`               | List<Pot>    | No       | Current pot(s) in play                    |
+
+**Table.Status values:** `PLAYING`, `PAUSE_AFTER_HAND`, `PAUSED`
+
+**HandPhase values:** `WAITING_FOR_PLAYERS`, `PREDEAL`, `DEAL`, `PRE_FLOP_BETTING`, `FLOP`, `FLOP_BETTING`, `TURN`, `TURN_BETTING`, `RIVER`, `RIVER_BETTING`, `SHOWDOWN`, `HAND_COMPLETE`
+
+---
+
+### Seat
+
+Each entry in the table's `seats` list represents one seat position.
+
+| Field              | Type           | Nullable | Description                                           |
+|--------------------|----------------|----------|-------------------------------------------------------|
+| `status`           | Seat.Status    | No       | Current seat status                                   |
+| `player`           | Player         | Yes      | The player occupying this seat (null if empty)        |
+| `cards`            | List<SeatCard> | Yes      | Player's hole cards (stripped for other players)      |
+| `action`           | PlayerAction   | Yes      | The player's last action in the current betting round |
+| `currentBetAmount` | int            | No       | Chips the player has bet in the current round         |
+| `isAllIn`          | boolean        | No       | Whether the player is all-in                          |
+| `mustPostBlind`    | boolean        | No       | Whether the player must post a blind to enter play    |
+| `missedBigBlind`   | boolean        | No       | Whether the player has missed a big blind rotation    |
+| `pendingIntent`    | PlayerAction   | Yes      | Pre-selected action (stripped for other players)      |
+
+**Seat.Status values:** `ACTIVE`, `FOLDED`, `JOINED_WAITING`, `EMPTY`
+
+---
+
+### SeatCard
+
+A card dealt to a player at the table.
+
+| Field      | Type    | Description                                          |
+|------------|---------|------------------------------------------------------|
+| `card`     | Card    | The card value and suit                              |
+| `showCard` | boolean | Whether the card should be revealed after the hand   |
+
+---
+
+### Card
+
+| Field   | Type      | Description                                       |
+|---------|-----------|---------------------------------------------------|
+| `value` | CardValue | Card rank: `TWO` through `ACE`                    |
+| `suit`  | CardSuit  | Card suit: `CLUBS`, `DIAMONDS`, `HEARTS`, `SPADES`|
+
+---
+
+### Pot
+
+| Field           | Type          | Description                                  |
+|-----------------|---------------|----------------------------------------------|
+| `amount`        | int           | Total chips in the pot                       |
+| `seatPositions` | List<Integer> | Seat positions eligible to win this pot      |
+
+---
+
+### Player
+
+| Field        | Type         | Nullable | Description                              |
+|--------------|--------------|----------|------------------------------------------|
+| `user`       | User         | No       | The user associated with this player     |
+| `status`     | PlayerStatus | No       | Current player status                    |
+| `chipCount`  | int          | No       | Player's current chip count              |
+| `buyInTotal` | int          | No       | Total chips bought in                    |
+| `reBuys`     | int          | No       | Number of re-buys                        |
+| `addOns`     | int          | No       | Number of add-ons                        |
+| `tableId`    | String       | Yes      | ID of the table the player is seated at  |
+
+---
+
 ### System Events
 
 #### SystemError
