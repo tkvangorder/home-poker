@@ -19,6 +19,7 @@ import java.util.List;
 public final class Table {
   @JsonProperty
   private final String id;
+  @With
   @JsonProperty
   private List<Seat> seats;
   @JsonProperty

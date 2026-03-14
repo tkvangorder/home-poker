@@ -1,5 +1,7 @@
 package org.homepoker.game;
 
+import org.homepoker.game.cash.CashGameManager;
+import org.homepoker.game.cash.CashGameService;
 import org.homepoker.model.command.*;
 import org.homepoker.model.event.PokerEvent;
 import org.homepoker.model.event.game.GameMessage;
@@ -8,9 +10,14 @@ import org.homepoker.model.event.game.PlayerBuyIn;
 import org.homepoker.model.game.*;
 import org.homepoker.model.game.cash.CashGame;
 import org.homepoker.model.user.User;
+import org.homepoker.security.SecurityUtilities;
 import org.homepoker.test.TestDataHelper;
+import org.homepoker.user.UserManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -23,7 +30,17 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Unit tests for the game-level state machine in GameManager.
  * Uses a TestableGameManager that does not require Spring or a database.
  */
+@ExtendWith(MockitoExtension.class)
 public class GameManagerTest {
+
+  @Mock
+  private CashGameService cashGameService;
+
+  @Mock
+  private UserManager userManager;
+
+  @Mock
+  private SecurityUtilities securityUtilities;
 
   private User adminUser;
   private User regularUser;
@@ -568,19 +585,19 @@ public class GameManagerTest {
   }
 
   private TestableGameManager createManager(CashGame game) {
-    return new TestableGameManager(game);
+    return new TestableGameManager(game, cashGameService, userManager, securityUtilities);
   }
 
   /**
    * A test-friendly GameManager that does not require Spring context or database.
    * Persistence is a no-op, and events are captured for assertion.
    */
-  static class TestableGameManager extends GameManager<CashGame> {
+  static class TestableGameManager extends CashGameManager {
 
     private final List<PokerEvent> savedEvents = new ArrayList<>();
 
-    TestableGameManager(CashGame game) {
-      super(game, null, null);
+    TestableGameManager(CashGame game, CashGameService cashGameService, UserManager userManager, SecurityUtilities securityUtilities) {
+      super(game, cashGameService, userManager, securityUtilities);
       // Add a listener that captures all events
       addGameListener(new GameListener() {
         @Override

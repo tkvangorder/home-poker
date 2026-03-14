@@ -195,6 +195,20 @@ Player leaves the game. If a hand is in progress, the leave takes effect after t
 
 ---
 
+#### GetGameState
+
+Requests a snapshot of the current game state. The server responds with a `GameSnapshot` user event sent only to the requesting user.
+
+| Field    | Type   | Description       |
+|----------|--------|-------------------|
+| `gameId` | String | Target game ID    |
+| `user`   | User   | (server-injected) |
+
+**commandId:** `get-game-state`
+**Accepted in states:** Any
+
+---
+
 ### Table-Level Commands
 
 Table-level commands target a specific table within a game. They implement `TableCommand` (which extends `GameCommand`) and include a `tableId` field. Commands are routed through either `TableManager.applyCommand()` (common) or a game-specific subclass like `TexasHoldemTableManager.applySubcommand()`.
@@ -269,6 +283,21 @@ New arrival posts a blind to enter play immediately instead of waiting for their
 
 **commandId:** `post-blind`
 **Accepted in phases:** PREDEAL
+
+---
+
+#### GetTableState
+
+Requests a snapshot of a specific table's state. The server responds with a `TableSnapshot` user event sent only to the requesting user. Hole cards and pending intents are stripped from all seats except the requesting user's.
+
+| Field     | Type   | Description       |
+|-----------|--------|-------------------|
+| `gameId`  | String | Target game ID    |
+| `tableId` | String | Target table ID   |
+| `user`    | User   | (server-injected) |
+
+**commandId:** `get-table-state`
+**Accepted in phases:** Any
 
 ---
 
@@ -513,6 +542,42 @@ A direct message sent to a specific player (e.g., validation errors, notificatio
 | `message`   | String          | Message content         |
 
 **eventType:** `user-message`
+
+---
+
+#### GameSnapshot
+
+A snapshot of the current game state, sent in response to a `GetGameState` command.
+
+| Field       | Type          | Description                     |
+|-------------|---------------|---------------------------------|
+| `timestamp` | Instant       | When the snapshot was taken      |
+| `userId`    | String        | Requesting player ID             |
+| `gameId`    | String        | Game ID                          |
+| `gameName`  | String        | Human-readable game name         |
+| `status`    | GameStatus    | Current game status              |
+| `startTime` | Instant       | Scheduled start time             |
+| `smallBlind`| int           | Small blind amount               |
+| `bigBlind`  | int           | Big blind amount                 |
+| `players`   | List\<Player> | All players in the game          |
+| `tableIds`  | List\<String> | IDs of all tables in the game    |
+
+**eventType:** `game-snapshot`
+
+---
+
+#### TableSnapshot
+
+A snapshot of a specific table's state, sent in response to a `GetTableState` command. Hole cards and pending intents are stripped from all seats except the requesting user's.
+
+| Field       | Type    | Description                    |
+|-------------|---------|--------------------------------|
+| `timestamp` | Instant | When the snapshot was taken     |
+| `userId`    | String  | Requesting player ID           |
+| `gameId`    | String  | Game ID                        |
+| `table`     | Table   | Full table state (sanitized)   |
+
+**eventType:** `table-snapshot`
 
 ---
 

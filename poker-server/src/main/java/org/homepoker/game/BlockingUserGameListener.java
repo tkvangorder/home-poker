@@ -28,8 +28,8 @@ public class BlockingUserGameListener extends UserGameListener {
   @Override
   public boolean acceptsEvent(PokerEvent event) {
     return switch (event) {
-      case UserEvent userEvent -> userEvent.userId().equals(getUser().id());
-      case SystemError systemError -> getUser().id().equals(systemError.userId());
+      case UserEvent userEvent -> user().id().equals(userEvent.userId());
+      case SystemError systemError -> user().id().equals(systemError.userId());
       default -> false;
     };
   }

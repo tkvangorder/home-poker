@@ -5,15 +5,23 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.homepoker.game.BlockingUserGameListener;
 import org.homepoker.game.cash.*;
+import org.homepoker.lib.exception.SystemException;
+import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.model.command.RegisterForGame;
 import org.homepoker.model.command.UnregisterFromGame;
+import org.homepoker.model.event.PokerEvent;
+import org.homepoker.model.event.SystemError;
+import org.homepoker.model.event.game.UserRegistered;
+import org.homepoker.model.event.user.UserMessage;
 import org.homepoker.model.game.GameCriteria;
 import org.homepoker.model.game.cash.CashGameDetails;
 import org.homepoker.security.PokerUserDetails;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.List;
 
 @RestController
@@ -107,27 +115,67 @@ public class CashGameController {
   }
 
   @PostMapping("/{gameId}/register")
-  @Operation(summary = "Register for a cash game", description = "Register the authenticated user as a player in the specified cash game.")
+  @Operation(summary = "Register for a cash game", description = "Register the authenticated user as a player in the specified cash game. Blocks until the game loop confirms registration.")
   @ApiResponses({
-      @ApiResponse(responseCode = "200", description = "Registered successfully"),
+      @ApiResponse(responseCode = "200", description = "Registered successfully, returns updated game details"),
+      @ApiResponse(responseCode = "400", description = "Registration rejected (e.g. already registered, game full)"),
       @ApiResponse(responseCode = "401", description = "Not authenticated"),
-      @ApiResponse(responseCode = "404", description = "Game not found")
+      @ApiResponse(responseCode = "404", description = "Game not found"),
+      @ApiResponse(responseCode = "500", description = "Unexpected error during registration")
   })
-  void registerForGame(@Parameter(description = "ID of the game to join") @RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
+  CashGameDetails registerForGame(@Parameter(description = "ID of the game to join") @RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
 
-    gameServer.getGameManger(gameId).submitCommand(new RegisterForGame(gameId, user.toUser()));
+    CashGameManager gameManager = gameServer.getGameManger(gameId);
+    BlockingUserGameListener gameListener = new BlockingUserGameListener(user.toUser(), Duration.ofSeconds(2));
+    try {
+      gameManager.addGameListener(gameListener);
+      gameServer.getGameManger(gameId).submitCommand(new RegisterForGame(gameId, user.toUser()));
+      PokerEvent event = gameListener.take();
+      if (event instanceof UserRegistered) {
+        return gameServer.getGameDetails(gameId);
+      } else {
+        handleGameEventError(event);
+      }
+    } finally {
+      gameManager.removeGameListener(gameListener);
+    }
+    throw new SystemException("Unexpected error during registration");
   }
 
   @PostMapping("/{gameId}/unregister")
-  @Operation(summary = "Unregister from a cash game", description = "Remove the authenticated user from the specified cash game.")
+  @Operation(summary = "Unregister from a cash game", description = "Remove the authenticated user from the specified cash game. Blocks until the game loop confirms unregistration.")
   @ApiResponses({
-      @ApiResponse(responseCode = "200", description = "Unregistered successfully"),
+      @ApiResponse(responseCode = "200", description = "Unregistered successfully, returns updated game details"),
+      @ApiResponse(responseCode = "400", description = "Unregistration rejected (e.g. not registered)"),
       @ApiResponse(responseCode = "401", description = "Not authenticated"),
-      @ApiResponse(responseCode = "404", description = "Game not found")
+      @ApiResponse(responseCode = "404", description = "Game not found"),
+      @ApiResponse(responseCode = "500", description = "Unexpected error during unregistration")
   })
-  void unregisterFromGame(@Parameter(description = "ID of the game to leave") @RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
+  CashGameDetails unregisterFromGame(@Parameter(description = "ID of the game to leave") @RequestParam String gameId, @AuthenticationPrincipal PokerUserDetails user) {
+    CashGameManager gameManager = gameServer.getGameManger(gameId);
+    BlockingUserGameListener gameListener = new BlockingUserGameListener(user.toUser(), Duration.ofSeconds(40));
+    try {
+      gameManager.addGameListener(gameListener);
+      gameServer.getGameManger(gameId).submitCommand(new UnregisterFromGame(gameId, user.toUser()));
+      PokerEvent event = gameListener.take();
+      if (event instanceof UserRegistered) {
+        return gameServer.getGameDetails(gameId);
+      } else {
+        handleGameEventError(event);
+      }
+    } finally {
+      gameManager.removeGameListener(gameListener);
+    }
+    throw new SystemException("Unexpected error during registration");
+  }
 
-    gameServer.getGameManger(gameId).submitCommand(new UnregisterFromGame(gameId, user.toUser()));
+
+  private void handleGameEventError(PokerEvent event) {
+    switch (event) {
+      case UserMessage userMessage -> throw new ValidationException(userMessage.message());
+      case SystemError systemError -> throw systemError.exception();
+      default -> throw new SystemException("Unexpected event type: " + event.getClass().getSimpleName());
+    }
   }
 
 }

@@ -40,13 +40,13 @@ public class WebSocketGameListener extends UserGameListener {
 		return switch (event) {
       // UserEvent check first — this ensures HoleCardsDealt (which is both TableEvent and UserEvent)
       // is only sent to the owning player.
-			case UserEvent userEvent -> userEvent.userId().equals(getUser().id());
+			case UserEvent userEvent -> userEvent.userId().equals(user().id());
 
 			// GameEvent (including TableEvent) is broadcast to all.
 			case GameEvent _ -> true;
 
 			// SystemError with a userId is only sent to that user.
-			case SystemError systemError -> getUser().id().equals(systemError.userId());
+			case SystemError systemError -> user().id().equals(systemError.userId());
 			default -> false;
 		};
 	}

@@ -26,6 +26,30 @@ public class CommandSerializationTest {
     assertThat(deserializedRegister.commandId()).isEqualTo("register-for-game");
     assertThat(deserializedRegister.gameId()).isEqualTo("gameId");
     assertThat(deserializedRegister.user()).isNull();
+  }
 
+  @Test
+  void testGetGameStateSerialization() {
+    GetGameState command = new GetGameState("gameId", TestUtils.testUser());
+    String json = JsonUtils.toJson(command, objectMapper);
+    GameCommand deserialized = JsonUtils.jsonToObject(json, GameCommand.class, objectMapper);
+    assertThat(deserialized).isInstanceOf(GetGameState.class);
+    assert deserialized != null;
+    assertThat(deserialized.commandId()).isEqualTo("get-game-state");
+    assertThat(deserialized.gameId()).isEqualTo("gameId");
+    assertThat(deserialized.user()).isNull();
+  }
+
+  @Test
+  void testGetTableStateSerialization() {
+    GetTableState command = new GetTableState("gameId", "tableId", TestUtils.testUser());
+    String json = JsonUtils.toJson(command, objectMapper);
+    GameCommand deserialized = JsonUtils.jsonToObject(json, GameCommand.class, objectMapper);
+    assertThat(deserialized).isInstanceOf(GetTableState.class);
+    assert deserialized != null;
+    assertThat(deserialized.commandId()).isEqualTo("get-table-state");
+    assertThat(deserialized.gameId()).isEqualTo("gameId");
+    assertThat(((GetTableState) deserialized).tableId()).isEqualTo("tableId");
+    assertThat(deserialized.user()).isNull();
   }
 }

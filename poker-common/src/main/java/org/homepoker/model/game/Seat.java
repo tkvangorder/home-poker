@@ -18,6 +18,7 @@ public final class Seat {
   @Nullable
   @JsonProperty
   private Player player;
+  @With
   @Nullable
   @JsonProperty
   private List<SeatCard> cards;
@@ -32,9 +33,15 @@ public final class Seat {
   private boolean mustPostBlind;
   @JsonProperty
   private boolean missedBigBlind;
+  @With
   @Nullable
   @JsonProperty
   private PlayerAction pendingIntent;
+
+  @Nullable
+  public String userId() {
+    return player == null ? null : player.userId();
+  }
 
   public enum Status {
     ACTIVE,

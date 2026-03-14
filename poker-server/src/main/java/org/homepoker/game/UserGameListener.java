@@ -14,7 +14,7 @@ public abstract class UserGameListener implements GameListener {
     this.user = user;
   }
 
-  public final User getUser() {
+  public final User user() {
     return user;
   }
 

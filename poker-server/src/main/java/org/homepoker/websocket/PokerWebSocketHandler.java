@@ -121,7 +121,7 @@ public class PokerWebSocketHandler extends TextWebSocketHandler {
     if (listener != null && gameManager != null) {
       gameManager.removeGameListener(listener);
       log.info("WebSocket disconnected: user [{}], session [{}], status [{}]",
-          listener.getUser().loginId(), session.getId(), status);
+          listener.user().loginId(), session.getId(), status);
     }
   }
 

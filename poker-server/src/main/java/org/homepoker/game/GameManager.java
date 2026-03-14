@@ -5,10 +5,8 @@ import org.homepoker.game.table.TableManager;
 import org.homepoker.game.table.TableUtils;
 import org.homepoker.game.table.TexasHoldemTableManager;
 import org.homepoker.model.event.SystemError;
-import org.homepoker.model.event.game.GameMessage;
-import org.homepoker.model.event.game.GameStatusChanged;
-import org.homepoker.model.event.game.PlayerBuyIn;
-import org.homepoker.model.event.game.PlayerMoved;
+import org.homepoker.model.event.game.*;
+import org.homepoker.model.event.user.GameSnapshot;
 import org.homepoker.model.event.user.UserMessage;
 import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.model.MessageSeverity;
@@ -142,7 +140,7 @@ public abstract class GameManager<T extends Game<T>> {
         } catch (ValidationException e) {
           gameContext.queueEvent(UserMessage.builder()
               .timestamp(Instant.now())
-              .userId(command.user().loginId())
+              .userId(command.user().id())
               .severity(MessageSeverity.ERROR)
               .message(e.getMessage())
               .build());
@@ -151,7 +149,7 @@ public abstract class GameManager<T extends Game<T>> {
           SystemError.SystemErrorBuilder builder = SystemError.builder()
               .timestamp(Instant.now())
               .gameId(command.gameId())
-              .userId(command.user().loginId())
+              .userId(command.user().id())
               .exception(e);
           if (command instanceof TableCommand tableCommand) {
             builder.tableId(tableCommand.tableId());
@@ -389,52 +387,17 @@ public abstract class GameManager<T extends Game<T>> {
       return;
     }
     switch (command) {
-      case RegisterForGame gameCommand -> registerForGame(gameCommand, game, gameContext);
-      case UnregisterFromGame gameCommand -> unregisterFromGame(gameCommand, game, gameContext);
       case EndGame gameCommand -> endGame(gameCommand, game, gameContext);
       case StartGame gameCommand -> startGame(gameCommand, game, gameContext);
       case PauseGame gameCommand -> pauseGame(gameCommand, game, gameContext);
       case ResumeGame gameCommand -> resumeGame(gameCommand, game, gameContext);
       case BuyIn gameCommand -> buyIn(gameCommand, game, gameContext);
       case LeaveGame gameCommand -> leaveGame(gameCommand, game, gameContext);
+      case GetGameState gameCommand -> getGameState(gameCommand, game, gameContext);
       default ->
         // Allow the subclass to handle any commands that are specific to child game manager.
           applyGameSpecificCommand(command, game, gameContext);
     }
-  }
-
-  private void registerForGame(RegisterForGame registerForGame, T game, GameContext gameContext) {
-
-    if (game.status() == GameStatus.COMPLETED) {
-      throw new ValidationException("This game has already completed.");
-    }
-
-    if (game.players().containsKey(registerForGame.user().loginId())) {
-      throw new ValidationException("You are already registered for this game.");
-    }
-    Player player = Player.builder().user(registerForGame.user()).status(PlayerStatus.REGISTERED).build();
-    game.addPlayer(player);
-
-    // During SEATING or ACTIVE, assign the player to a seat on the table with the fewest players
-    if (game.status() == GameStatus.SEATING || game.status() == GameStatus.ACTIVE) {
-      assignPlayerToTableWithFewestPlayers(player, game);
-    }
-
-    gameContext.forceUpdate(true);
-  }
-
-  private void unregisterFromGame(UnregisterFromGame registerForGame, T game, GameContext gameContext) {
-
-    if (game.status() != GameStatus.SCHEDULED) {
-      throw new ValidationException("You can only unregister from the game prior to it starting.");
-    }
-
-    if (!game.players().containsKey(registerForGame.user().loginId())) {
-      throw new ValidationException("You are not registered for this game.");
-    }
-
-    game.players().remove(registerForGame.user().loginId());
-    gameContext.forceUpdate(true);
   }
 
   private void endGame(EndGame gameCommand, T game, GameContext gameContext) {
@@ -589,6 +552,21 @@ public abstract class GameManager<T extends Game<T>> {
     gameContext.forceUpdate(true);
   }
 
+  private void getGameState(GetGameState gameCommand, T game, GameContext gameContext) {
+    gameContext.queueEvent(new GameSnapshot(
+        Instant.now(),
+        gameCommand.user().id(),
+        game.id(),
+        game.name(),
+        game.status(),
+        game.startTime(),
+        game.smallBlind(),
+        game.bigBlind(),
+        List.copyOf(game.players().values()),
+        List.copyOf(game.tables().keySet())
+    ));
+  }
+
   protected void applyGameSpecificCommand(GameCommand command, T game, GameContext gameContext) {
     throw new ValidationException("Unknown command: " + command.commandId());
   }
@@ -619,27 +597,6 @@ public abstract class GameManager<T extends Game<T>> {
       }
     }
     return true;
-  }
-
-  /**
-   * Assign a player to a random seat on the table with the fewest players.
-   */
-  private void assignPlayerToTableWithFewestPlayers(Player player, T game) {
-    if (game.tables().isEmpty()) {
-      return;
-    }
-    Table targetTable = null;
-    int minPlayers = Integer.MAX_VALUE;
-    for (Table table : game.tables().values()) {
-      int playerCount = table.numberOfPlayers();
-      if (playerCount < minPlayers) {
-        minPlayers = playerCount;
-        targetTable = table;
-      }
-    }
-    if (targetTable != null && minPlayers < gameSettings.numberOfSeats()) {
-      TableUtils.assignPlayerToRandomSeat(player, targetTable);
-    }
   }
 
   /**
