@@ -78,7 +78,7 @@ public class PokerWebSocketHandler extends TextWebSocketHandler {
     session.getAttributes().put(ATTR_LISTENER, listener);
     session.getAttributes().put(ATTR_GAME_MANAGER, gameManager);
 
-    log.info("WebSocket connected: user [{}], game [{}], session [{}]", user.loginId(), gameId, session.getId());
+    log.info("WebSocket connected: user [{}], game [{}], session [{}]", user.id(), gameId, session.getId());
   }
 
   @Override
@@ -108,7 +108,7 @@ public class PokerWebSocketHandler extends TextWebSocketHandler {
       gameManager.submitCommand(command);
 
     } catch (Exception e) {
-      log.warn("Error processing WebSocket message from user [{}]: {}", user.loginId(), e.getMessage());
+      log.warn("Error processing WebSocket message from user [{}]: {}", user.id(), e.getMessage());
       sendError(session, user, "Invalid command: " + e.getMessage());
     }
   }
@@ -121,7 +121,7 @@ public class PokerWebSocketHandler extends TextWebSocketHandler {
     if (listener != null && gameManager != null) {
       gameManager.removeGameListener(listener);
       log.info("WebSocket disconnected: user [{}], session [{}], status [{}]",
-          listener.user().loginId(), session.getId(), status);
+          listener.user().id(), session.getId(), status);
     }
   }
 

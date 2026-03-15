@@ -21,7 +21,9 @@ public class PokerUserDetailsService implements UserDetailsService {
 
   @Override
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-    return securityUtilities.userToUserDetails(userRepository.findByLoginId(username));
+    return securityUtilities.userToUserDetails(userRepository.findById(username).orElseThrow(
+        () -> new UsernameNotFoundException("User not found")
+    ));
   }
 
 }

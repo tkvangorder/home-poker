@@ -34,14 +34,13 @@ public class UserManagerTest {
 
   @Test
   public void createAndGetUser() {
-    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
-    User savedUser = userRepository.findByLoginId("fred");
+    User user = userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
+    User savedUser = userRepository.findById("fred").orElseThrow();
 
     // Ensure the user returned from the user manager has its password filtered out.
     assertThat(user.password()).isNull();
 
     // Make sure the saved user has the correctly encoded password.
-    assert savedUser != null;
     assertThat(securityUtilities.getPasswordEncoder().matches("password", savedUser.password())).isTrue();
 
     user = userManager.getUser("fred");
@@ -56,12 +55,9 @@ public class UserManagerTest {
     assertThatThrownBy(() -> userManager.registerUser(null))
         .isInstanceOf(IllegalArgumentException.class);
 
-    User user = TestDataHelper.user(null, "fred", "password", "Fred");
+    User user = TestDataHelper.user("fred", "password", "Fred");
 
-    assertThatThrownBy(() -> userManager.registerUser(user.withId("nonnull")))
-        .isInstanceOf(IllegalArgumentException.class);
-
-    assertThatThrownBy(() -> userManager.registerUser(user.withLoginId(null)))
+    assertThatThrownBy(() -> userManager.registerUser(user.withId(null)))
         .isInstanceOf(IllegalArgumentException.class);
 
     assertThatThrownBy(() -> userManager.registerUser(user.withPassword("")))
@@ -80,19 +76,18 @@ public class UserManagerTest {
 
   @Test
   public void updatePassword() {
-    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
+    userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
 
     UserPasswordChangeRequest request = new UserPasswordChangeRequest("fred", "password", "newpassword");
     userManager.updateUserPassword(request);
 
-    User updatedUser = userRepository.findByLoginId("fred");
-    assert updatedUser != null;
+    User updatedUser = userRepository.findById("fred").orElseThrow();
     assertThat(securityUtilities.getPasswordEncoder().matches("newpassword", updatedUser.password())).isTrue();
   }
 
   @Test
   public void updateUserInformation() {
-    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
+    userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
 
     UserInformationUpdate update = UserInformationUpdate.builder()
         .loginId("fred")
@@ -116,7 +111,7 @@ public class UserManagerTest {
 
   @Test
   public void updateUserVaidation() {
-    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
+    userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
 
     UserInformationUpdate update = UserInformationUpdate.builder()
         .loginId("fred")
@@ -141,7 +136,7 @@ public class UserManagerTest {
 
   @Test
   void deleteUser() {
-    User user = userManager.registerUser(TestDataHelper.user(null, "fred", "password", "Fred"));
+    userManager.registerUser(TestDataHelper.user("fred", "password", "Fred"));
     assertThat(userManager.getUser("fred")).isNotNull();
     userManager.deleteUser("fred");
     assertThatThrownBy(() -> userManager.getUser("fred")).isInstanceOf(ValidationException.class);

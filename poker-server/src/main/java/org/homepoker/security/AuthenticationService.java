@@ -46,7 +46,7 @@ public class AuthenticationService {
       throw new SecurityException("Access Denied");
     }
     User user = userManager.registerUser(User.builder()
-        .loginId(userRequest.loginId())
+        .id(userRequest.loginId())
         .password(userRequest.password())
         .name(userRequest.name())
         .alias(userRequest.alias())

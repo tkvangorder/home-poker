@@ -630,7 +630,7 @@ class TexasHoldemTableManagerTest {
 
     for (int i = 0; i < playerCount; i++) {
       String id = "player-" + i;
-      User user = TestDataHelper.user(id, id, "password", "Player " + i);
+      User user = TestDataHelper.user(id, "password", "Player " + i);
       Player player = Player.builder()
           .user(user)
           .status(PlayerStatus.ACTIVE)
@@ -752,7 +752,7 @@ class TexasHoldemTableManagerTest {
       super(game, null, null);
       addGameListener(new GameListener() {
         @Override
-        public String id() {
+        public String userId() {
           return "test-listener";
         }
 

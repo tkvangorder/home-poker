@@ -48,7 +48,7 @@ public class GameManagerTest {
   @BeforeEach
   void setUp() {
     adminUser = TestDataHelper.adminUser();
-    regularUser = TestDataHelper.user("user1-id", "user1", "password", "User One");
+    regularUser = TestDataHelper.user("user1", "password", "User One");
   }
 
   // --- SCHEDULED -> SEATING ---
@@ -351,7 +351,7 @@ public class GameManagerTest {
   @Test
   void buyIn_failsWhenNotRegistered() {
     CashGame game = buildGameInSeating(2);
-    User unregistered = TestDataHelper.user("unreg-id", "unregistered", "password", "Unregistered");
+    User unregistered = TestDataHelper.user("unregistered", "password", "Unregistered");
 
     TestableGameManager manager = createManager(game);
     manager.submitCommand(new BuyIn(game.id(), unregistered, 5000));
@@ -397,7 +397,7 @@ public class GameManagerTest {
   @Test
   void leaveGame_failsWhenNotRegistered() {
     CashGame game = buildGameInSeating(2);
-    User unregistered = TestDataHelper.user("unreg-id", "unregistered", "password", "Unregistered");
+    User unregistered = TestDataHelper.user("unregistered", "password", "Unregistered");
 
     TestableGameManager manager = createManager(game);
     manager.submitCommand(new LeaveGame(game.id(), unregistered));
@@ -412,13 +412,13 @@ public class GameManagerTest {
   @Test
   void registerForGame_duringSeating_assignsSeat() {
     CashGame game = buildGameInSeating(2);
-    User newUser = TestDataHelper.user("new-id", "newPlayer", "password", "New Player");
+    User newUser = TestDataHelper.user("newPlayer", "password", "New Player");
 
     TestableGameManager manager = createManager(game);
     manager.submitCommand(new RegisterForGame(game.id(), newUser));
     manager.processGameTick();
 
-    Player newPlayer = manager.getGame().players().get("new-id");
+    Player newPlayer = manager.getGame().players().get("newPlayer");
     assertThat(newPlayer).isNotNull();
     assertThat(newPlayer.tableId()).isNotNull();
   }
@@ -426,13 +426,13 @@ public class GameManagerTest {
   @Test
   void registerForGame_duringActive_assignsSeat() {
     CashGame game = buildGameInActive(2);
-    User newUser = TestDataHelper.user("new-id", "newPlayer", "password", "New Player");
+    User newUser = TestDataHelper.user("newPlayer", "password", "New Player");
 
     TestableGameManager manager = createManager(game);
     manager.submitCommand(new RegisterForGame(game.id(), newUser));
     manager.processGameTick();
 
-    Player newPlayer = manager.getGame().players().get("new-id");
+    Player newPlayer = manager.getGame().players().get("newPlayer");
     assertThat(newPlayer).isNotNull();
     assertThat(newPlayer.tableId()).isNotNull();
   }
@@ -440,13 +440,13 @@ public class GameManagerTest {
   @Test
   void registerForGame_duringScheduled_doesNotAssignSeat() {
     CashGame game = buildGame(GameStatus.SCHEDULED, Instant.now().plus(1, ChronoUnit.HOURS), 2);
-    User newUser = TestDataHelper.user("new-id", "newPlayer", "password", "New Player");
+    User newUser = TestDataHelper.user("newPlayer", "password", "New Player");
 
     TestableGameManager manager = createManager(game);
     manager.submitCommand(new RegisterForGame(game.id(), newUser));
     manager.processGameTick();
 
-    Player newPlayer = manager.getGame().players().get("new-id");
+    Player newPlayer = manager.getGame().players().get("newPlayer");
     assertThat(newPlayer).isNotNull();
     // No tables yet in SCHEDULED, so no seat assignment
     assertThat(newPlayer.tableId()).isNull();
@@ -508,8 +508,7 @@ public class GameManagerTest {
         .owner(adminUser)
         .build();
 
-    List<Player> players = TestDataHelper.generatePlayers(game, playerCount, true);
-    players.forEach(game::addPlayer);
+    List<Player> players = TestDataHelper.generatePlayers(game, playerCount);
     return game;
   }
 
@@ -559,7 +558,7 @@ public class GameManagerTest {
 
     for (int i = 0; i < playerCount; i++) {
       String uniqueId = tableId + "-player-" + i;
-      User user = TestDataHelper.user(uniqueId, uniqueId, "password", "Player " + uniqueId);
+      User user = TestDataHelper.user(uniqueId, "password", "Player " + uniqueId);
       Player player = Player.builder()
           .user(user)
           .status(playerStatus)
@@ -601,7 +600,7 @@ public class GameManagerTest {
       // Add a listener that captures all events
       addGameListener(new GameListener() {
         @Override
-        public String id() {
+        public String userId() {
           return "test-listener";
         }
 

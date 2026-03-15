@@ -25,8 +25,7 @@ public class GameStateTransitionsTest {
   public void testResetSeating() {
 
     CashGame game = TestDataHelper.cashGame("test", null);
-    List<Player> players = TestDataHelper.generatePlayers(game, 10, true);
-    players.forEach(game::addPlayer);
+    List<Player> players = TestDataHelper.generatePlayers(game, 10);
 
     NavigableMap<String, TableManager<CashGame>> tableManagers = new TreeMap<>();
 

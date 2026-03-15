@@ -2,6 +2,7 @@ package org.homepoker.model.user;
 
 import lombok.*;
 import org.jspecify.annotations.Nullable;
+import org.springframework.data.annotation.Id;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -11,11 +12,10 @@ import java.util.Set;
  */
 @Builder
 @With
-public record User(String id, String loginId, @Nullable String password, String email, String alias, String name, String phone, Set<UserRole> roles) {
+public record User(@Id String id, @Nullable String password, String email, String alias, String name, String phone, Set<UserRole> roles) {
 
-  public User(@Nullable String id, String loginId, @Nullable String password, String email, @Nullable String alias, String name, String phone, @Nullable Set<UserRole> roles) {
+  public User(String id, @Nullable String password, String email, @Nullable String alias, String name, String phone, @Nullable Set<UserRole> roles) {
     this.id = id;
-    this.loginId = loginId;
     this.password = password;
     this.email = email;
     this.alias = alias == null ? name : alias;

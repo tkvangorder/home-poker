@@ -47,13 +47,14 @@ public class SecurityUtilities {
   }
 
   public User assignRolesToUser(User user) {
-    if (securitySettings.getAdminUsers().contains(user.loginId())) {
+    if (securitySettings.getAdminUsers().contains(user.id())) {
       return user.withRoles(Set.of(UserRole.ADMIN, UserRole.USER));
     } else {
       return  user.withRoles(Set.of(UserRole.USER));
     }
   }
 
+  @Nullable
   public String encodePassword(String password) {
     return passwordEncoder.encode(password);
   }

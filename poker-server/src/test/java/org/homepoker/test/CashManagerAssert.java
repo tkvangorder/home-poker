@@ -35,7 +35,7 @@ public class CashManagerAssert {
   private class GameListenerAssert implements GameListener {
 
     @Override
-    public String id() {
+    public String userId() {
       return "test-listener";
     }
 

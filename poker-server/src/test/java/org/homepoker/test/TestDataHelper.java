@@ -10,18 +10,16 @@ import org.jspecify.annotations.Nullable;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 public class TestDataHelper {
 
   public static User fred() {
-    return user(null,"fred", "password", "Fred");
+    return user("fred", "password", "Fred");
   }
 
-  public static User user(@Nullable String userId, String loginId, String password, String name) {
+  public static User user(String loginId, String password, String name) {
     return User.builder()
-				.id(userId)
-        .loginId(loginId)
+        .id(loginId)
         .name(name)
         .alias(name)
         .phone("555-555-5555")
@@ -30,26 +28,27 @@ public class TestDataHelper {
         .role(UserRole.USER)
         .build();
   }
-  public static User adminUser(@Nullable String userId, String loginId, String password, String name) {
+
+  public static User adminUser(String loginId, String password, String name) {
     return User.builder()
-        .loginId(loginId)
+        .id(loginId)
         .name(name)
         .alias(name)
         .phone("555-555-5555")
         .password(password)
-        .email(loginId + "@example.com") // default value
+        .email(loginId + "@example.com")
         .role(UserRole.ADMIN)
         .build();
   }
 
   public static User adminUser() {
-    return adminUser(null, "testAdmin", "testAdmin", "Test Admin");
+    return adminUser("testAdmin", "testAdmin", "Test Admin");
   }
 
-	public static List<Player> generatePlayers(CashGame game, int count, boolean generateIds) {
+	public static List<Player> generatePlayers(CashGame game, int count) {
     List<Player> players = new ArrayList<>();
     for (int i = 0; i < count; i++) {
-      players.add(player(game, user(generateIds ? UUID.randomUUID().toString() : null, "user" + i, "password", "User" + i)));
+      players.add(player(game, user("user" + i, "password", "User" + i)));
     }
     return players;
   }
@@ -65,8 +64,7 @@ public class TestDataHelper {
     if (chipCount == null) {
       chipCount = 10000;
     }
-
-    return Player.builder()
+    Player player = Player.builder()
         .user(user)
         .status(status)
         .chipCount(chipCount)
@@ -74,11 +72,13 @@ public class TestDataHelper {
         .reBuys(0)
         .addOns(0)
         .build();
+    game.addPlayer(player);
+    return player;
   }
   public static CashGameDetails cashGameDetails(String name, @Nullable User owner) {
 
         if (owner == null) {
-            owner = adminUser(null, "fred", "fred", "Fred");
+            owner = adminUser("fred", "fred", "Fred");
         }
 
         return CashGameDetails.builder()
@@ -96,7 +96,7 @@ public class TestDataHelper {
   public static CashGame cashGame(String name, @Nullable User owner) {
 
     if (owner == null) {
-      owner = adminUser(null, "fred", "fred", "Fred");
+      owner = adminUser("fred", "fred", "Fred");
     }
 
     return CashGame.builder()

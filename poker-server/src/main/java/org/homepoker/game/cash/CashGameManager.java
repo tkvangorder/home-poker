@@ -43,7 +43,7 @@ public class CashGameManager extends GameManager<CashGame> {
       throw new ValidationException("This game has already completed.");
     }
 
-    if (game.players().containsKey(registerForGame.user().loginId())) {
+    if (game.players().containsKey(registerForGame.user().id())) {
       throw new ValidationException("You are already registered for this game.");
     }
     Player player = Player.builder().user(registerForGame.user()).status(PlayerStatus.REGISTERED).build();
@@ -62,7 +62,7 @@ public class CashGameManager extends GameManager<CashGame> {
     if (game.status() != GameStatus.SCHEDULED) {
       throw new ValidationException("You can only unregister from the game prior to it starting.");
     }
-    Player player = game.players().get(unregisterForGame.user().loginId());
+    Player player = game.players().get(unregisterForGame.user().id());
     if (player == null) {
       throw new ValidationException("You are not registered for this game.");
     } else if (player.status() != PlayerStatus.REGISTERED) {

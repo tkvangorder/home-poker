@@ -42,11 +42,6 @@ public class UserManager {
     mongoOperations
         .indexOps(User.class)
         .ensureIndex(
-            new Index().on("loginId", Sort.Direction.ASC).unique()
-        );
-    mongoOperations
-        .indexOps(User.class)
-        .ensureIndex(
             new Index().on("email", Sort.Direction.ASC).unique()
         );
   }
@@ -58,8 +53,7 @@ public class UserManager {
 	 */
 	public User registerUser(User user) {
     Assert.notNull(user, "The user information cannot be null");
-    Assert.isTrue(!StringUtils.hasText(user.id()), "The ID must be null when registering a new user.");
-    Assert.hasText(user.loginId(), "The user login ID is required");
+    Assert.hasText(user.id(), "The user login ID is required");
     Assert.hasText(user.password(), "The user password is required.");
     Assert.hasText(user.email(), "The user email address is required.");
     Assert.hasText(user.name(), "The user name is required.");
@@ -92,9 +86,11 @@ public class UserManager {
    * @param userPasswordChangeRequest The request change details.
    */
   public void updateUserPassword(UserPasswordChangeRequest userPasswordChangeRequest) {
-    User user = userRepository.findByLoginId(userPasswordChangeRequest.loginId());
+    User user = userRepository.findById(userPasswordChangeRequest.loginId()).orElseThrow(
+        () -> new ValidationException("Access Denied.")
+    );
 
-    if (user == null || !securityUtilities.getPasswordEncoder().matches(userPasswordChangeRequest.userChallenge(), user.password())) {
+    if (!securityUtilities.getPasswordEncoder().matches(userPasswordChangeRequest.userChallenge(), user.password())) {
       throw new ValidationException("Access Denied");
     } else {
       user = user.withPassword(securityUtilities.encodePassword(userPasswordChangeRequest.newPassword()));
@@ -116,21 +112,19 @@ public class UserManager {
     Assert.hasText(userInformation.name(), "The user name is required.");
     Assert.hasText(userInformation.phone(), "The user phone is required.");
 
-    User user = userRepository.findByLoginId(userInformation.loginId());
-    if (user == null) {
-      throw new ValidationException("The user does not exist.");
-    } else {
+    User user = userRepository.findById(userInformation.loginId()).orElseThrow(
+        () -> new ValidationException("The user does not exist.")
+    );
 
-      user = user.withEmail(userInformation.email());
-      user = user.withName(userInformation.name());
-      user = user.withPhone(userInformation.phone());
-      if (StringUtils.hasText(userInformation.alias())) {
-        user = user.withAlias(userInformation.alias());
-      } else {
-        user = user.withAlias(userInformation.name());
-      }
-      return UserManager.filterPassword(userRepository.save(user));
+    user = user.withEmail(userInformation.email());
+    user = user.withName(userInformation.name());
+    user = user.withPhone(userInformation.phone());
+    if (StringUtils.hasText(userInformation.alias())) {
+      user = user.withAlias(userInformation.alias());
+    } else {
+      user = user.withAlias(userInformation.name());
     }
+    return UserManager.filterPassword(userRepository.save(user));
   }
 
   /**
@@ -140,10 +134,9 @@ public class UserManager {
    * @return User
    */
   public User getUser(String loginId) {
-    User user = userRepository.findByLoginId(loginId);
-    if (user == null) {
-      throw new ValidationException("The user does not exist.");
-    }
+    User user = userRepository.findById(loginId).orElseThrow(
+        () -> new ValidationException("The user does not exist.")
+    );
     return UserManager.filterPassword(user);
   }
 
@@ -155,19 +148,19 @@ public class UserManager {
    */
  public List<User> findUsers(UserCriteria criteria) {
    if (criteria == null ||
-       (!StringUtils.hasText(criteria.userEmail()) && !StringUtils.hasText(criteria.userLoginId()))) {
+       (!StringUtils.hasText(criteria.userEmail()) && !StringUtils.hasText(criteria.userId()))) {
      //No criteria, return all users.
      return userRepository.findAll().stream().map(UserManager::filterPassword).toList();
    }
 
    User example = User.builder()
-       .loginId(criteria.userLoginId())
+       .id(criteria.userId())
        .email(criteria.userEmail())
        .build();
    Criteria mongoCriteria = new Criteria();
 
-   if (StringUtils.hasText(criteria.userLoginId())) {
-     mongoCriteria.and("loginId").regex(criteria.userLoginId());
+   if (StringUtils.hasText(criteria.userId())) {
+     mongoCriteria.and("id").regex(criteria.userId());
    }
    if (StringUtils.hasText(criteria.userEmail())) {
      mongoCriteria.and("email").regex(criteria.userEmail());
@@ -186,12 +179,10 @@ public class UserManager {
    * @param loginId The user's login ID
    */
   public void deleteUser(String loginId) {
-    User user = userRepository.findByLoginId(loginId);
-    if (user == null) {
-      throw new ValidationException("The user does not exist.");
-    } else {
-      userRepository.deleteById(loginId);
-    }
+    User user = userRepository.findById(loginId).orElseThrow(
+        () -> new ValidationException("The user does not exist.")
+    );
+    userRepository.deleteById(loginId);
   }
 
   /**

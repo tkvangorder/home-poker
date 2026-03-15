@@ -134,8 +134,8 @@ public class CashGameServiceTest extends BaseIntegrationTest {
       assertThat(gameDetails.players())
           .hasSize(1)
           .first()
-          .extracting(Player::userLogin)
-          .isEqualTo(user.loginId());
+          .extracting(Player::userId)
+          .isEqualTo(user.id());
       assertThat(gameDetails.status()).isEqualTo(GameStatus.PAUSED);
     } finally {
       // Clean up afterward.
@@ -159,8 +159,8 @@ public class CashGameServiceTest extends BaseIntegrationTest {
       assertThat(gameDetails.players())
           .hasSize(1)
           .first()
-          .extracting(Player::userLogin)
-          .isEqualTo(user.loginId());
+          .extracting(Player::userId)
+          .isEqualTo(user.id());
       assertThat(gameDetails.status()).isEqualTo(GameStatus.SCHEDULED);
       assertThat(gameDetails.startTime()).isEqualTo(game1Start);
       assertThat(gameDetails.smallBlind()).isEqualTo(25);

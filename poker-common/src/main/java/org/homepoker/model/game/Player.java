@@ -37,8 +37,4 @@ public final class Player {
     return user.id();
   }
 
-  public String userLogin() {
-    return user.loginId();
-  }
-
 }

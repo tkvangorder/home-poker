@@ -39,7 +39,7 @@ public final class Seat {
   private PlayerAction pendingIntent;
 
   @Nullable
-  public String userId() {
+  public String userLoginId() {
     return player == null ? null : player.userId();
   }
 

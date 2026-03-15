@@ -21,7 +21,6 @@ public class MongoConfiguration {
 
   @EventListener(ContextRefreshedEvent.class)
   public void setupIndexes() {
-    mongoTemplate.indexOps(User.class).ensureIndex(new Index().on("loginId", Sort.Direction.ASC).unique());
-    mongoTemplate.indexOps("user").ensureIndex(new Index().on("email", Sort.Direction.ASC).unique());
+    mongoTemplate.indexOps(User.class).createIndex(new Index().on("email", Sort.Direction.ASC).unique());
   }
 }

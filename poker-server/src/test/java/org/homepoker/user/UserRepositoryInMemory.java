@@ -6,29 +6,27 @@ import org.homepoker.test.AbstractInMemoryRepository;
 
 import java.util.*;
 
-@SuppressWarnings("unchecked")
 public class UserRepositoryInMemory extends AbstractInMemoryRepository<User, String> implements UserRepository {
 
   Map<String, User> users = new HashMap<>();
 
   @Override
-  public User findByLoginId(String loginId) {
-    return users.get(loginId);
+  public Optional<User> findById(String loginId) {
+    return Optional.ofNullable(users.get(loginId));
   }
 
   @Override
   public <S extends User> S insert(S user) {
-    User saved = user.withId(UUID.randomUUID().toString());
-    users.put(saved.loginId(), saved);
-    return (S) saved;
+    users.put(user.id(), user);
+    return user;
   }
 
   @Override
   public <S extends User> S save(S entity) {
-    if (!users.containsKey(entity.loginId())) {
+    if (!users.containsKey(entity.id())) {
       throw new ValidationException("User not found");
     }
-    users.put(entity.loginId(), entity);
+    users.put(entity.id(), entity);
 
     return entity;
   }

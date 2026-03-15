@@ -1127,11 +1127,11 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
            phase == HandPhase.RIVER_BETTING;
   }
 
-  private int findPlayerSeat(String userId) {
+  private int findPlayerSeat(String userLoginId) {
     for (int i = 0; i < table.seats().size(); i++) {
       Seat seat = table.seats().get(i);
       if (seat.player() != null && seat.player().userId() != null
-          && seat.player().userId().equals(userId)) {
+          && seat.player().userId().equals(userLoginId)) {
         return i;
       }
     }

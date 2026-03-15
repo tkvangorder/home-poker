@@ -8,8 +8,7 @@ public class TestUtils {
 
   public static User testUser() {
     return User.builder()
-        .id("testId")
-        .loginId("test")
+        .id("test")
         .password("test")
         .email("test@test.com")
         .alias("testy")

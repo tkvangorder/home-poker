@@ -13,7 +13,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mongodb.MongoDBContainer;
 
-@SuppressWarnings("NotNullFieldNotInitialized")
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
@@ -27,7 +26,9 @@ public class BaseIntegrationTest {
   static {
     mongoDBContainer.start();
   }
-  @LocalServerPort
+
+	@LocalServerPort
+  @SuppressWarnings("unused") // Injected via the test container support in Spring Boot.
   protected int serverPort;
 
   @Autowired
@@ -45,7 +46,7 @@ public class BaseIntegrationTest {
       if (!e.getCode().equals("EXISTING_USER")) {
         throw e;
       }
-      return userManager.getUser(user.loginId());
+      return userManager.getUser(user.id());
     }
     return createdUser;
   }

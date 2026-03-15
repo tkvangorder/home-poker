@@ -58,9 +58,9 @@ public class CashGame implements Game<CashGame> {
 
     public CashGameBuilder player(Player player) {
       if (player.user().id() == null) {
-        throw new IllegalArgumentException("Player must have a user id");
+        throw new IllegalArgumentException("Player must have a login id");
       }
-      players.put(player.user().id(), player);
+      players.put(player.userId(), player);
       return this;
     }
 

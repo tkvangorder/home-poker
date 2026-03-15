@@ -22,15 +22,14 @@ import static org.mockito.Mockito.mock;
 class WebSocketGameListenerTest {
 
   private static final User ALICE = User.builder()
-      .id("alice-id")
-      .loginId("alice")
+      .id("alice")
       .password("pass")
       .email("alice@test.com")
       .name("Alice")
       .phone("555-0001")
       .build();
 
-  private static final String OTHER_USER_ID = "bob-id";
+  private static final String OTHER_USER_ID = "bob";
 
   private WebSocketGameListener listener;
 
@@ -57,7 +56,7 @@ class WebSocketGameListenerTest {
   void acceptsEvent_userMessage_matchingUser() {
     UserMessage event = UserMessage.builder()
         .timestamp(Instant.now())
-        .userId("alice-id")
+        .userId("alice")
         .severity(MessageSeverity.INFO)
         .message("Hi Alice")
         .build();
@@ -79,7 +78,7 @@ class WebSocketGameListenerTest {
   void acceptsEvent_holeCardsDealt_matchingUser() {
     // HoleCardsDealt implements both TableEvent and UserEvent.
     // The UserEvent check should come first, so it's user-filtered (not broadcast).
-    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), "game1", "table1", "alice-id", 0, List.of());
+    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), "game1", "table1", "alice", 0, List.of());
     assertThat(listener.acceptsEvent(event)).isTrue();
   }
 
@@ -94,7 +93,7 @@ class WebSocketGameListenerTest {
     SystemError event = SystemError.builder()
         .timestamp(Instant.now())
         .gameId("game1")
-        .userId("alice-id")
+        .userId("alice")
         .exception(new RuntimeException("test"))
         .build();
     assertThat(listener.acceptsEvent(event)).isTrue();

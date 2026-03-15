@@ -37,7 +37,7 @@ public class PokerUserDetails implements UserDetails {
 
   @Override
   public String getUsername() {
-    return user.loginId();
+    return user.id();
   }
 
   @Override

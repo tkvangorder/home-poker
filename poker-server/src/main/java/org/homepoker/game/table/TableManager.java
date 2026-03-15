@@ -62,7 +62,7 @@ public abstract class TableManager<T extends Game<T>> {
    */
   private static Table sanitizeTable(Table table, String userId) {
     return table.withSeats(ListUtils.map(table.seats(), seat ->
-        seat.userId() != null && userId.equals(seat.userId())
+        seat.userLoginId() != null && userId.equals(seat.userLoginId())
             ? seat
             : seat.withCards(null).withPendingIntent(null)
     ));
