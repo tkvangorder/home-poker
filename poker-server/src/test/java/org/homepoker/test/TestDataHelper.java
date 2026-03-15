@@ -59,7 +59,7 @@ public class TestDataHelper {
 
   public static Player player(CashGame game, @Nullable PlayerStatus status, @Nullable Integer chipCount, User user) {
     if (status == null) {
-      status = PlayerStatus.REGISTERED;
+      status = PlayerStatus.AWAY;
     }
     if (chipCount == null) {
       chipCount = 10000;

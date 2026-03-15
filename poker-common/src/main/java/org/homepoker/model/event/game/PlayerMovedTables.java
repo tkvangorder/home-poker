@@ -6,5 +6,5 @@ import org.homepoker.model.event.GameEvent;
 import java.time.Instant;
 
 @EventMarker
-public record UserRegistered(Instant timestamp, String gameId, String userId) implements GameEvent {
+public record PlayerMovedTables(Instant timestamp, String gameId, String userId, String fromTableId, String toTableId) implements GameEvent {
 }

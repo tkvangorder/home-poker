@@ -6,5 +6,5 @@ import org.homepoker.model.event.GameEvent;
 import java.time.Instant;
 
 @EventMarker
-public record UserUnregistered(Instant timestamp, String gameId, String userId) implements GameEvent {
+public record PlayerSeated(Instant timestamp, String gameId, String userId, String tableId) implements GameEvent {
 }

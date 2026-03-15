@@ -37,7 +37,7 @@ Before writing any code, read these files to understand current patterns:
 | `poker-server/src/main/java/org/homepoker/game/table/TableManager.java` | Common table command routing (`applyCommand()` switch) |
 | `poker-server/src/main/java/org/homepoker/game/table/TexasHoldemTableManager.java` | Game-specific table command routing (`applySubcommand()` switch) |
 | `poker-common/src/test/java/org/homepoker/model/command/CommandSerializationTest.java` | Serialization test pattern |
-| `docs/command-event-spec.md` | Existing command/event spec to update |
+| `poker-server/src/main/resources/static/command-event-spec.md` | Existing command/event spec to update |
 
 ### Step 3: Create the Command Record
 
@@ -175,7 +175,7 @@ The test should:
 
 ### Step 7: Update the Command/Event Spec
 
-Update `docs/command-event-spec.md` with the new command and any new events. Follow the existing format in the spec document:
+Update `poker-server/src/main/resources/static/command-event-spec.md` with the new command and any new events. Follow the existing format in the spec document:
 
 - Add the command entry in the appropriate section (Game-Level Commands or Table-Level Commands)
 - Include: field table, commandId, accepted states/phases, validation notes
@@ -198,7 +198,7 @@ Run the build to ensure everything compiles and tests pass:
 - **State mutation**: All on single game loop thread. No synchronization needed inside handlers.
 - **Event queueing**: `gameContext.queueEvent(new SomeEvent(Instant.now(), ...))`.
 - **No REST endpoints**: Game-time commands are submitted via WebSocket. Only pre-game operations (signup, registration, game management) use REST controllers.
-- **Spec update**: Always update `docs/command-event-spec.md` when adding commands or events.
+- **Spec update**: Always update `poker-server/src/main/resources/static/command-event-spec.md` when adding commands or events.
 
 ### Checklist
 
@@ -207,5 +207,5 @@ Run the build to ensure everything compiles and tests pass:
 3. [ ] Switch case added in the appropriate routing method
 4. [ ] Handler method implemented with validation and event queueing
 5. [ ] Serialization test added
-6. [ ] `docs/command-event-spec.md` updated with new command and events
+6. [ ] `poker-server/src/main/resources/static/command-event-spec.md` updated with new command and events
 7. [ ] `./gradlew clean build` passes

@@ -135,6 +135,7 @@ public abstract class GameManager<T extends Game<T>> {
       pendingCommands.drain(commands::add);
 
       for (GameCommand command : commands) {
+        log.debug("Processing command: [{}]", command);
         try {
           applyCommand(command, game, gameContext);
         } catch (ValidationException e) {
@@ -177,6 +178,7 @@ public abstract class GameManager<T extends Game<T>> {
       // Publish events.
       if (!gameListeners.isEmpty()) {
         gameContext.events().forEach(event -> {
+          log.debug("Sending event: [{}]", event);
           for (GameListener listener : gameListeners) {
             if (listener.acceptsEvent(event)) {
               listener.onEvent(event);
@@ -485,25 +487,25 @@ public abstract class GameManager<T extends Game<T>> {
 
     Player player = game.players().get(gameCommand.user().id());
     if (player == null) {
-      throw new ValidationException("You are not registered for this game.");
+      throw new ValidationException("You have not joined this game.");
     }
 
     int maxBuyIn = getMaxBuyIn(game);
     if (gameCommand.amount() <= 0) {
       throw new ValidationException("Buy-in amount must be positive.");
     }
-    if (gameCommand.amount() > maxBuyIn) {
-      throw new ValidationException("Buy-in amount exceeds the maximum of " + maxBuyIn + ".");
-    }
 
     int currentChips = player.chipCount();
     int newChipCount = currentChips + gameCommand.amount();
+    if (newChipCount > maxBuyIn) {
+      throw new ValidationException("Buy-in would bring chip count to " + newChipCount + ", which exceeds the maximum of " + maxBuyIn + ".");
+    }
     player.chipCount(newChipCount);
 
     int currentBuyInTotal = player.buyInTotal();
     player.buyInTotal(currentBuyInTotal + gameCommand.amount());
 
-    if (player.status() == PlayerStatus.REGISTERED || player.status() == PlayerStatus.BUYING_IN) {
+    if (player.status() == PlayerStatus.AWAY || player.status() == PlayerStatus.BUYING_IN) {
       player.status(PlayerStatus.ACTIVE);
     }
 
@@ -513,13 +515,21 @@ public abstract class GameManager<T extends Game<T>> {
 
   private void leaveGame(LeaveGame gameCommand, T game, GameContext gameContext) {
     GameStatus status = game.status();
-    if (status != GameStatus.SEATING && status != GameStatus.ACTIVE && status != GameStatus.PAUSED) {
-      throw new ValidationException("You can only leave during SEATING, ACTIVE, or PAUSED states.");
+    if (status == GameStatus.COMPLETED) {
+      throw new ValidationException("This game has already completed.");
     }
 
     Player player = game.players().get(gameCommand.user().id());
     if (player == null) {
-      throw new ValidationException("You are not registered for this game.");
+      throw new ValidationException("You have not joined this game.");
+    }
+
+    // In SCHEDULED state, mark the player as OUT (keep record for auditing)
+    if (status == GameStatus.SCHEDULED) {
+      player.status(PlayerStatus.OUT);
+      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), player.user().alias() + " has left the game."));
+      gameContext.forceUpdate(true);
+      return;
     }
 
     // If the player is seated, check if they are in an active hand
@@ -657,12 +667,14 @@ public abstract class GameManager<T extends Game<T>> {
    * Called during the BALANCING state when all tables are paused.
    */
   private void redistributePlayers(T game, GameContext gameContext) {
-    // Gather all seated players
+    // Gather all seated players and remember their previous table assignments
+    Map<String, String> previousTableIds = new HashMap<>();
     List<Player> seatedPlayers = new ArrayList<>();
     for (Table table : game.tables().values()) {
       for (Seat seat : table.seats()) {
         if (seat.player() != null && seat.status() != Seat.Status.EMPTY) {
           seatedPlayers.add(seat.player());
+          previousTableIds.put(seat.player().userId(), table.id());
           seat.status(Seat.Status.EMPTY);
           seat.player(null);
         }
@@ -696,7 +708,10 @@ public abstract class GameManager<T extends Game<T>> {
     for (Player player : seatedPlayers) {
       Table table = game.tables().get(tableIds[tableIndex]);
       TableUtils.assignPlayerToRandomSeat(player, table);
-      gameContext.queueEvent(new PlayerMoved(Instant.now(), game.id(), player.userId(), null, table.id()));
+      String fromTableId = previousTableIds.get(player.userId());
+      if (!table.id().equals(fromTableId)) {
+        gameContext.queueEvent(new PlayerMovedTables(Instant.now(), game.id(), player.userId(), fromTableId, table.id()));
+      }
       tableIndex = (tableIndex + 1) % tableIds.length;
     }
   }

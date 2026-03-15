@@ -120,7 +120,6 @@ public class CashGameService {
           .endTime(endOfDay)
           .build();
       List<CashGameDetails> games = findGames(criteria);
-      log.info("Found {} games scheduled for today.", games.size());
       for (CashGameDetails game : games) {
         getGameManger(game.id());
       }

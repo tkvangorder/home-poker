@@ -25,10 +25,5 @@ public enum PlayerStatus {
   /**
    * Player has been eliminated from the game.
    */
-  OUT,
-
-  /**
-   * Player is registered for the game but has not connected.
-   */
-  REGISTERED
+  OUT
 }

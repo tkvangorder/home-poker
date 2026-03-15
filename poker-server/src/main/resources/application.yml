@@ -2,8 +2,8 @@ logging:
   level:
     ROOT: info
     org:
-      homepoker: info
-
+      homepoker:
+        game: debug
 poker:
   security:
     # This is a list of login IDs that are granted admin privileges.

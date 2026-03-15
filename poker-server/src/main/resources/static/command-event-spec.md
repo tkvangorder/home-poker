@@ -6,7 +6,7 @@ This document catalogs all commands and events in the poker server. It serves as
 
 - **Commands** are submitted by clients (via WebSocket or REST) to request state changes.
 - **Events** are emitted by the server to notify clients of state changes.
-- All commands use a `commandId` JSON discriminator derived from the class name in kebab-case (e.g., `RegisterForGame` -> `register-for-game`).
+- All commands use a `commandId` JSON discriminator derived from the class name in kebab-case (e.g., `JoinGame` -> `join-game`).
 - All events use an `eventType` JSON discriminator derived from the class name in kebab-case (e.g., `HandStarted` -> `hand-started`).
 - The `user` field on commands is **never serialized** — it is injected server-side from the authenticated session.
 
@@ -60,7 +60,7 @@ ws.onmessage = (event) => {
 
 // 4. Send commands (no user field needed — server injects it)
 ws.send(JSON.stringify({
-  commandId: 'register-for-game',
+  commandId: 'join-game',
   gameId: gameId
 }));
 ```
@@ -81,31 +81,18 @@ ws.send(JSON.stringify({
 
 Game-level commands affect game-wide state (registration, lifecycle, chips). They implement `GameCommand` and are routed through `GameManager.applyCommand()`.
 
-#### RegisterForGame
+#### JoinGame
 
-Registers a player for the game before it starts.
-
-| Field    | Type   | Description       |
-|----------|--------|-------------------|
-| `gameId` | String | Target game ID    |
-| `user`   | User   | (server-injected) |
-
-**commandId:** `register-for-game`
-**Accepted in states:** SCHEDULED, SEATING
-
----
-
-#### UnregisterFromGame
-
-Removes a player's registration before the game starts.
+Adds a player to the game. If the game is in SEATING or ACTIVE state, the player is immediately assigned to a seat on the table with the fewest players. If the player previously left the game (status OUT), they are allowed to rejoin. Triggered when a user connects via WebSocket.
 
 | Field    | Type   | Description       |
 |----------|--------|-------------------|
 | `gameId` | String | Target game ID    |
 | `user`   | User   | (server-injected) |
 
-**commandId:** `unregister-from-game`
-**Accepted in states:** SCHEDULED, SEATING
+**commandId:** `join-game`
+**Accepted in states:** SCHEDULED, SEATING, ACTIVE, PAUSED
+**Emits:** `PlayerJoined`, and `PlayerSeated` if assigned to a table
 
 ---
 
@@ -183,7 +170,7 @@ Player buys chips into the game.
 
 #### LeaveGame
 
-Player leaves the game. If a hand is in progress, the leave takes effect after the current hand.
+Player leaves the game. If a hand is in progress, the leave takes effect after the current hand. The player record is kept in the game with status OUT for auditing (buy-in history, chip counts). A player who has left may rejoin later via `JoinGame`. Triggered when a user disconnects from WebSocket or sends this command explicitly.
 
 | Field    | Type   | Description       |
 |----------|--------|-------------------|
@@ -191,7 +178,8 @@ Player leaves the game. If a hand is in progress, the leave takes effect after t
 | `user`   | User   | (server-injected) |
 
 **commandId:** `leave-game`
-**Accepted in states:** SEATING, ACTIVE, PAUSED
+**Accepted in states:** SCHEDULED, SEATING, ACTIVE, PAUSED
+**Emits:** `GameMessage`
 
 ---
 
@@ -354,19 +342,48 @@ A player bought chips.
 
 ---
 
-#### PlayerMoved
+#### PlayerJoined
 
-A player was reassigned to a different table (during table balancing).
+A player has joined the game.
+
+| Field       | Type    | Description              |
+|-------------|---------|--------------------------|
+| `timestamp` | Instant | When the player joined   |
+| `gameId`    | String  | Game ID                  |
+| `userId`    | String  | Player who joined        |
+
+**eventType:** `player-joined`
+
+---
+
+#### PlayerSeated
+
+A player was assigned to a seat at a table. Emitted during initial seating (SCHEDULED -> SEATING transition), when a player joins during SEATING/ACTIVE, or when a player rejoins after leaving.
+
+| Field       | Type    | Description                      |
+|-------------|---------|----------------------------------|
+| `timestamp` | Instant | When the player was seated       |
+| `gameId`    | String  | Game ID                          |
+| `userId`    | String  | Player who was seated            |
+| `tableId`   | String  | Table the player was assigned to |
+
+**eventType:** `player-seated`
+
+---
+
+#### PlayerMovedTables
+
+A player was reassigned to a different table during table balancing. Only emitted when the player's table actually changes.
 
 | Field         | Type    | Description                  |
 |---------------|---------|------------------------------|
 | `timestamp`   | Instant | When the move occurred       |
 | `gameId`      | String  | Game ID                      |
 | `userId`      | String  | Player who was moved         |
-| `fromTableId` | String? | Previous table (null if new) |
+| `fromTableId` | String  | Previous table               |
 | `toTableId`   | String  | Destination table            |
 
-**eventType:** `player-moved`
+**eventType:** `player-moved-tables`
 
 ---
 

@@ -3,6 +3,7 @@ package org.homepoker.game;
 import org.homepoker.game.cash.CashGameManager;
 import org.homepoker.game.cash.CashGameService;
 import org.homepoker.model.command.*;
+import org.homepoker.model.event.game.PlayerJoined;
 import org.homepoker.model.event.PokerEvent;
 import org.homepoker.model.event.game.GameMessage;
 import org.homepoker.model.event.game.GameStatusChanged;
@@ -318,7 +319,7 @@ public class GameManagerTest {
     Player player = game.players().values().iterator().next();
     User playerUser = player.user();
     player.chipCount(0);
-    player.status(PlayerStatus.REGISTERED);
+    player.status(PlayerStatus.AWAY);
 
     TestableGameManager manager = createManager(game);
     manager.submitCommand(new BuyIn(game.id(), playerUser, 5000));
@@ -346,6 +347,24 @@ public class GameManagerTest {
     // Chip count should remain 0
     Player updatedPlayer = manager.getGame().players().get(playerUser.id());
     assertThat(updatedPlayer.chipCount()).isEqualTo(0);
+  }
+
+  @Test
+  void buyIn_failsWhenChipCountWouldExceedMax() {
+    CashGame game = buildGameInSeating(2);
+    Player player = game.players().values().iterator().next();
+    User playerUser = player.user();
+    player.chipCount(8000);
+    player.status(PlayerStatus.ACTIVE);
+
+    TestableGameManager manager = createManager(game);
+    // maxBuyIn is 10000, player has 8000, adding 5000 would be 13000
+    manager.submitCommand(new BuyIn(game.id(), playerUser, 5000));
+    manager.processGameTick();
+
+    // Chip count should remain 8000
+    Player updatedPlayer = manager.getGame().players().get(playerUser.id());
+    assertThat(updatedPlayer.chipCount()).isEqualTo(8000);
   }
 
   @Test
@@ -407,29 +426,32 @@ public class GameManagerTest {
     assertThat(manager.getGame().players()).doesNotContainKey("unregistered");
   }
 
-  // --- RegisterForGame during SEATING/ACTIVE assigns seats ---
+  // --- JoinGame during various states ---
 
   @Test
-  void registerForGame_duringSeating_assignsSeat() {
+  void joinGame_duringSeating_assignsSeat() {
     CashGame game = buildGameInSeating(2);
     User newUser = TestDataHelper.user("newPlayer", "password", "New Player");
 
     TestableGameManager manager = createManager(game);
-    manager.submitCommand(new RegisterForGame(game.id(), newUser));
+    manager.submitCommand(new JoinGame(game.id(), newUser));
     manager.processGameTick();
 
     Player newPlayer = manager.getGame().players().get("newPlayer");
     assertThat(newPlayer).isNotNull();
+    assertThat(newPlayer.status()).isEqualTo(PlayerStatus.AWAY);
     assertThat(newPlayer.tableId()).isNotNull();
+    assertThat(manager.savedEvents()).anyMatch(e -> e instanceof PlayerJoined uj &&
+        uj.userId().equals("newPlayer"));
   }
 
   @Test
-  void registerForGame_duringActive_assignsSeat() {
+  void joinGame_duringActive_assignsSeat() {
     CashGame game = buildGameInActive(2);
     User newUser = TestDataHelper.user("newPlayer", "password", "New Player");
 
     TestableGameManager manager = createManager(game);
-    manager.submitCommand(new RegisterForGame(game.id(), newUser));
+    manager.submitCommand(new JoinGame(game.id(), newUser));
     manager.processGameTick();
 
     Player newPlayer = manager.getGame().players().get("newPlayer");
@@ -438,18 +460,61 @@ public class GameManagerTest {
   }
 
   @Test
-  void registerForGame_duringScheduled_doesNotAssignSeat() {
+  void joinGame_duringScheduled_doesNotAssignSeat() {
     CashGame game = buildGame(GameStatus.SCHEDULED, Instant.now().plus(1, ChronoUnit.HOURS), 2);
     User newUser = TestDataHelper.user("newPlayer", "password", "New Player");
 
     TestableGameManager manager = createManager(game);
-    manager.submitCommand(new RegisterForGame(game.id(), newUser));
+    manager.submitCommand(new JoinGame(game.id(), newUser));
     manager.processGameTick();
 
     Player newPlayer = manager.getGame().players().get("newPlayer");
     assertThat(newPlayer).isNotNull();
+    assertThat(newPlayer.status()).isEqualTo(PlayerStatus.AWAY);
     // No tables yet in SCHEDULED, so no seat assignment
     assertThat(newPlayer.tableId()).isNull();
+  }
+
+  // --- LeaveGame during SCHEDULED ---
+
+  @Test
+  void leaveGame_duringScheduled_marksPlayerAsOut() {
+    CashGame game = buildGame(GameStatus.SCHEDULED, Instant.now().plus(1, ChronoUnit.HOURS), 3);
+    Player player = game.players().values().iterator().next();
+    User playerUser = player.user();
+
+    TestableGameManager manager = createManager(game);
+    manager.submitCommand(new LeaveGame(game.id(), playerUser));
+    manager.processGameTick();
+
+    // Player should still exist but be marked OUT (for auditing)
+    Player updatedPlayer = manager.getGame().players().get(playerUser.id());
+    assertThat(updatedPlayer).isNotNull();
+    assertThat(updatedPlayer.status()).isEqualTo(PlayerStatus.OUT);
+    assertThat(manager.savedEvents()).anyMatch(e -> e instanceof GameMessage gm &&
+        gm.message().contains("has left the game"));
+  }
+
+  @Test
+  void joinGame_afterLeaving_allowsRejoin() {
+    CashGame game = buildGameInSeating(3);
+    Player player = game.players().values().iterator().next();
+    User playerUser = player.user();
+
+    TestableGameManager manager = createManager(game);
+
+    // Leave the game
+    manager.submitCommand(new LeaveGame(game.id(), playerUser));
+    manager.processGameTick();
+    assertThat(manager.getGame().players().get(playerUser.id()).status()).isEqualTo(PlayerStatus.OUT);
+
+    // Rejoin the game
+    manager.submitCommand(new JoinGame(game.id(), playerUser));
+    manager.processGameTick();
+
+    Player rejoinedPlayer = manager.getGame().players().get(playerUser.id());
+    assertThat(rejoinedPlayer.status()).isEqualTo(PlayerStatus.AWAY);
+    assertThat(rejoinedPlayer.tableId()).isNotNull();
   }
 
   // --- Table balancing ---
@@ -461,9 +526,9 @@ public class GameManagerTest {
     game.tables().clear();
     game.players().clear();
     // Manually create two tables with imbalanced player counts
-    // Use REGISTERED player status so the table manager doesn't try to deal a hand
-    Table table1 = buildTableWithPlayers("TABLE-0", 5, game, PlayerStatus.REGISTERED);
-    Table table2 = buildTableWithPlayers("TABLE-1", 2, game, PlayerStatus.REGISTERED);
+    // Use BUYING_IN player status so the table manager doesn't try to deal a hand
+    Table table1 = buildTableWithPlayers("TABLE-0", 5, game, PlayerStatus.BUYING_IN);
+    Table table2 = buildTableWithPlayers("TABLE-1", 2, game, PlayerStatus.BUYING_IN);
     game.tables().put(table1.id(), table1);
     game.tables().put(table2.id(), table2);
 
@@ -599,7 +664,6 @@ public class GameManagerTest {
       super(game, cashGameService, userManager, securityUtilities);
       // Add a listener that captures all events
       addGameListener(new GameListener() {
-        @Override
         public String userId() {
           return "test-listener";
         }

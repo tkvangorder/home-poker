@@ -18,14 +18,14 @@ public class CommandSerializationTest {
 
   @Test
   void testCommandSerialization() {
-    RegisterForGame register = new RegisterForGame("gameId", TestUtils.testUser());
-    String json = JsonUtils.toJson(register, objectMapper);
-    GameCommand deserializedRegister = JsonUtils.jsonToObject(json, GameCommand.class, objectMapper);
-    assertThat(deserializedRegister).isInstanceOf(RegisterForGame.class);
-    assert deserializedRegister != null;
-    assertThat(deserializedRegister.commandId()).isEqualTo("register-for-game");
-    assertThat(deserializedRegister.gameId()).isEqualTo("gameId");
-    assertThat(deserializedRegister.user()).isNull();
+    JoinGame joinGame = new JoinGame("gameId", TestUtils.testUser());
+    String json = JsonUtils.toJson(joinGame, objectMapper);
+    GameCommand deserialized = JsonUtils.jsonToObject(json, GameCommand.class, objectMapper);
+    assertThat(deserialized).isInstanceOf(JoinGame.class);
+    assert deserialized != null;
+    assertThat(deserialized.commandId()).isEqualTo("join-game");
+    assertThat(deserialized.gameId()).isEqualTo("gameId");
+    assertThat(deserialized.user()).isNull();
   }
 
   @Test

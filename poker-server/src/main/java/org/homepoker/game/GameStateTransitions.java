@@ -2,10 +2,12 @@ package org.homepoker.game;
 
 import org.homepoker.game.table.TableManager;
 import org.homepoker.game.table.TableUtils;
+import org.homepoker.model.event.game.PlayerSeated;
 import org.homepoker.model.game.Game;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.game.Table;
 
+import java.time.Instant;
 import java.util.NavigableMap;
 import java.util.function.Function;
 
@@ -43,6 +45,7 @@ public class GameStateTransitions {
     for (Player player : game.players().values()) {
       Table table = game.tables().get(tableIds[tableIndex]);
       TableUtils.assignPlayerToRandomSeat(player, table);
+      context.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), table.id()));
       tableIndex = (tableIndex + 1) % tableCount;
     }
   }
