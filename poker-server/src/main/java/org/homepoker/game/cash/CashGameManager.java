@@ -43,18 +43,19 @@ public class CashGameManager extends GameManager<CashGame> {
 
     Player player = game.players().get(joinGame.user().id());
     if (player != null) {
-      if (player.status() != PlayerStatus.OUT) {
-        throw new ValidationException("You have already joined this game.");
+      if (player.status() == PlayerStatus.OUT) {
+        // Player is rejoining after previously leaving
+        player.status(PlayerStatus.AWAY);
       }
-      // Player is rejoining after previously leaving
-      player.status(PlayerStatus.AWAY);
+      // Otherwise the player is already in the game — allow them to rejoin (reconnect)
     } else {
       player = Player.builder().user(joinGame.user()).status(PlayerStatus.AWAY).build();
       game.addPlayer(player);
     }
 
-    // During SEATING or ACTIVE, assign the player to a seat on the table with the fewest players
-    if (game.status() == GameStatus.SEATING || game.status() == GameStatus.ACTIVE) {
+    // During SEATING or ACTIVE, assign the player to a seat only if they have chips (e.g. rejoining with remaining chips).
+    // Players without chips must buy in first before being seated.
+    if (player.chipCount() > 0 && (game.status() == GameStatus.SEATING || game.status() == GameStatus.ACTIVE)) {
       String tableId = assignPlayerToTableWithFewestPlayers(player, game, gameSettings().numberOfSeats());
       if (tableId != null) {
         gameContext.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), tableId));

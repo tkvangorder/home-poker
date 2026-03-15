@@ -260,15 +260,13 @@ public class CashGameService {
     Assert.notNull(gameDetails.owner(), "The game owner is required when creating a game.");
     Assert.notNull(gameDetails.smallBlind(), "The small blind must be defined for a cash game.");
 
-    //If the start date is not specified, we just default to "now" and immediately transition game to a "paused" state.
-    // The owner can then choose when they want to "un-pause" game.
+    //If the start date is not specified, we default to "now" so the game immediately transitions to SEATING
+    // (where tables are created and players are seated). The admin can then start the game when ready.
     Instant now = Instant.now();
     Instant startTime = gameDetails.startTime();
 
-    GameStatus status = GameStatus.SCHEDULED;
     if (startTime == null) {
       startTime = now;
-      status = GameStatus.PAUSED;
     }
 
     //Default game type to Texas Hold'em.
@@ -286,7 +284,7 @@ public class CashGameService {
     game = game
         .name(gameDetails.name())
         .type(gameType)
-        .status(status)
+        .status(GameStatus.SCHEDULED)
         .startTime(startTime)
         .maxBuyIn(gameDetails.maxBuyIn())
         .smallBlind(gameDetails.smallBlind())

@@ -136,7 +136,7 @@ public class CashGameServiceTest extends BaseIntegrationTest {
           .first()
           .extracting(Player::userId)
           .isEqualTo(user.id());
-      assertThat(gameDetails.status()).isEqualTo(GameStatus.PAUSED);
+      assertThat(gameDetails.status()).isEqualTo(GameStatus.SCHEDULED);
     } finally {
       // Clean up afterward.
       cashGameService.getGameManagerMap().clear();

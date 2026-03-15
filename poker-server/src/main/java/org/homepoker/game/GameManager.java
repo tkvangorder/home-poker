@@ -91,10 +91,15 @@ public abstract class GameManager<T extends Game<T>> {
   }
 
   public void addGameListener(GameListener listener) {
+    // Remove any existing listeners for this user (handles reconnect scenarios)
+    removeGameListenersByUserId(listener.userId());
     gameListeners.add(listener);
   }
   public void removeGameListener(GameListener listener) {
     gameListeners.remove(listener);
+  }
+  public void removeGameListenersByUserId(String userId) {
+    gameListeners.removeIf(listener -> userId.equals(listener.userId()));
   }
 
   protected final T game() {
@@ -509,6 +514,14 @@ public abstract class GameManager<T extends Game<T>> {
       player.status(PlayerStatus.ACTIVE);
     }
 
+    // If the player is not yet seated at a table, seat them now that they have chips
+    if (player.tableId() == null) {
+      String tableId = GameUtils.assignPlayerToTableWithFewestPlayers(player, game, gameSettings().numberOfSeats());
+      if (tableId != null) {
+        gameContext.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), tableId));
+      }
+    }
+
     gameContext.queueEvent(new PlayerBuyIn(Instant.now(), game.id(), player.userId(), gameCommand.amount(), newChipCount));
     gameContext.forceUpdate(true);
   }
@@ -624,16 +637,19 @@ public abstract class GameManager<T extends Game<T>> {
    * between the largest and smallest tables, or if there are more tables than needed.
    */
   private boolean tablesNeedBalancing(T game) {
-    // Remove empty tables first (from both game.tables() and tableManagers)
+    // Remove empty tables first (from both game.tables() and tableManagers), but always keep at least one table
     List<String> emptyTableIds = new ArrayList<>();
-    game.tables().entrySet().removeIf(entry -> {
+    for (Map.Entry<String, Table> entry : game.tables().entrySet()) {
       if (entry.getValue().numberOfPlayers() == 0) {
         emptyTableIds.add(entry.getKey());
-        return true;
       }
-      return false;
-    });
+    }
+    // Always keep at least one table — skip the first empty table if removing all would leave zero
+    if (emptyTableIds.size() == game.tables().size() && !emptyTableIds.isEmpty()) {
+      emptyTableIds.removeFirst();
+    }
     for (String id : emptyTableIds) {
+      game.tables().remove(id);
       tableManagers.remove(id);
     }
 
@@ -729,10 +745,10 @@ public abstract class GameManager<T extends Game<T>> {
     }
 
     if (allFull) {
-      // Check if there are unassigned players
+      // Check if there are unassigned players with chips (players without chips must buy in first)
       boolean hasUnassigned = false;
       for (Player player : game.players().values()) {
-        if (player.tableId() == null && player.status() != PlayerStatus.OUT) {
+        if (player.tableId() == null && player.status() != PlayerStatus.OUT && player.chipCount() > 0) {
           hasUnassigned = true;
           break;
         }

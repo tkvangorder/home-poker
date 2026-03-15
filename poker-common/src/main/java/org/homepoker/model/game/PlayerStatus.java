@@ -23,7 +23,7 @@ public enum PlayerStatus {
   BUYING_IN,
 
   /**
-   * Player has been eliminated from the game.
+   * Player has been eliminated from or left the game.
    */
   OUT
 }

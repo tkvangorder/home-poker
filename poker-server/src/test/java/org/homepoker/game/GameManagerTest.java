@@ -429,7 +429,7 @@ public class GameManagerTest {
   // --- JoinGame during various states ---
 
   @Test
-  void joinGame_duringSeating_assignsSeat() {
+  void joinGame_duringSeating_doesNotSeatUntilBuyIn() {
     CashGame game = buildGameInSeating(2);
     User newUser = TestDataHelper.user("newPlayer", "password", "New Player");
 
@@ -440,13 +440,21 @@ public class GameManagerTest {
     Player newPlayer = manager.getGame().players().get("newPlayer");
     assertThat(newPlayer).isNotNull();
     assertThat(newPlayer.status()).isEqualTo(PlayerStatus.AWAY);
-    assertThat(newPlayer.tableId()).isNotNull();
+    // Player should NOT be seated until they buy in
+    assertThat(newPlayer.tableId()).isNull();
     assertThat(manager.savedEvents()).anyMatch(e -> e instanceof PlayerJoined uj &&
         uj.userId().equals("newPlayer"));
+
+    // Now buy in — player should be seated
+    manager.submitCommand(new BuyIn(game.id(), newUser, 1000));
+    manager.processGameTick();
+
+    assertThat(newPlayer.status()).isEqualTo(PlayerStatus.ACTIVE);
+    assertThat(newPlayer.tableId()).isNotNull();
   }
 
   @Test
-  void joinGame_duringActive_assignsSeat() {
+  void joinGame_duringActive_doesNotSeatUntilBuyIn() {
     CashGame game = buildGameInActive(2);
     User newUser = TestDataHelper.user("newPlayer", "password", "New Player");
 
@@ -456,6 +464,14 @@ public class GameManagerTest {
 
     Player newPlayer = manager.getGame().players().get("newPlayer");
     assertThat(newPlayer).isNotNull();
+    // Player should NOT be seated until they buy in
+    assertThat(newPlayer.tableId()).isNull();
+
+    // Now buy in — player should be seated
+    manager.submitCommand(new BuyIn(game.id(), newUser, 1000));
+    manager.processGameTick();
+
+    assertThat(newPlayer.status()).isEqualTo(PlayerStatus.ACTIVE);
     assertThat(newPlayer.tableId()).isNotNull();
   }
 

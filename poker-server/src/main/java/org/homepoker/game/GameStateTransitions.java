@@ -28,7 +28,8 @@ public class GameStateTransitions {
       NavigableMap<String, TableManager<T>> tableManagers,
       Function<String, TableManager<T>> tableManagerFactory) {
 
-    int tableCount = (game.players().size() / context.settings().numberOfSeats()) + 1;
+    long playersWithChips = game.players().values().stream().filter(p -> p.chipCount() > 0).count();
+    int tableCount = ((int) playersWithChips / context.settings().numberOfSeats()) + 1;
 
     tableManagers.clear();
     game.tables().clear();
@@ -41,12 +42,15 @@ public class GameStateTransitions {
       game.tables().put(tableIds[i], tm.table());
     }
 
+    // Only seat players who have chips — players without chips must buy in before being seated
     int tableIndex = 0;
     for (Player player : game.players().values()) {
-      Table table = game.tables().get(tableIds[tableIndex]);
-      TableUtils.assignPlayerToRandomSeat(player, table);
-      context.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), table.id()));
-      tableIndex = (tableIndex + 1) % tableCount;
+      if (player.chipCount() > 0) {
+        Table table = game.tables().get(tableIds[tableIndex]);
+        TableUtils.assignPlayerToRandomSeat(player, table);
+        context.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), table.id()));
+        tableIndex = (tableIndex + 1) % tableCount;
+      }
     }
   }
 }
