@@ -6,6 +6,7 @@ import org.homepoker.game.GameManager;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.user.UserManager;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.util.Assert;
@@ -66,6 +67,7 @@ public class TournamentGameServer {
    * @param gameId The game ID
    * @return The game manager
    */
+  @Nullable
   public GameManager<TournamentGame> getGameManger(String gameId) {
     // TODO Auto-generated method stub
     return null;
@@ -239,7 +241,7 @@ public class TournamentGameServer {
         .name(game.name())
         .gameType(game.type())
         .startTimestamp(game.startTime())
-        .ownerLoginId(game.owner().loginId())
+        .ownerLoginId(game.owner().id())
         .buyInChips(game.buyInChips())
         .buyInAmount(game.buyInAmount())
         .estimatedTournamentLengthHours(game.estimatedTournamentLengthHours())
