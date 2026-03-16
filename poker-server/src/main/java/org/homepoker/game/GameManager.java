@@ -6,6 +6,7 @@ import org.homepoker.game.table.TableUtils;
 import org.homepoker.game.table.TexasHoldemTableManager;
 import org.homepoker.model.event.SystemError;
 import org.homepoker.model.event.game.*;
+import org.homepoker.model.event.table.TableStatusChanged;
 import org.homepoker.model.event.user.GameSnapshot;
 import org.homepoker.model.event.user.UserMessage;
 import org.homepoker.lib.exception.ValidationException;
@@ -275,7 +276,9 @@ public abstract class GameManager<T extends Game<T>> {
 
       // Set all tables to PLAYING
       for (Table table : game.tables().values()) {
+        Table.Status oldTableStatus = table.status();
         table.status(Table.Status.PLAYING);
+        gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldTableStatus, Table.Status.PLAYING));
       }
 
       gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.ACTIVE));
@@ -323,6 +326,7 @@ public abstract class GameManager<T extends Game<T>> {
       for (Table table : game.tables().values()) {
         if (table.status() == Table.Status.PLAYING) {
           table.status(Table.Status.PAUSE_AFTER_HAND);
+          gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), Table.Status.PLAYING, Table.Status.PAUSE_AFTER_HAND));
         }
       }
 
@@ -371,7 +375,9 @@ public abstract class GameManager<T extends Game<T>> {
     game.status(GameStatus.ACTIVE);
 
     for (Table table : game.tables().values()) {
+      Table.Status oldTableStatus = table.status();
       table.status(Table.Status.PLAYING);
+      gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldTableStatus, Table.Status.PLAYING));
     }
 
     gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.ACTIVE));
@@ -421,6 +427,7 @@ public abstract class GameManager<T extends Game<T>> {
       for (Table table : game.tables().values()) {
         if (table.status() == Table.Status.PLAYING) {
           table.status(Table.Status.PAUSE_AFTER_HAND);
+          gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), Table.Status.PLAYING, Table.Status.PAUSE_AFTER_HAND));
         }
       }
       gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game ending after current hands complete."));
@@ -459,6 +466,7 @@ public abstract class GameManager<T extends Game<T>> {
     for (Table table : game.tables().values()) {
       if (table.status() == Table.Status.PLAYING) {
         table.status(Table.Status.PAUSE_AFTER_HAND);
+        gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), Table.Status.PLAYING, Table.Status.PAUSE_AFTER_HAND));
       }
     }
     gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game pausing after current hands complete."));
@@ -476,7 +484,9 @@ public abstract class GameManager<T extends Game<T>> {
     game.status(GameStatus.ACTIVE);
 
     for (Table table : game.tables().values()) {
+      Table.Status oldTableStatus = table.status();
       table.status(Table.Status.PLAYING);
+      gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldTableStatus, Table.Status.PLAYING));
     }
 
     gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.ACTIVE));

@@ -112,7 +112,9 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
   private void transitionFromWaitingForPlayers(Game<T> game, GameContext gameContext) {
     // If PAUSE_AFTER_HAND, transition to PAUSED since no hand is in progress
     if (table.status() == Table.Status.PAUSE_AFTER_HAND) {
+      Table.Status oldStatus = table.status();
       table.status(Table.Status.PAUSED);
+      gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldStatus, Table.Status.PAUSED));
       return;
     }
 
@@ -146,6 +148,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       } else {
         table.phaseStartedAt(null);
         table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
+        gameContext.queueEvent(new WaitingForPlayers(Instant.now(), game.id(), table.id(), activeCount));
       }
     }
   }
@@ -160,6 +163,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     int activeCount = countActivePlayers();
     if (activeCount < 2) {
       table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
+      gameContext.queueEvent(new WaitingForPlayers(Instant.now(), game.id(), table.id(), activeCount));
       return;
     }
 
@@ -241,6 +245,10 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     // Advance to PRE_FLOP_BETTING
     table.handPhase(HandPhase.PRE_FLOP_BETTING);
     table.phaseStartedAt(Instant.now());
+
+    // Emit action-on event for UTG
+    emitActionOnPlayer(game, gameContext);
+
     gameContext.forceUpdate(true);
   }
 
@@ -345,6 +353,9 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.handPhase(nextBettingPhase);
     table.phaseStartedAt(Instant.now());
 
+    // Emit action-on event for the first actor in this betting round
+    emitActionOnPlayer(game, gameContext);
+
     // Apply pending intent if the current player has one
     tryApplyPendingIntent(game, gameContext);
   }
@@ -400,8 +411,10 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
     // Check for PAUSE_AFTER_HAND
     if (table.status() == Table.Status.PAUSE_AFTER_HAND) {
+      Table.Status oldStatus = table.status();
       table.status(Table.Status.PAUSED);
       table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
+      gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldStatus, Table.Status.PAUSED));
       gameContext.forceUpdate(true);
       return;
     }
@@ -417,6 +430,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
         transitionFromDeal(game, gameContext);
       } else {
         table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
+        gameContext.queueEvent(new WaitingForPlayers(Instant.now(), game.id(), table.id(), activeCount));
       }
     }
     gameContext.forceUpdate(true);
@@ -580,10 +594,28 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     ));
 
     // Advance action position
-    advanceActionPosition(seatPosition);
+    advanceActionPosition(seatPosition, game, gameContext);
 
     // Try to apply pending intent for the next player
     tryApplyPendingIntent(game, gameContext);
+  }
+
+  // ========== Event Helpers ==========
+
+  /**
+   * Emits an ActionOnPlayer event for the current action position, if set.
+   */
+  private void emitActionOnPlayer(Game<T> game, GameContext gameContext) {
+    Integer actionPos = table.actionPosition();
+    if (actionPos == null) return;
+
+    Seat seat = table.seats().get(actionPos);
+    String userId = seat.player() != null ? seat.player().userId() : "unknown";
+    Instant deadline = table.actionDeadline() != null ? table.actionDeadline() : Instant.now();
+
+    gameContext.queueEvent(new ActionOnPlayer(
+        Instant.now(), game.id(), table.id(), actionPos, userId, deadline
+    ));
   }
 
   // ========== Betting Logic ==========
@@ -646,7 +678,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return true;
   }
 
-  private void advanceActionPosition(int currentPosition) {
+  private void advanceActionPosition(int currentPosition, Game<T> game, GameContext gameContext) {
     Integer nextPos = nextActiveNonAllInPositionOrNull(currentPosition);
     if (nextPos == null) {
       // No more players can act
@@ -657,6 +689,9 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     // If we've come back to the last raiser and they've already acted, round is complete
     table.actionPosition(nextPos);
     table.actionDeadline(Instant.now().plusSeconds(gameSettings().actionTimeSeconds()));
+
+    // Emit action-on event for the next player
+    emitActionOnPlayer(game, gameContext);
   }
 
   private void tryApplyPendingIntent(Game<T> game, GameContext gameContext) {
