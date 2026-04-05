@@ -7,6 +7,7 @@ import org.homepoker.model.command.*;
 import org.homepoker.model.event.table.*;
 import org.homepoker.model.game.*;
 import org.homepoker.model.game.Seat.SeatCard;
+import static org.homepoker.model.game.HandPlayerStatuses.potTotal;
 import org.homepoker.model.poker.Card;
 import org.homepoker.poker.BitwisePokerRanker;
 import org.homepoker.poker.ClassicPokerRanker;
@@ -85,11 +86,11 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       case PREDEAL -> transitionFromPredeal(game, gameContext);
       case DEAL -> transitionFromDeal(game, gameContext);
       case PRE_FLOP_BETTING -> transitionFromBetting(game, gameContext, HandPhase.FLOP);
-      case FLOP -> transitionFromCommunityCard(game, gameContext, 3, "Flop", HandPhase.FLOP_BETTING);
+      case FLOP -> transitionFromCommunityCard(game, gameContext, 3, HandPhase.FLOP, HandPhase.FLOP_BETTING);
       case FLOP_BETTING -> transitionFromBetting(game, gameContext, HandPhase.TURN);
-      case TURN -> transitionFromCommunityCard(game, gameContext, 1, "Turn", HandPhase.TURN_BETTING);
+      case TURN -> transitionFromCommunityCard(game, gameContext, 1, HandPhase.TURN, HandPhase.TURN_BETTING);
       case TURN_BETTING -> transitionFromBetting(game, gameContext, HandPhase.RIVER);
-      case RIVER -> transitionFromCommunityCard(game, gameContext, 1, "River", HandPhase.RIVER_BETTING);
+      case RIVER -> transitionFromCommunityCard(game, gameContext, 1, HandPhase.RIVER, HandPhase.RIVER_BETTING);
       case RIVER_BETTING -> transitionFromBetting(game, gameContext, HandPhase.SHOWDOWN);
       case SHOWDOWN -> transitionFromShowdown(game, gameContext);
       case HAND_COMPLETE -> transitionFromHandComplete(game, gameContext);
@@ -121,7 +122,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     int activeCount = countActivePlayers();
     if (activeCount >= 2) {
       // Skip PREDEAL for now and go directly to DEAL
-      table.handPhase(HandPhase.DEAL);
+      setHandPhase(HandPhase.DEAL, game, gameContext);
       transitionFromDeal(game, gameContext);
     }
   }
@@ -143,12 +144,13 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       int activeCount = countActivePlayers();
       if (activeCount >= 2) {
         table.phaseStartedAt(null);
-        table.handPhase(HandPhase.DEAL);
+        setHandPhase(HandPhase.DEAL, game, gameContext);
         transitionFromDeal(game, gameContext);
       } else {
         table.phaseStartedAt(null);
-        table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
-        gameContext.queueEvent(new WaitingForPlayers(Instant.now(), game.id(), table.id(), activeCount));
+        setHandPhase(HandPhase.WAITING_FOR_PLAYERS, game, gameContext);
+        gameContext.queueEvent(new WaitingForPlayers(
+            Instant.now(), game.id(), table.id(), activeCount, countSeatedPlayers()));
       }
     }
   }
@@ -162,8 +164,9 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
     int activeCount = countActivePlayers();
     if (activeCount < 2) {
-      table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
-      gameContext.queueEvent(new WaitingForPlayers(Instant.now(), game.id(), table.id(), activeCount));
+      setHandPhase(HandPhase.WAITING_FOR_PLAYERS, game, gameContext);
+      gameContext.queueEvent(new WaitingForPlayers(
+          Instant.now(), game.id(), table.id(), activeCount, countSeatedPlayers()));
       return;
     }
 
@@ -200,8 +203,9 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.minimumRaise(bigBlind);
 
     // Deal 2 hole cards to each ACTIVE seat
-    for (int i = 0; i < table.seats().size(); i++) {
-      Seat seat = table.seats().get(i);
+    int numberOfSeats = table.seats().size();
+    for (int pos = 1; pos <= numberOfSeats; pos++) {
+      Seat seat = table.seatAt(pos);
       if (seat.status() == Seat.Status.ACTIVE) {
         List<Card> cards = deck.drawCards(2);
         List<SeatCard> seatCards = cards.stream()
@@ -228,22 +232,24 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     gameContext.queueEvent(new HandStarted(
         Instant.now(), game.id(), table.id(),
         table.handNumber(), dealerPosition,
-        sbPosition, bbPosition, smallBlind, bigBlind
+        sbPosition, bbPosition, smallBlind, bigBlind,
+        table.currentBet(), table.minimumRaise(),
+        HandPlayerStatuses.snapshot(table)
     ));
 
     // Emit HoleCardsDealt per player
-    for (int i = 0; i < table.seats().size(); i++) {
-      Seat seat = table.seats().get(i);
+    for (int pos = 1; pos <= numberOfSeats; pos++) {
+      Seat seat = table.seatAt(pos);
       if (seat.status() == Seat.Status.ACTIVE && seat.cards() != null && seat.player() != null) {
         gameContext.queueEvent(new HoleCardsDealt(
             Instant.now(), game.id(), table.id(),
-            seat.player().userId(), i, seat.cards()
+            seat.player().userId(), pos, seat.cards()
         ));
       }
     }
 
     // Advance to PRE_FLOP_BETTING
-    table.handPhase(HandPhase.PRE_FLOP_BETTING);
+    setHandPhase(HandPhase.PRE_FLOP_BETTING, game, gameContext);
     table.phaseStartedAt(Instant.now());
 
     // Emit action-on event for UTG
@@ -257,7 +263,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     if (table.actionDeadline() != null && table.actionDeadline().isBefore(Instant.now())) {
       Integer actionPos = table.actionPosition();
       if (actionPos != null) {
-        Seat actionSeat = table.seats().get(actionPos);
+        Seat actionSeat = table.seatAt(actionPos);
         if (actionSeat.status() == Seat.Status.ACTIVE && !actionSeat.isAllIn()) {
           // Auto-apply default: check if free, else fold
           PlayerAction defaultAction;
@@ -292,20 +298,21 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
       gameContext.queueEvent(new BettingRoundComplete(
           Instant.now(), game.id(), table.id(),
-          table.handPhase(), table.pots()
+          table.handPhase(), table.pots(),
+          HandPlayerStatuses.snapshot(table), potTotal(table)
       ));
 
       // Check for all-in shortcut: if all non-folded players are all-in, deal remaining cards
       if (allNonFoldedAreAllIn() || countActiveNonAllInPlayers() <= 1) {
         // Deal remaining community cards and go to showdown
         dealRemainingCommunityCards(game, gameContext);
-        table.handPhase(HandPhase.SHOWDOWN);
+        setHandPhase(HandPhase.SHOWDOWN, game, gameContext);
         transitionFromShowdown(game, gameContext);
         return;
       }
 
       // Advance to next phase
-      table.handPhase(nextPhase);
+      setHandPhase(nextPhase, game, gameContext);
 
       if (nextPhase == HandPhase.SHOWDOWN) {
         transitionFromShowdown(game, gameContext);
@@ -315,7 +322,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
   }
 
   private void transitionFromCommunityCard(Game<T> game, GameContext gameContext,
-                                           int cardCount, String phaseName, HandPhase nextBettingPhase) {
+                                           int cardCount, HandPhase phase, HandPhase nextBettingPhase) {
     if (deck == null) {
       throw new IllegalStateException("No deck found for table " + table.id());
     }
@@ -324,7 +331,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.communityCards().addAll(newCards);
 
     gameContext.queueEvent(new CommunityCardsDealt(
-        Instant.now(), game.id(), table.id(), newCards, phaseName
+        Instant.now(), game.id(), table.id(), newCards, phase, List.copyOf(table.communityCards())
     ));
 
     // Clear actions and intents from previous betting round
@@ -341,7 +348,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     Integer firstActor = firstActiveNonAllInAfterDealer();
     if (firstActor == null) {
       // All remaining players are all-in, skip to showdown
-      table.handPhase(HandPhase.SHOWDOWN);
+      setHandPhase(HandPhase.SHOWDOWN, game, gameContext);
       transitionFromShowdown(game, gameContext);
       return;
     }
@@ -350,7 +357,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.lastRaiserPosition(firstActor); // Post-flop: first actor determines round completion
     table.actionDeadline(Instant.now().plusSeconds(gameSettings().actionTimeSeconds()));
 
-    table.handPhase(nextBettingPhase);
+    setHandPhase(nextBettingPhase, game, gameContext);
     table.phaseStartedAt(Instant.now());
 
     // Emit action-on event for the first actor in this betting round
@@ -377,7 +384,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     // Mark winning cards as showCard = true
     markShowdownCards(potResults);
 
-    table.handPhase(HandPhase.HAND_COMPLETE);
+    setHandPhase(HandPhase.HAND_COMPLETE, game, gameContext);
     table.phaseStartedAt(Instant.now());
     gameContext.forceUpdate(true);
   }
@@ -413,7 +420,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     if (table.status() == Table.Status.PAUSE_AFTER_HAND) {
       Table.Status oldStatus = table.status();
       table.status(Table.Status.PAUSED);
-      table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
+      setHandPhase(HandPhase.WAITING_FOR_PLAYERS, game, gameContext);
       gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldStatus, Table.Status.PAUSED));
       gameContext.forceUpdate(true);
       return;
@@ -421,16 +428,17 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
     // Determine next phase
     if (hasBuyingInPlayers()) {
-      table.handPhase(HandPhase.PREDEAL);
+      setHandPhase(HandPhase.PREDEAL, game, gameContext);
       table.phaseStartedAt(Instant.now());
     } else {
       int activeCount = countActivePlayers();
       if (activeCount >= 2) {
-        table.handPhase(HandPhase.DEAL);
+        setHandPhase(HandPhase.DEAL, game, gameContext);
         transitionFromDeal(game, gameContext);
       } else {
-        table.handPhase(HandPhase.WAITING_FOR_PLAYERS);
-        gameContext.queueEvent(new WaitingForPlayers(Instant.now(), game.id(), table.id(), activeCount));
+        setHandPhase(HandPhase.WAITING_FOR_PLAYERS, game, gameContext);
+        gameContext.queueEvent(new WaitingForPlayers(
+            Instant.now(), game.id(), table.id(), activeCount, countSeatedPlayers()));
       }
     }
     gameContext.forceUpdate(true);
@@ -455,7 +463,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       throw new ValidationException("It is not your turn to act.");
     }
 
-    Seat seat = table.seats().get(seatPosition);
+    Seat seat = table.seatAt(seatPosition);
     if (seat.status() != Seat.Status.ACTIVE || seat.isAllIn()) {
       throw new ValidationException("You cannot act in your current state.");
     }
@@ -475,7 +483,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       throw new ValidationException("You are not seated at this table.");
     }
 
-    Seat seat = table.seats().get(seatPosition);
+    Seat seat = table.seatAt(seatPosition);
     if (seat.status() != Seat.Status.ACTIVE) {
       throw new ValidationException("You cannot set an intent in your current state.");
     }
@@ -493,7 +501,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       throw new ValidationException("You are not seated at this table.");
     }
 
-    Seat seat = table.seats().get(seatPosition);
+    Seat seat = table.seatAt(seatPosition);
     if (seat.cards() != null) {
       List<SeatCard> shownCards = seat.cards().stream()
           .map(sc -> sc.withShowCard(true))
@@ -512,7 +520,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       throw new ValidationException("You are not seated at this table.");
     }
 
-    Seat seat = table.seats().get(seatPosition);
+    Seat seat = table.seatAt(seatPosition);
     seat.mustPostBlind(false);
     seat.missedBigBlind(false);
   }
@@ -575,9 +583,10 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     // If aggressive action (bet/raise), clear other active players' actions
     // so they must act again before the round can complete
     if (action instanceof PlayerAction.Bet || action instanceof PlayerAction.Raise) {
-      for (int i = 0; i < table.seats().size(); i++) {
-        if (i != seatPosition) {
-          Seat s = table.seats().get(i);
+      int size = table.seats().size();
+      for (int pos = 1; pos <= size; pos++) {
+        if (pos != seatPosition) {
+          Seat s = table.seatAt(pos);
           if (s.status() == Seat.Status.ACTIVE && !s.isAllIn()) {
             s.action(null);
           }
@@ -587,10 +596,12 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
     // Emit event
     int chipCount = player != null ? player.chipCount() : 0;
+    HandPlayerStatus resultingStatus = HandPlayerStatuses.from(table, seat, seatPosition);
     gameContext.queueEvent(new PlayerActed(
         Instant.now(), game.id(), table.id(), seatPosition,
         player != null ? player.userId() : "unknown",
-        action, chipCount
+        action, chipCount, resultingStatus,
+        table.currentBet(), table.minimumRaise(), potTotal(table)
     ));
 
     // Advance action position
@@ -609,13 +620,38 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     Integer actionPos = table.actionPosition();
     if (actionPos == null) return;
 
-    Seat seat = table.seats().get(actionPos);
+    Seat seat = table.seatAt(actionPos);
     String userId = seat.player() != null ? seat.player().userId() : "unknown";
     Instant deadline = table.actionDeadline() != null ? table.actionDeadline() : Instant.now();
+    int playerChips = seat.player() != null ? seat.player().chipCount() : 0;
+    int callAmount = Math.max(0, table.currentBet() - seat.currentBetAmount());
 
     gameContext.queueEvent(new ActionOnPlayer(
-        Instant.now(), game.id(), table.id(), actionPos, userId, deadline
+        Instant.now(), game.id(), table.id(), actionPos, userId, deadline,
+        table.currentBet(), table.minimumRaise(), callAmount, playerChips, potTotal(table)
     ));
+  }
+
+  /**
+   * Sets the table's hand phase and emits {@link HandPhaseChanged} if the phase changed.
+   */
+  private void setHandPhase(HandPhase newPhase, Game<T> game, GameContext gameContext) {
+    HandPhase oldPhase = table.handPhase();
+    if (oldPhase == newPhase) {
+      return;
+    }
+    table.handPhase(newPhase);
+    gameContext.queueEvent(new HandPhaseChanged(
+        Instant.now(), game.id(), table.id(), oldPhase, newPhase
+    ));
+  }
+
+  private int countSeatedPlayers() {
+    int count = 0;
+    for (Seat seat : table.seats()) {
+      if (seat.status() != Seat.Status.EMPTY) count++;
+    }
+    return count;
   }
 
   // ========== Betting Logic ==========
@@ -698,7 +734,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     Integer actionPos = table.actionPosition();
     if (actionPos == null) return;
 
-    Seat seat = table.seats().get(actionPos);
+    Seat seat = table.seatAt(actionPos);
     if (seat.pendingIntent() == null || seat.status() != Seat.Status.ACTIVE || seat.isAllIn()) return;
 
     // Validate the pending intent is still legal
@@ -721,12 +757,13 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
    * This correctly handles side pots when players go all-in for different amounts.
    */
   private void collectBetsIntoPots() {
-    // Gather all non-zero bets with their seat positions
+    // Gather all non-zero bets with their 1-indexed seat positions
     List<int[]> bets = new ArrayList<>(); // [seatPosition, betAmount]
-    for (int i = 0; i < table.seats().size(); i++) {
-      Seat seat = table.seats().get(i);
+    int size = table.seats().size();
+    for (int pos = 1; pos <= size; pos++) {
+      Seat seat = table.seatAt(pos);
       if (seat.currentBetAmount() > 0) {
-        bets.add(new int[]{i, seat.currentBetAmount()});
+        bets.add(new int[]{pos, seat.currentBetAmount()});
       }
     }
 
@@ -746,7 +783,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       for (int[] b : bets) {
         if (b[1] >= peelLevel) {
           // This seat is eligible
-          Seat seat = table.seats().get(b[0]);
+          Seat seat = table.seatAt(b[0]);
           if (seat.status() != Seat.Status.FOLDED) {
             eligible.add(b[0]);
           }
@@ -786,19 +823,20 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     // Collect any outstanding bets first
     collectBetsIntoPots();
 
-    // Find the last non-folded player
+    // Find the last non-folded player (1-indexed position)
     int winnerPosition = -1;
-    for (int i = 0; i < table.seats().size(); i++) {
-      Seat seat = table.seats().get(i);
+    int numberOfSeats = table.seats().size();
+    for (int pos = 1; pos <= numberOfSeats; pos++) {
+      Seat seat = table.seatAt(pos);
       if (seat.status() == Seat.Status.ACTIVE) {
-        winnerPosition = i;
+        winnerPosition = pos;
         break;
       }
     }
 
     if (winnerPosition < 0) return;
 
-    Seat winnerSeat = table.seats().get(winnerPosition);
+    Seat winnerSeat = table.seatAt(winnerPosition);
     Player winner = winnerSeat.player();
     if (winner == null) return;
 
@@ -820,7 +858,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       ));
     }
 
-    table.handPhase(HandPhase.HAND_COMPLETE);
+    setHandPhase(HandPhase.HAND_COMPLETE, game, gameContext);
     table.phaseStartedAt(Instant.now());
     gameContext.forceUpdate(true);
   }
@@ -835,7 +873,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     List<SeatHandResult> results = new ArrayList<>();
 
     for (int position : pot.seatPositions()) {
-      Seat seat = table.seats().get(position);
+      Seat seat = table.seatAt(position);
       if (seat.status() == Seat.Status.FOLDED || seat.cards() == null) continue;
 
       List<Card> allCards = new ArrayList<>();
@@ -892,7 +930,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
 
     for (int pos : winnerPositions) {
-      Seat seat = table.seats().get(pos);
+      Seat seat = table.seatAt(pos);
       if (seat.cards() != null) {
         List<SeatCard> shown = seat.cards().stream()
             .map(sc -> sc.withShowCard(true))
@@ -910,21 +948,21 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       List<Card> flop = deck.drawCards(3);
       table.communityCards().addAll(flop);
       gameContext.queueEvent(new CommunityCardsDealt(
-          Instant.now(), game.id(), table.id(), flop, "Flop"));
+          Instant.now(), game.id(), table.id(), flop, HandPhase.FLOP, List.copyOf(table.communityCards())));
       currentCount = 3;
     }
     if (currentCount < 4) {
       List<Card> turn = deck.drawCards(1);
       table.communityCards().addAll(turn);
       gameContext.queueEvent(new CommunityCardsDealt(
-          Instant.now(), game.id(), table.id(), turn, "Turn"));
+          Instant.now(), game.id(), table.id(), turn, HandPhase.TURN, List.copyOf(table.communityCards())));
       currentCount = 4;
     }
     if (currentCount < 5) {
       List<Card> river = deck.drawCards(1);
       table.communityCards().addAll(river);
       gameContext.queueEvent(new CommunityCardsDealt(
-          Instant.now(), game.id(), table.id(), river, "River"));
+          Instant.now(), game.id(), table.id(), river, HandPhase.RIVER, List.copyOf(table.communityCards())));
     }
   }
 
@@ -997,13 +1035,13 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
   }
 
   /**
-   * Finds the next ACTIVE seat position clockwise from the given position.
+   * Finds the next ACTIVE seat position (1-indexed) clockwise from the given position.
    */
   private int nextActivePosition(int fromPosition) {
     int size = table.seats().size();
     for (int i = 1; i <= size; i++) {
-      int pos = (fromPosition + i) % size;
-      Seat seat = table.seats().get(pos);
+      int pos = ((fromPosition - 1 + i) % size) + 1;
+      Seat seat = table.seatAt(pos);
       if (seat.status() == Seat.Status.ACTIVE) {
         return pos;
       }
@@ -1012,13 +1050,13 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
   }
 
   /**
-   * Finds the next ACTIVE, non-all-in seat position clockwise from the given position.
+   * Finds the next ACTIVE, non-all-in seat position (1-indexed) clockwise from the given position.
    */
   private int nextActiveNonAllInPosition(int fromPosition) {
     int size = table.seats().size();
     for (int i = 1; i <= size; i++) {
-      int pos = (fromPosition + i) % size;
-      Seat seat = table.seats().get(pos);
+      int pos = ((fromPosition - 1 + i) % size) + 1;
+      Seat seat = table.seatAt(pos);
       if (seat.status() == Seat.Status.ACTIVE && !seat.isAllIn()) {
         return pos;
       }
@@ -1026,12 +1064,13 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return fromPosition;
   }
 
+  @Nullable
   private Integer nextActiveNonAllInPositionOrNull(int fromPosition) {
     int size = table.seats().size();
     for (int i = 1; i <= size; i++) {
-      int pos = (fromPosition + i) % size;
+      int pos = ((fromPosition - 1 + i) % size) + 1;
       if (pos == fromPosition) return null; // Wrapped around
-      Seat seat = table.seats().get(pos);
+      Seat seat = table.seatAt(pos);
       if (seat.status() == Seat.Status.ACTIVE && !seat.isAllIn()) {
         return pos;
       }
@@ -1039,13 +1078,14 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return null;
   }
 
+  @Nullable
   private Integer firstActiveNonAllInAfterDealer() {
     Integer dealer = table.dealerPosition();
     if (dealer == null) return null;
     int size = table.seats().size();
     for (int i = 1; i <= size; i++) {
-      int pos = (dealer + i) % size;
-      Seat seat = table.seats().get(pos);
+      int pos = ((dealer - 1 + i) % size) + 1;
+      Seat seat = table.seatAt(pos);
       if (seat.status() == Seat.Status.ACTIVE && !seat.isAllIn()) {
         return pos;
       }
@@ -1053,11 +1093,13 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     return null;
   }
 
+  /** Returns all ACTIVE seat positions (1-indexed). */
   private List<Integer> getActivePositions() {
     List<Integer> positions = new ArrayList<>();
-    for (int i = 0; i < table.seats().size(); i++) {
-      if (table.seats().get(i).status() == Seat.Status.ACTIVE) {
-        positions.add(i);
+    int size = table.seats().size();
+    for (int pos = 1; pos <= size; pos++) {
+      if (table.seatAt(pos).status() == Seat.Status.ACTIVE) {
+        positions.add(pos);
       }
     }
     return positions;
@@ -1133,7 +1175,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
   // ========== Blind / Chip Helpers ==========
 
   private void postBlind(int position, int blindAmount) {
-    Seat seat = table.seats().get(position);
+    Seat seat = table.seatAt(position);
     Player player = seat.player();
     if (player == null) return;
 
@@ -1162,12 +1204,13 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
            phase == HandPhase.RIVER_BETTING;
   }
 
+  /** Returns the 1-indexed seat position of the given user, or -1 if not seated. */
   private int findPlayerSeat(String userLoginId) {
-    for (int i = 0; i < table.seats().size(); i++) {
-      Seat seat = table.seats().get(i);
-      if (seat.player() != null && seat.player().userId() != null
-          && seat.player().userId().equals(userLoginId)) {
-        return i;
+    int size = table.seats().size();
+    for (int pos = 1; pos <= size; pos++) {
+      Seat seat = table.seatAt(pos);
+      if (seat.player() != null && seat.player().userId().equals(userLoginId)) {
+        return pos;
       }
     }
     return -1;

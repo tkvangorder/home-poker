@@ -9,6 +9,7 @@ This document catalogs all commands and events in the poker server. It serves as
 - All commands use a `commandId` JSON discriminator derived from the class name in kebab-case (e.g., `JoinGame` -> `join-game`).
 - All events use an `eventType` JSON discriminator derived from the class name in kebab-case (e.g., `HandStarted` -> `hand-started`).
 - The `user` field on commands is **never serialized** — it is injected server-side from the authenticated session.
+- **Seat positions are 1-indexed.** Every `seatPosition`, `dealerPosition`, `actionPosition`, `smallBlindPosition`, `bigBlindPosition`, `lastRaiserPosition`, and `Pot.seatPositions` value on the wire is in the range `1..numberOfSeats` (i.e. seat 1 through seat 9 for a 9-seat table). Clients should render these values as-is.
 
 ---
 
@@ -391,21 +392,72 @@ A player was reassigned to a different table during table balancing. Only emitte
 
 Table-level events report changes within a specific table's hand. They implement `TableEvent`.
 
+#### TableStatusChanged
+
+The table's administrative status transitioned.
+
+| Field       | Type         | Description                                          |
+|-------------|--------------|------------------------------------------------------|
+| `timestamp` | Instant      | When the transition occurred                         |
+| `gameId`    | String       | Game ID                                              |
+| `tableId`   | String       | Table ID                                             |
+| `oldStatus` | Table.Status | Previous status                                      |
+| `newStatus` | Table.Status | New status (`PLAYING`, `PAUSE_AFTER_HAND`, `PAUSED`) |
+
+**eventType:** `table-status-changed`
+
+---
+
+#### HandPhaseChanged
+
+The table's hand phase transitioned. Emitted on every phase change (including transient phases like DEAL/FLOP/TURN/RIVER/SHOWDOWN/HAND_COMPLETE), so clients can drive UI state directly from this event.
+
+| Field       | Type      | Description                  |
+|-------------|-----------|------------------------------|
+| `timestamp` | Instant   | When the transition occurred |
+| `gameId`    | String    | Game ID                      |
+| `tableId`   | String    | Table ID                     |
+| `oldPhase`  | HandPhase | Previous hand phase          |
+| `newPhase`  | HandPhase | New hand phase               |
+
+**eventType:** `hand-phase-changed`
+
+---
+
+#### WaitingForPlayers
+
+The table is in `WAITING_FOR_PLAYERS` because there are not enough eligible players to start a hand.
+
+| Field           | Type    | Description                                              |
+|-----------------|---------|----------------------------------------------------------|
+| `timestamp`     | Instant | When emitted                                             |
+| `gameId`        | String  | Game ID                                                  |
+| `tableId`       | String  | Table ID                                                 |
+| `activePlayers` | int     | Number of players currently eligible to play (with chips)|
+| `seatedPlayers` | int     | Number of non-empty seats at the table                   |
+
+**eventType:** `waiting-for-players`
+
+---
+
 #### HandStarted
 
-A new hand has begun.
+A new hand has begun. Carries a full seat snapshot so clients can render the table without additional state lookups.
 
-| Field                | Type    | Description                 |
-|----------------------|---------|-----------------------------|
-| `timestamp`          | Instant | When the hand started       |
-| `gameId`             | String  | Game ID                     |
-| `tableId`            | String  | Table ID                    |
-| `handNumber`         | int     | Monotonically increasing    |
-| `dealerPosition`     | int     | Seat index of dealer        |
-| `smallBlindPosition` | int     | Seat index of small blind   |
-| `bigBlindPosition`   | int     | Seat index of big blind     |
-| `smallBlindAmount`   | int     | Small blind chip amount     |
-| `bigBlindAmount`     | int     | Big blind chip amount       |
+| Field                | Type               | Description                                                 |
+|----------------------|--------------------|-------------------------------------------------------------|
+| `timestamp`          | Instant            | When the hand started                                       |
+| `gameId`             | String             | Game ID                                                     |
+| `tableId`            | String             | Table ID                                                    |
+| `handNumber`         | int                | Monotonically increasing                                    |
+| `dealerPosition`     | int                | 1-indexed seat position of the dealer button                |
+| `smallBlindPosition` | int                | 1-indexed seat position of the small blind                  |
+| `bigBlindPosition`   | int                | 1-indexed seat position of the big blind                    |
+| `smallBlindAmount`   | int                | Small blind chip amount                                     |
+| `bigBlindAmount`     | int                | Big blind chip amount                                       |
+| `currentBet`         | int                | Amount to call at the start of PRE_FLOP_BETTING (= BB)      |
+| `minimumRaise`       | int                | Minimum raise amount (= BB)                                 |
+| `seats`              | List<SeatSummary>  | Per-seat snapshot for every non-empty seat at the table     |
 
 **eventType:** `hand-started`
 
@@ -421,7 +473,7 @@ Hole cards dealt to a specific player. This is a **private event** — only the 
 | `gameId`       | String         | Game ID                    |
 | `tableId`      | String         | Table ID                   |
 | `userId`       | String         | Player receiving cards     |
-| `seatPosition` | int            | Seat index                 |
+| `seatPosition` | int            | 1-indexed seat position    |
 | `cards`        | List<SeatCard> | The dealt cards            |
 
 **eventType:** `hole-cards-dealt`
@@ -433,13 +485,14 @@ Hole cards dealt to a specific player. This is a **private event** — only the 
 
 Community cards dealt (flop, turn, or river).
 
-| Field       | Type       | Description                          |
-|-------------|------------|--------------------------------------|
-| `timestamp` | Instant    | When cards were dealt                |
-| `gameId`    | String     | Game ID                              |
-| `tableId`   | String     | Table ID                             |
-| `cards`     | List<Card> | The dealt community cards            |
-| `phase`     | String     | Which phase dealt them (FLOP, etc.)  |
+| Field                | Type       | Description                                           |
+|----------------------|------------|-------------------------------------------------------|
+| `timestamp`          | Instant    | When cards were dealt                                 |
+| `gameId`             | String     | Game ID                                               |
+| `tableId`            | String     | Table ID                                              |
+| `cards`              | List<Card> | The cards dealt in this event (3 for flop, 1 o/w)     |
+| `phase`              | HandPhase  | Which transient phase dealt them: `FLOP`/`TURN`/`RIVER` |
+| `allCommunityCards`  | List<Card> | The full board visible after this deal (3/4/5 cards)  |
 
 **eventType:** `community-cards-dealt`
 
@@ -447,17 +500,21 @@ Community cards dealt (flop, turn, or river).
 
 #### PlayerActed
 
-A player performed an action during a betting round.
+A player performed an action during a betting round. The event carries the resulting per-hand status and the table's betting context *after* the action was applied, so clients can update their view directly.
 
-| Field          | Type         | Description                  |
-|----------------|--------------|------------------------------|
-| `timestamp`    | Instant      | When the action occurred     |
-| `gameId`       | String       | Game ID                      |
-| `tableId`      | String       | Table ID                     |
-| `seatPosition` | int          | Seat index of the player     |
-| `userId`       | String       | Player who acted             |
-| `action`       | PlayerAction | The action taken             |
-| `chipCount`    | int          | Player's remaining chips     |
+| Field              | Type             | Description                                                     |
+|--------------------|------------------|-----------------------------------------------------------------|
+| `timestamp`        | Instant          | When the action occurred                                        |
+| `gameId`           | String           | Game ID                                                         |
+| `tableId`          | String           | Table ID                                                        |
+| `seatPosition`     | int              | 1-indexed seat position of the player                           |
+| `userId`           | String           | Player who acted                                                |
+| `action`           | PlayerAction     | The action taken                                                |
+| `chipCount`        | int              | Player's remaining chips                                        |
+| `resultingStatus`  | HandPlayerStatus | Seat status after the action (`ACTIVE`, `FOLDED`, or `ALL_IN`)  |
+| `currentBet`       | int              | Table's current bet after this action                           |
+| `minimumRaise`     | int              | Minimum raise after this action                                 |
+| `potTotal`         | int              | Sum of all pots after this action                               |
 
 **eventType:** `player-acted`
 
@@ -472,25 +529,50 @@ A player failed to act within the time limit; a default action was applied.
 | `timestamp`     | Instant      | When the timeout occurred         |
 | `gameId`        | String       | Game ID                           |
 | `tableId`       | String       | Table ID                          |
-| `seatPosition`  | int          | Seat index of the player          |
+| `seatPosition`  | int          | 1-indexed seat position of the player |
 | `userId`        | String       | Player who timed out              |
 | `defaultAction` | PlayerAction | The action applied (Check/Fold)   |
 
 **eventType:** `player-timed-out`
+**Follow-up:** A `PlayerActed` event for the same seat is emitted immediately afterward carrying the post-action state (resulting status, pot total, etc.).
+
+---
+
+#### ActionOnPlayer
+
+Action has moved to a specific seat. Carries the full decision context so clients can render the action UI without additional state lookups.
+
+| Field              | Type    | Description                                                       |
+|--------------------|---------|-------------------------------------------------------------------|
+| `timestamp`        | Instant | When the action moved                                             |
+| `gameId`           | String  | Game ID                                                           |
+| `tableId`          | String  | Table ID                                                          |
+| `seatPosition`     | int     | 1-indexed seat position of the player on the clock                |
+| `userId`           | String  | The player on the clock                                           |
+| `actionDeadline`   | Instant | When the player must act by                                       |
+| `currentBet`       | int     | Amount to call (the table's current bet)                          |
+| `minimumRaise`     | int     | Minimum raise amount                                              |
+| `callAmount`       | int     | Chips this seat owes to call (`currentBet - seat.currentBetAmount`) |
+| `playerChipCount`  | int     | This player's chip count                                          |
+| `potTotal`         | int     | Sum of chips across all pots                                      |
+
+**eventType:** `action-on-player`
 
 ---
 
 #### BettingRoundComplete
 
-All active players have acted; the betting round is finished.
+All active players have acted; the betting round is finished. Includes a full per-seat snapshot so clients know who folded / went all-in during the round.
 
-| Field            | Type            | Description                          |
-|------------------|-----------------|--------------------------------------|
-| `timestamp`      | Instant         | When the round completed             |
-| `gameId`         | String          | Game ID                              |
-| `tableId`        | String          | Table ID                             |
-| `completedPhase` | HandPhase       | Which betting phase completed        |
-| `pots`           | List<Table.Pot> | Current pot state after collection   |
+| Field            | Type               | Description                                       |
+|------------------|--------------------|---------------------------------------------------|
+| `timestamp`      | Instant            | When the round completed                          |
+| `gameId`         | String             | Game ID                                           |
+| `tableId`        | String             | Table ID                                          |
+| `completedPhase` | HandPhase          | Which betting phase completed                     |
+| `pots`           | List<Table.Pot>    | Pot state after collection (side pots separated)  |
+| `seats`          | List<SeatSummary>  | Per-seat snapshot for every non-empty seat        |
+| `potTotal`       | int                | Sum of chips across all pots                      |
 
 **eventType:** `betting-round-complete`
 
@@ -521,7 +603,7 @@ Hand reached showdown; winners determined and pots awarded.
 
 | Field             | Type   | Description                    |
 |-------------------|--------|--------------------------------|
-| `seatPosition`    | int    | Winning player's seat index    |
+| `seatPosition`    | int    | Winning player's 1-indexed seat position |
 | `userId`          | String | Winning player's ID            |
 | `amount`          | int    | Chips awarded                  |
 | `handDescription` | String | Winning hand (e.g., "Full House, Aces over Kings") |
@@ -612,11 +694,11 @@ The `Table` object represents the full state of a poker table. It is nested with
 | `seats`              | List<Seat>   | No       | Ordered list of seats at the table        |
 | `status`             | Table.Status | No       | Current table status                      |
 | `handPhase`          | HandPhase    | No       | Current phase of the hand in progress     |
-| `dealerPosition`     | Integer      | Yes      | Seat index of the dealer button           |
-| `actionPosition`     | Integer      | Yes      | Seat index of the player whose turn it is |
-| `smallBlindPosition` | Integer      | Yes      | Seat index of the small blind             |
-| `bigBlindPosition`   | Integer      | Yes      | Seat index of the big blind               |
-| `lastRaiserPosition` | Integer      | Yes      | Seat index of the last player who raised  |
+| `dealerPosition`     | Integer      | Yes      | 1-indexed seat position of the dealer button |
+| `actionPosition`     | Integer      | Yes      | 1-indexed seat position of the player on the clock |
+| `smallBlindPosition` | Integer      | Yes      | 1-indexed seat position of the small blind |
+| `bigBlindPosition`   | Integer      | Yes      | 1-indexed seat position of the big blind   |
+| `lastRaiserPosition` | Integer      | Yes      | 1-indexed seat position of the last raiser |
 | `currentBet`         | int          | No       | The current bet amount to be matched      |
 | `minimumRaise`       | int          | No       | The minimum raise amount                  |
 | `handNumber`         | int          | No       | Monotonically increasing hand counter     |
@@ -624,6 +706,8 @@ The `Table` object represents the full state of a poker table. It is nested with
 | `actionDeadline`     | Instant      | Yes      | Deadline for the current player to act    |
 | `communityCards`     | List<Card>   | No       | Community cards dealt so far              |
 | `pots`               | List<Pot>    | No       | Current pot(s) in play                    |
+
+The `seats` list is ordered: index `i` in the list corresponds to **seat position `i + 1`** (1-indexed). All `*Position` fields above, and every `seatPosition` in events, refer to this 1-indexed numbering. Implementations that need to look up a seat from a position should use `seats[position - 1]`.
 
 **Table.Status values:** `PLAYING`, `PAUSE_AFTER_HAND`, `PAUSED`
 
@@ -676,7 +760,36 @@ A card dealt to a player at the table.
 | Field           | Type          | Description                                  |
 |-----------------|---------------|----------------------------------------------|
 | `amount`        | int           | Total chips in the pot                       |
-| `seatPositions` | List<Integer> | Seat positions eligible to win this pot      |
+| `seatPositions` | List<Integer> | 1-indexed seat positions eligible to win this pot |
+
+---
+
+### SeatSummary
+
+Compact per-seat snapshot embedded in table events (`HandStarted`, `BettingRoundComplete`). Captures the minimum state a client needs to render each seat at a point in time.
+
+| Field              | Type             | Nullable | Description                                             |
+|--------------------|------------------|----------|---------------------------------------------------------|
+| `seatPosition`     | int              | No       | 1-indexed seat position (range 1..numberOfSeats)        |
+| `userId`           | String           | Yes      | User ID of the seated player (null if empty)            |
+| `status`           | HandPlayerStatus | No       | Codified per-hand status of the seat                    |
+| `chipCount`        | int              | No       | Player's current chip count                             |
+| `currentBetAmount` | int              | No       | Chips wagered by this seat in the current betting round |
+
+---
+
+### HandPlayerStatus
+
+Codified status of a seat's player within the current hand. Distinct from `PlayerStatus` (game-session presence) and `Seat.Status` (coarser seat lifecycle state).
+
+| Value         | Description                                                        |
+|---------------|--------------------------------------------------------------------|
+| `WAITING`     | Seated but joined mid-hand; not eligible this hand                 |
+| `ACTIVE`      | In the hand, not currently on the clock                            |
+| `TO_ACT`      | Action is currently on this seat                                   |
+| `FOLDED`      | Folded this hand                                                   |
+| `ALL_IN`      | Committed all chips; no further action this hand                   |
+| `SITTING_OUT` | Seated but not participating (must post blind, missed BB, etc.)    |
 
 ---
 

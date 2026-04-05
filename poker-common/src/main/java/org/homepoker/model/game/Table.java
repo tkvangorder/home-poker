@@ -65,6 +65,20 @@ public final class Table {
   }
 
   /**
+   * Returns the seat at the given 1-indexed position. Seat positions are in the range
+   * {@code [1, numberOfSeats]}, which is the API-facing seat numbering used in events
+   * and client payloads.
+   */
+  public Seat seatAt(int position) {
+    return seats.get(position - 1);
+  }
+
+  /** Total number of seats at the table (the maximum seat position). */
+  public int numberOfSeats() {
+    return seats.size();
+  }
+
+  /**
    * A pot represents the collection of chips that are in play for a given hand, along with the seat (positions) that
    * are eligible to win the pot.
    *

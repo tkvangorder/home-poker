@@ -5,6 +5,7 @@ import org.homepoker.game.table.TableUtils;
 import org.homepoker.model.event.game.PlayerSeated;
 import org.homepoker.model.game.Game;
 import org.homepoker.model.game.Player;
+import org.homepoker.model.game.PlayerStatus;
 import org.homepoker.model.game.Table;
 
 import java.time.Instant;
@@ -28,7 +29,9 @@ public class GameStateTransitions {
       NavigableMap<String, TableManager<T>> tableManagers,
       Function<String, TableManager<T>> tableManagerFactory) {
 
-    long playersWithChips = game.players().values().stream().filter(p -> p.chipCount() > 0).count();
+    long playersWithChips = game.players().values().stream()
+        .filter(p -> p.chipCount() > 0 && p.status() != PlayerStatus.OUT)
+        .count();
     int tableCount = ((int) playersWithChips / context.settings().numberOfSeats()) + 1;
 
     tableManagers.clear();
@@ -42,10 +45,10 @@ public class GameStateTransitions {
       game.tables().put(tableIds[i], tm.table());
     }
 
-    // Only seat players who have chips — players without chips must buy in before being seated
+    // Only seat players who have chips and are not OUT — players without chips must buy in before being seated
     int tableIndex = 0;
     for (Player player : game.players().values()) {
-      if (player.chipCount() > 0) {
+      if (player.chipCount() > 0 && player.status() != PlayerStatus.OUT) {
         Table table = game.tables().get(tableIds[tableIndex]);
         TableUtils.assignPlayerToRandomSeat(player, table);
         context.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), table.id()));

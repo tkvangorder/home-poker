@@ -53,9 +53,9 @@ public class CashGameManager extends GameManager<CashGame> {
       game.addPlayer(player);
     }
 
-    // During SEATING or ACTIVE, assign the player to a seat only if they have chips (e.g. rejoining with remaining chips).
+    // During SEATING or ACTIVE, assign the player to a seat only if they have chips and are not already seated.
     // Players without chips must buy in first before being seated.
-    if (player.chipCount() > 0 && (game.status() == GameStatus.SEATING || game.status() == GameStatus.ACTIVE)) {
+    if (player.tableId() == null && player.chipCount() > 0 && (game.status() == GameStatus.SEATING || game.status() == GameStatus.ACTIVE)) {
       String tableId = assignPlayerToTableWithFewestPlayers(player, game, gameSettings().numberOfSeats());
       if (tableId != null) {
         gameContext.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), tableId));

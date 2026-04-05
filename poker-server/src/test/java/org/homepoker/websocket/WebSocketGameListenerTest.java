@@ -48,7 +48,7 @@ class WebSocketGameListenerTest {
 
   @Test
   void acceptsEvent_handStarted_broadcast() {
-    HandStarted event = new HandStarted(Instant.now(), "game1", "table1", 1, 0, 1, 2, 5, 10);
+    HandStarted event = new HandStarted(Instant.now(), "game1", "table1", 1, 0, 1, 2, 5, 10, 10, 10, java.util.List.of());
     assertThat(listener.acceptsEvent(event)).isTrue();
   }
 

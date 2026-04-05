@@ -2,6 +2,7 @@ package org.homepoker.model.event.table;
 
 import org.homepoker.model.event.EventMarker;
 import org.homepoker.model.event.TableEvent;
+import org.homepoker.model.game.HandPhase;
 import org.homepoker.model.poker.Card;
 
 import java.time.Instant;
@@ -13,6 +14,7 @@ public record CommunityCardsDealt(
     String gameId,
     String tableId,
     List<Card> cards,
-    String phase
+    HandPhase phase,
+    List<Card> allCommunityCards
 ) implements TableEvent {
 }

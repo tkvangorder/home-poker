@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests for the Texas Hold'em table-level state machine (hand lifecycle).
  * Covers dealing, betting rounds, community cards, showdown, and hand completion.
  */
+@SuppressWarnings("DataFlowIssue")
 class TexasHoldemTableManagerTest {
 
   private User adminUser;
@@ -48,8 +49,13 @@ class TexasHoldemTableManagerTest {
     // Verify blinds were posted
     int sbPos = table.smallBlindPosition();
     int bbPos = table.bigBlindPosition();
-    Seat sbSeat = table.seats().get(sbPos);
-    Seat bbSeat = table.seats().get(bbPos);
+    // All seat positions must be 1-indexed (API contract: 1..numberOfSeats)
+    assertThat(table.dealerPosition()).isBetween(1, table.numberOfSeats());
+    assertThat(sbPos).isBetween(1, table.numberOfSeats());
+    assertThat(bbPos).isBetween(1, table.numberOfSeats());
+    assertThat(table.actionPosition()).isBetween(1, table.numberOfSeats());
+    Seat sbSeat = table.seatAt(sbPos);
+    Seat bbSeat = table.seatAt(bbPos);
     assertThat(sbSeat.currentBetAmount()).isEqualTo(25);
     assertThat(bbSeat.currentBetAmount()).isEqualTo(50);
     assertThat(sbSeat.player().chipCount()).isEqualTo(9975);
@@ -73,13 +79,72 @@ class TexasHoldemTableManagerTest {
     manager.processGameTick(); // Deal
 
     assertThat(manager.savedEvents()).anyMatch(e -> e instanceof HandStarted hs &&
-        hs.handNumber() == 1 && hs.smallBlindAmount() == 25 && hs.bigBlindAmount() == 50);
+        hs.handNumber() == 1 && hs.smallBlindAmount() == 25 && hs.bigBlindAmount() == 50 &&
+        hs.currentBet() == 50 && hs.minimumRaise() == 50 && hs.seats().size() == 3);
 
     // Each player should get a HoleCardsDealt event
     long holeCardEvents = manager.savedEvents().stream()
         .filter(e -> e instanceof HoleCardsDealt)
         .count();
     assertThat(holeCardEvents).isEqualTo(3);
+  }
+
+  @Test
+  void deal_handStartedSeatSnapshotIncludesBlindBets() {
+    TestableGameManager manager = createActiveGameWithPlayers(3);
+    manager.processGameTick(); // Deal
+
+    Table table = getTable(manager);
+    HandStarted started = manager.savedEvents().stream()
+        .filter(e -> e instanceof HandStarted)
+        .map(e -> (HandStarted) e)
+        .findFirst().orElseThrow();
+
+    SeatSummary sb = started.seats().stream()
+        .filter(s -> s.seatPosition() == table.smallBlindPosition())
+        .findFirst().orElseThrow();
+    SeatSummary bb = started.seats().stream()
+        .filter(s -> s.seatPosition() == table.bigBlindPosition())
+        .findFirst().orElseThrow();
+    assertThat(sb.currentBetAmount()).isEqualTo(25);
+    assertThat(bb.currentBetAmount()).isEqualTo(50);
+
+    // UTG (the action position) should be marked TO_ACT
+    int utg = table.actionPosition();
+    SeatSummary utgSummary = started.seats().stream()
+        .filter(s -> s.seatPosition() == utg)
+        .findFirst().orElseThrow();
+    assertThat(utgSummary.status()).isEqualTo(HandPlayerStatus.TO_ACT);
+  }
+
+  @Test
+  void deal_emitsActionOnPlayerWithDecisionContext() {
+    TestableGameManager manager = createActiveGameWithPlayers(3);
+    manager.processGameTick(); // Deal
+
+    ActionOnPlayer action = manager.savedEvents().stream()
+        .filter(e -> e instanceof ActionOnPlayer)
+        .map(e -> (ActionOnPlayer) e)
+        .findFirst().orElseThrow();
+
+    assertThat(action.currentBet()).isEqualTo(50);
+    assertThat(action.minimumRaise()).isEqualTo(50);
+    assertThat(action.callAmount()).isEqualTo(50); // UTG owes full BB
+    assertThat(action.potTotal()).isZero(); // blinds not yet collected into pots
+  }
+
+  @Test
+  void deal_emitsHandPhaseChangedForDealAndPreFlop() {
+    TestableGameManager manager = createActiveGameWithPlayers(3);
+    manager.processGameTick(); // Deal
+
+    List<HandPhaseChanged> phaseEvents = manager.savedEvents().stream()
+        .filter(e -> e instanceof HandPhaseChanged)
+        .map(e -> (HandPhaseChanged) e)
+        .toList();
+    // Expect transitions: WAITING_FOR_PLAYERS -> DEAL -> PRE_FLOP_BETTING
+    assertThat(phaseEvents).extracting(HandPhaseChanged::newPhase)
+        .containsExactly(HandPhase.DEAL, HandPhase.PRE_FLOP_BETTING);
   }
 
   @Test
@@ -117,8 +182,16 @@ class TexasHoldemTableManagerTest {
     assertThat(table.handPhase()).isEqualTo(HandPhase.HAND_COMPLETE);
 
     // BB wins the pot (SB's 25 + BB's 50 = 75)
-    Seat bbSeat = table.seats().get(bbPos);
+    Seat bbSeat = table.seatAt(bbPos);
     assertThat(bbSeat.player().chipCount()).isEqualTo(9950 + 75);
+
+    // Each fold should be reflected in PlayerActed.resultingStatus
+    List<PlayerActed> acts = manager.savedEvents().stream()
+        .filter(e -> e instanceof PlayerActed)
+        .map(e -> (PlayerActed) e)
+        .toList();
+    assertThat(acts).hasSize(2);
+    assertThat(acts).allMatch(a -> a.resultingStatus() == HandPlayerStatus.FOLDED);
 
     // Verify chip conservation
     assertChipConservation(manager, 30000);
@@ -148,7 +221,7 @@ class TexasHoldemTableManagerTest {
     assertThat(table.currentBet()).isEqualTo(0);
 
     assertThat(manager.savedEvents()).anyMatch(e -> e instanceof CommunityCardsDealt ccd &&
-        ccd.phase().equals("Flop") && ccd.cards().size() == 3);
+        ccd.phase() == HandPhase.FLOP && ccd.cards().size() == 3 && ccd.allCommunityCards().size() == 3);
   }
 
   @Test
@@ -169,8 +242,15 @@ class TexasHoldemTableManagerTest {
     table = getTable(manager);
     assertThat(table.handPhase()).isEqualTo(HandPhase.FLOP);
 
-    // Verify BettingRoundComplete event was emitted
-    assertThat(manager.savedEvents()).anyMatch(e -> e instanceof BettingRoundComplete);
+    // Verify BettingRoundComplete event was emitted with enriched fields
+    BettingRoundComplete brc = manager.savedEvents().stream()
+        .filter(e -> e instanceof BettingRoundComplete)
+        .map(e -> (BettingRoundComplete) e)
+        .findFirst().orElseThrow();
+    assertThat(brc.completedPhase()).isEqualTo(HandPhase.PRE_FLOP_BETTING);
+    assertThat(brc.seats()).hasSize(3);
+    assertThat(brc.seats()).allMatch(s -> s.status() == HandPlayerStatus.ACTIVE);
+    assertThat(brc.potTotal()).isEqualTo(450); // 3 players x 150
 
     // Verify chip conservation
     assertChipConservation(manager, 30000);
@@ -258,7 +338,7 @@ class TexasHoldemTableManagerTest {
 
     table = getTable(manager);
     // The timed-out player should have been auto-folded
-    Seat timedOutSeat = table.seats().get(actionPos);
+    Seat timedOutSeat = table.seatAt(actionPos);
     assertThat(timedOutSeat.status()).isEqualTo(Seat.Status.FOLDED);
 
     assertThat(manager.savedEvents()).anyMatch(e -> e instanceof PlayerTimedOut pto &&
@@ -287,7 +367,7 @@ class TexasHoldemTableManagerTest {
 
     table = getTable(manager);
     // Player should have auto-checked (not folded)
-    Seat timedOutSeat = table.seats().get(actionPos);
+    Seat timedOutSeat = table.seatAt(actionPos);
     assertThat(timedOutSeat.status()).isEqualTo(Seat.Status.ACTIVE); // Still active, not folded
     assertThat(timedOutSeat.action()).isInstanceOf(PlayerAction.Check.class);
 
@@ -360,24 +440,25 @@ class TexasHoldemTableManagerTest {
     submitActionAndTick(manager, new PlayerAction.Fold());
 
     // BB wins. Now set one player's chips to 0 to simulate busting
-    // Find a non-BB player
+    // Find a non-BB player (1-indexed seat position)
     int bustPos = -1;
-    for (int i = 0; i < table.seats().size(); i++) {
-      Seat seat = table.seats().get(i);
-      if (seat.status() != Seat.Status.EMPTY && seat.player() != null && i != bbPos) {
+    int numberOfSeats = table.seats().size();
+    for (int pos = 1; pos <= numberOfSeats; pos++) {
+      Seat seat = table.seatAt(pos);
+      if (seat.status() != Seat.Status.EMPTY && seat.player() != null && pos != bbPos) {
         seat.player().chipCount(0);
-        bustPos = i;
+        bustPos = pos;
         break;
       }
     }
-    assertThat(bustPos).isGreaterThanOrEqualTo(0);
+    assertThat(bustPos).isGreaterThanOrEqualTo(1);
 
     // Skip review period
     table.phaseStartedAt(Instant.now().minusSeconds(20));
     manager.processGameTick();
 
     table = getTable(manager);
-    Seat bustedSeat = table.seats().get(bustPos);
+    Seat bustedSeat = table.seatAt(bustPos);
     assertThat(bustedSeat.status()).isEqualTo(Seat.Status.JOINED_WAITING);
     assertThat(bustedSeat.player().status()).isEqualTo(PlayerStatus.BUYING_IN);
   }
@@ -462,14 +543,13 @@ class TexasHoldemTableManagerTest {
     CashGame game = buildActiveGame(3);
     Table table = game.tables().values().iterator().next();
 
-    // Give player at position 0 only 100 chips (short stack)
-    table.seats().get(0).player().chipCount(100);
+    // Give player at seat position 1 only 100 chips (short stack)
+    table.seatAt(1).player().chipCount(100);
 
     TestableGameManager manager = new TestableGameManager(game);
     manager.processGameTick(); // Deal
 
-    table = getTable(manager);
-    int shortStackPos = 0;
+    int shortStackPos = 1;
 
     // Determine action order and submit appropriate actions
     // We need the short stack to go all-in and others to call
@@ -623,8 +703,8 @@ class TexasHoldemTableManagerTest {
         .build();
 
     // Pre-set dealer so rotation is deterministic:
-    // dealerPosition=last player → after rotation, dealer=0
-    table.dealerPosition(playerCount - 1);
+    // dealerPosition=last player → after rotation, dealer=1 (first seat)
+    table.dealerPosition(playerCount);
 
     game.tables().put(table.id(), table);
 
@@ -659,7 +739,7 @@ class TexasHoldemTableManagerTest {
     Table table = getTable(manager);
     Integer actionPos = table.actionPosition();
     assertThat(actionPos).withFailMessage("No action position set — is it a betting phase?").isNotNull();
-    Seat seat = table.seats().get(actionPos);
+    Seat seat = table.seatAt(actionPos);
     assertThat(seat.player()).withFailMessage("No player at action position " + actionPos).isNotNull();
     manager.submitCommand(new PlayerActionCommand(
         game.id(), table.id(), seat.player().user(), action));
@@ -690,7 +770,7 @@ class TexasHoldemTableManagerTest {
 
       // If it's a betting phase with an action position, submit an action
       if (table.actionPosition() != null && isBettingPhase(table.handPhase())) {
-        Seat actionSeat = table.seats().get(table.actionPosition());
+        Seat actionSeat = table.seatAt(table.actionPosition());
         if (actionSeat.status() == Seat.Status.ACTIVE && !actionSeat.isAllIn()) {
           PlayerAction action;
           if (actionSeat.currentBetAmount() >= table.currentBet()) {

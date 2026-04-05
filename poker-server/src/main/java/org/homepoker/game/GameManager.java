@@ -562,8 +562,8 @@ public abstract class GameManager<T extends Game<T>> {
         // Find the player's seat
         for (Seat seat : table.seats()) {
           if (seat.player() != null && seat.player().userId().equals(player.userId())) {
-            if (seat.status() == Seat.Status.ACTIVE) {
-              // Player is in an active hand, mark them for removal after the hand
+            if (seat.status() == Seat.Status.ACTIVE || seat.status() == Seat.Status.FOLDED) {
+              // Player is in an active hand (playing or folded), mark them for removal after the hand
               player.status(PlayerStatus.OUT);
               gameContext.queueEvent(new GameMessage(Instant.now(), game.id(),
                   player.user().alias() + " will leave after the current hand."));

@@ -3,20 +3,19 @@ package org.homepoker.model.event.table;
 import org.homepoker.model.event.EventMarker;
 import org.homepoker.model.event.TableEvent;
 import org.homepoker.model.game.HandPhase;
-import org.homepoker.model.game.SeatSummary;
-import org.homepoker.model.game.Table;
 
 import java.time.Instant;
-import java.util.List;
 
+/**
+ * Emitted whenever a table's {@link HandPhase} changes. Lets clients render the
+ * current hand phase explicitly without inferring it from other events.
+ */
 @EventMarker
-public record BettingRoundComplete(
+public record HandPhaseChanged(
     Instant timestamp,
     String gameId,
     String tableId,
-    HandPhase completedPhase,
-    List<Table.Pot> pots,
-    List<SeatSummary> seats,
-    int potTotal
+    HandPhase oldPhase,
+    HandPhase newPhase
 ) implements TableEvent {
 }

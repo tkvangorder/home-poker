@@ -14,6 +14,7 @@ public record WaitingForPlayers(
     Instant timestamp,
     String gameId,
     String tableId,
-    int activePlayers
+    int activePlayers,
+    int seatedPlayers
 ) implements TableEvent {
 }
