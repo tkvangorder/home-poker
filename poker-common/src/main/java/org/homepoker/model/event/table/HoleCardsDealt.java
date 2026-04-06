@@ -11,6 +11,10 @@ import java.util.List;
 /**
  * Event indicating hole cards have been dealt to a specific player.
  * Implements both TableEvent (for table-wide broadcast) and UserEvent (for per-player privacy filtering).
+ *
+ * @param cards         The player's own hole cards (visible to the receiving user).
+ * @param seatsWithCards 1-based seat positions of all seats that received cards. Allows the client
+ *                       to render face-down card indicators for other players without revealing their cards.
  */
 @EventMarker
 public record HoleCardsDealt(
@@ -19,6 +23,7 @@ public record HoleCardsDealt(
     String tableId,
     String userId,
     int seatPosition,
-    List<SeatCard> cards
+    List<SeatCard> cards,
+    List<Integer> seatsWithCards
 ) implements TableEvent, UserEvent {
 }

@@ -130,7 +130,7 @@ class TexasHoldemTableManagerTest {
     assertThat(action.currentBet()).isEqualTo(50);
     assertThat(action.minimumRaise()).isEqualTo(50);
     assertThat(action.callAmount()).isEqualTo(50); // UTG owes full BB
-    assertThat(action.potTotal()).isZero(); // blinds not yet collected into pots
+    assertThat(action.potTotal()).isEqualTo(75); // small blind (25) + big blind (50)
   }
 
   @Test

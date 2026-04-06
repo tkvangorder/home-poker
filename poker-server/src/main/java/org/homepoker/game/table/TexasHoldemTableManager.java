@@ -237,15 +237,22 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
         HandPlayerStatuses.snapshot(table)
     ));
 
-    // Emit HoleCardsDealt per player
+    // Collect 1-based positions of all seats that were dealt cards
+    List<Integer> seatsWithCards = new ArrayList<>();
     for (int pos = 1; pos <= numberOfSeats; pos++) {
       Seat seat = table.seatAt(pos);
       if (seat.status() == Seat.Status.ACTIVE && seat.cards() != null && seat.player() != null) {
-        gameContext.queueEvent(new HoleCardsDealt(
-            Instant.now(), game.id(), table.id(),
-            seat.player().userId(), pos, seat.cards()
-        ));
+        seatsWithCards.add(pos);
       }
+    }
+
+    // Emit HoleCardsDealt per player (includes which other seats have cards for client rendering)
+    for (int pos : seatsWithCards) {
+      Seat seat = table.seatAt(pos);
+      gameContext.queueEvent(new HoleCardsDealt(
+          Instant.now(), game.id(), table.id(),
+          seat.player().userId(), pos, seat.cards(), seatsWithCards
+      ));
     }
 
     // Advance to PRE_FLOP_BETTING

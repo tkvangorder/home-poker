@@ -78,13 +78,13 @@ class WebSocketGameListenerTest {
   void acceptsEvent_holeCardsDealt_matchingUser() {
     // HoleCardsDealt implements both TableEvent and UserEvent.
     // The UserEvent check should come first, so it's user-filtered (not broadcast).
-    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), "game1", "table1", "alice", 0, List.of());
+    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), "game1", "table1", "alice", 0, List.of(), List.of());
     assertThat(listener.acceptsEvent(event)).isTrue();
   }
 
   @Test
   void acceptsEvent_holeCardsDealt_otherUser() {
-    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), "game1", "table1", OTHER_USER_ID, 1, List.of());
+    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), "game1", "table1", OTHER_USER_ID, 1, List.of(), List.of());
     assertThat(listener.acceptsEvent(event)).isFalse();
   }
 

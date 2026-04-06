@@ -467,14 +467,15 @@ A new hand has begun. Carries a full seat snapshot so clients can render the tab
 
 Hole cards dealt to a specific player. This is a **private event** — only the target player should see the card values.
 
-| Field          | Type           | Description               |
-|----------------|----------------|---------------------------|
-| `timestamp`    | Instant        | When cards were dealt      |
-| `gameId`       | String         | Game ID                    |
-| `tableId`      | String         | Table ID                   |
-| `userId`       | String         | Player receiving cards     |
-| `seatPosition` | int            | 1-indexed seat position    |
-| `cards`        | List<SeatCard> | The dealt cards            |
+| Field            | Type           | Description                                                        |
+|------------------|----------------|--------------------------------------------------------------------|
+| `timestamp`      | Instant        | When cards were dealt                                              |
+| `gameId`         | String         | Game ID                                                            |
+| `tableId`        | String         | Table ID                                                           |
+| `userId`         | String         | Player receiving cards                                             |
+| `seatPosition`   | int            | 1-indexed seat position                                            |
+| `cards`          | List<SeatCard> | The player's own dealt cards                                       |
+| `seatsWithCards` | List<Integer>  | 1-indexed positions of all seats that received cards (for rendering face-down indicators) |
 
 **eventType:** `hole-cards-dealt`
 **Implements:** `TableEvent`, `UserEvent` (dual interface for privacy filtering)

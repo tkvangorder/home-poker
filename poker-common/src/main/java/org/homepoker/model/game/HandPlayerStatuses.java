@@ -69,6 +69,9 @@ public final class HandPlayerStatuses {
     for (Table.Pot pot : table.pots()) {
       total += pot.amount();
     }
+    for (Seat seat : table.seats()) {
+      total += seat.currentBetAmount();
+    }
     return total;
   }
 }
