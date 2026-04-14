@@ -1,0 +1,32 @@
+{
+  "enabledPlugins": {
+    "skill-creator@claude-plugins-official": true
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // .tool_input.path // \"\"'); case \"$f\" in *poker-server/src/main/resources/application.yml) echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"application.yml holds JWT secret, admin users, and registration passcode — confirm the change with the user before editing.\"}}';; esac"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "async": true,
+            "timeout": 300,
+            "statusMessage": "Running affected module tests...",
+            "command": "f=$(jq -r '.tool_input.file_path // .tool_response.filePath // \"\"'); case \"$f\" in *poker-server/src/main/java/*|*poker-server/src/test/java/*) (cd /Users/tylervangorder/work/home-poker && ./gradlew :poker-server:test --quiet) 2>&1 | tail -20 ;; *poker-common/src/*) (cd /Users/tylervangorder/work/home-poker && ./gradlew :poker-common:test --quiet) 2>&1 | tail -20 ;; esac"
+          }
+        ]
+      }
+    ]
+  }
+}

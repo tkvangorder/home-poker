@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Spring Boot-based poker server simulating a private home poker game. Java 25 with Gradle multi-module build.
+A Spring Boot 4-based poker server simulating a private home poker game. Java 25 with a Gradle multi-module build.
 
 ## Build & Run
 
@@ -41,7 +41,7 @@ Integration tests use TestContainers (automatic MongoDB container) via `BaseInte
 ## Module Structure
 
 **poker-common** — Shared models between server and client:
-- `model/command/` — Game commands (`RegisterForGame`, `UnregisterFromGame`, `TableCommand`, etc.)
+- `model/command/` — Game commands (`JoinGame`, `LeaveGame`, `StartGame`, `BuyIn`, `PlayerActionCommand`, `TableCommand`, etc.)
 - `model/event/` — Game events (`PokerEvent`, `UserEvent`, `TableEvent`, etc.)
 - `model/game/` — Core game models (`Table`, `Seat`, `PlayerAction`, `GameCriteria`)
 - `model/game/cash/` — Cash game models (`CashGame`, `CashGameDetails`)
@@ -79,3 +79,24 @@ Integration tests use TestContainers (automatic MongoDB container) via `BaseInte
 - `poker-server/src/test/resources/application-test.yml` — Test overrides (single-thread mode, test admin users)
 
 Main package: `org.homepoker`
+
+## Testing Conventions
+
+Game-loop tests use `application-test.yml` which sets `threadModel: SINGLE_THREAD` and `gameLoopIntervalMilliseconds: 0`. This means commands submitted to a `GameManager` are processed deterministically on the test thread — you can submit a command, tick the loop, and assert state/events synchronously. No sleeps, no awaits.
+
+Integration tests extend `BaseIntegrationTest` (TestContainers MongoDB). Prefer this over mocking the repository layer.
+
+## Security-Critical Invariants
+
+**Never expose another player's hole cards or intents.** Table/seat state sent to a user must strip `cards` and `intent` from other players' seats. Any new event or DTO touching seat data must preserve this — add a test that asserts it.
+
+**Admin debug-view exception.** A server-side debug flag (default **off**) may permit admin users — and only admin users — to receive all hole cards. When this flag is on, the server must emit a broadcast event warning **all connected clients** that admins can see all cards. The flag must not be togglable without that broadcast, and with the flag off an admin gets no more visibility than any other player.
+
+## Skills
+
+Project-specific skills live in `.claude/skills/`. Prefer invoking them over re-reading the full design doc:
+- `game-state` — game-level state machine work (GameStatus, table balancing, pause)
+- `table-state` — table-level hand progression (HandPhase, betting rounds, side pots)
+- `create-command` — scaffold a new command end-to-end
+- `add-event-type` — scaffold a new event end-to-end
+- `test-game-scenario` — write a deterministic game-loop test
