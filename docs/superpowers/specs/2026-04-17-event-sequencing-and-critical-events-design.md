@@ -24,7 +24,7 @@ This spec addresses both classes of gap with the minimum additions needed to mak
 
 ## Non-Goals
 
-- Event replay by range from a server-side ring buffer. Snapshot-based recovery is sufficient for this iteration.
+- Client-facing event replay by sequence range (server-side ring buffer). Snapshot-based recovery is sufficient for this iteration.
 - Ante, straddle, and dead-blind events. None of those rules are currently implemented; the event shape must be additively extensible but should not pre-model them.
 - Grace periods or timers for disconnect debouncing. Clients can delay surfacing the event to the UI if desired.
 - Auto-fold / auto-leave on disconnect. The existing action-timeout path (`PlayerTimedOut`) continues to be the only thing that acts on an absent player's turn.
@@ -176,7 +176,7 @@ Event-matching assertions in `GameManagerTest`, `TexasHoldemTableManagerTest`, `
 
 ## Out of Scope (noted for later)
 
-- Event replay by range with a server-side ring buffer.
+- Client-facing event replay by sequence range (server-side ring buffer).
 - `isBigBlind` flag on `ActionOnPlayer`.
 - Explicit seat-reassignment events during BALANCING.
 - `actionDeadline` on `PlayerTimedOut`.
