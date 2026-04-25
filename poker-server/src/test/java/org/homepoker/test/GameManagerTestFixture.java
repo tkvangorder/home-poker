@@ -3,9 +3,12 @@ package org.homepoker.test;
 import org.homepoker.game.GameListener;
 import org.homepoker.game.GameManager;
 import org.homepoker.game.GameSettings;
+import org.homepoker.game.table.TableManager;
+import org.homepoker.model.command.GameCommand;
 import org.homepoker.model.command.PlayerActionCommand;
 import org.homepoker.model.command.StartGame;
 import org.homepoker.model.event.PokerEvent;
+import org.homepoker.model.event.TableEvent;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.HandPhase;
@@ -56,6 +59,16 @@ public final class GameManagerTestFixture {
     return fixture;
   }
 
+  /**
+   * Convenience scenario: a single table with 5 players, advanced to mid-hand
+   * (PRE_FLOP_BETTING with action on UTG). Several TableEvents have already been
+   * stamped on the table's stream (HandPhaseChanged, HandStarted, ActionOnPlayer, etc.),
+   * so {@link #lastTableSeq(String)} for the single table will be {@code > 0}.
+   */
+  public static GameManagerTestFixture singleTableMidHand() {
+    return new GameManagerTestFixture(buildSingleTableMidHandManager());
+  }
+
   /** All events captured by the test listener since the fixture was built. */
   public List<PokerEvent> savedEvents() {
     return manager.savedEvents();
@@ -66,9 +79,146 @@ public final class GameManagerTestFixture {
     return manager;
   }
 
+  /** ID of the game under test. */
+  public String gameId() {
+    return manager.getGame().id();
+  }
+
+  /**
+   * ID of the (first) table in the game. Useful for the single-table scenarios where
+   * tests don't care about the specific identifier.
+   */
+  public String tableId() {
+    return manager.getGame().tables().firstKey();
+  }
+
+  /**
+   * The user for the player seated at seat 1 of the first table — typed for tests that
+   * just need any non-admin player identity to submit player-scoped commands like
+   * {@code GetTableState}.
+   */
+  public User player1() {
+    Table table = manager.getGame().tables().firstEntry().getValue();
+    Seat seat = table.seatAt(1);
+    if (seat == null || seat.player() == null) {
+      throw new IllegalStateException("Seat 1 has no player");
+    }
+    return seat.player().user();
+  }
+
+  /** Submit a command to the underlying manager. */
+  public void submitCommand(GameCommand command) {
+    manager.submitCommand(command);
+  }
+
+  /** Process one game tick on the underlying manager. */
+  public void tick() {
+    manager.processGameTick();
+  }
+
+  /**
+   * The current (most-recently-assigned) stream-seq for the named table. {@code 0} means
+   * no TableEvent has been stamped on this table yet.
+   */
+  public long lastTableSeq(String tableId) {
+    TableManager<CashGame> tm = manager.tableManagerFor(tableId);
+    if (tm == null) {
+      throw new IllegalArgumentException("No such table: " + tableId);
+    }
+    return tm.currentStreamSeq();
+  }
+
+  /** The most-recently-saved event captured by the listener. */
+  public PokerEvent lastSavedEvent() {
+    List<PokerEvent> events = manager.savedEvents();
+    if (events.isEmpty()) {
+      throw new IllegalStateException("No events captured yet");
+    }
+    return events.getLast();
+  }
+
+  /**
+   * Drive the game forward by exactly one TableEvent on the named table, leaving that
+   * event as the very last entry in {@link #savedEvents()}.
+   * <p>
+   * Implementation: submits a Fold for the current action seat at the table and ticks
+   * the game loop. A single tick can emit several TableEvents (e.g. {@code PlayerActed}
+   * followed by {@code ActionOnPlayer}) plus possible UserEvents — this method then
+   * truncates {@code savedEvents} so the last entry is the FIRST new TableEvent for
+   * the requested table. That gives tests a deterministic "next event" anchor against
+   * which to assert sequence numbers.
+   */
+  public void driveOneMoreTableEvent(String tableId) {
+    Table table = manager.getGame().tables().get(tableId);
+    if (table == null) {
+      throw new IllegalArgumentException("No such table: " + tableId);
+    }
+    if (table.actionPosition() == null) {
+      throw new IllegalStateException(
+          "Table " + tableId + " has no action position; cannot drive a player action");
+    }
+    Seat actionSeat = table.seatAt(table.actionPosition());
+    if (actionSeat == null || actionSeat.player() == null) {
+      throw new IllegalStateException(
+          "Action position seat has no player; cannot drive a player action");
+    }
+
+    int sizeBefore = manager.savedEvents().size();
+    manager.submitCommand(new PlayerActionCommand(
+        manager.getGame().id(), tableId, actionSeat.player().user(), new PlayerAction.Fold()));
+    manager.processGameTick();
+
+    // Find the first new TableEvent for the requested table and trim to it.
+    List<PokerEvent> events = manager.savedEvents();
+    int firstNewTableEventIndex = -1;
+    for (int i = sizeBefore; i < events.size(); i++) {
+      PokerEvent event = events.get(i);
+      if (event instanceof TableEvent te && tableId.equals(te.tableId())) {
+        firstNewTableEventIndex = i;
+        break;
+      }
+    }
+    if (firstNewTableEventIndex < 0) {
+      throw new AssertionError(
+          "Expected at least one TableEvent for table " + tableId + " after driving one tick, got none");
+    }
+    // Drop everything after the first new TableEvent so lastSavedEvent() returns it.
+    while (events.size() > firstNewTableEventIndex + 1) {
+      events.removeLast();
+    }
+  }
+
   // ------------------------------------------------------------------
   // Construction
   // ------------------------------------------------------------------
+
+  private static TestableGameManager buildSingleTableMidHandManager() {
+    User owner = TestDataHelper.adminUser();
+    CashGame game = CashGame.builder()
+        .id("test-game")
+        .name("Single Table Mid-Hand Test Game")
+        .type(GameType.TEXAS_HOLDEM)
+        .status(GameStatus.SEATING)
+        .startTime(Instant.now())
+        .maxBuyIn(10000)
+        .smallBlind(25)
+        .bigBlind(50)
+        .owner(owner)
+        .build();
+
+    seatTable(game, "TABLE-0", 5);
+
+    TestableGameManager manager = new TestableGameManager(game);
+    // Start the game.
+    manager.submitCommand(new StartGame(game.id(), owner));
+    // Tick 1: drains StartGame, transitions SEATING -> ACTIVE.
+    manager.processGameTick();
+    // Tick 2: transitionFromActive deals the first hand. Several TableEvents are stamped
+    // (HandPhaseChanged, HandStarted, ActionOnPlayer, etc.), leaving the table in
+    // PRE_FLOP_BETTING with action on UTG.
+    manager.processGameTick();
+    return manager;
+  }
 
   private static TestableGameManager buildTwoTableManager() {
     User owner = TestDataHelper.adminUser();
@@ -223,6 +373,11 @@ public final class GameManagerTestFixture {
 
     public CashGame getGame() {
       return game();
+    }
+
+    /** Look up the table manager for the given tableId (test-only accessor). */
+    public TableManager<CashGame> tableManagerFor(String tableId) {
+      return tableManagers().get(tableId);
     }
   }
 }
