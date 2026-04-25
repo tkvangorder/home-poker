@@ -13,9 +13,14 @@ import java.time.Instant;
 @EventMarker
 public record HandPhaseChanged(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     HandPhase oldPhase,
     HandPhase newPhase
 ) implements TableEvent {
+  @Override
+  public HandPhaseChanged withSequenceNumber(long sequenceNumber) {
+    return new HandPhaseChanged(timestamp, sequenceNumber, gameId, tableId, oldPhase, newPhase);
+  }
 }

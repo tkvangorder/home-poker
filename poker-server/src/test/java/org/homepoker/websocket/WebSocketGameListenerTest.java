@@ -42,13 +42,13 @@ class WebSocketGameListenerTest {
 
   @Test
   void acceptsEvent_gameMessage_broadcast() {
-    GameMessage event = new GameMessage(Instant.now(), "game1", "Hello");
+    GameMessage event = new GameMessage(Instant.now(), 0L, "game1", "Hello");
     assertThat(listener.acceptsEvent(event)).isTrue();
   }
 
   @Test
   void acceptsEvent_handStarted_broadcast() {
-    HandStarted event = new HandStarted(Instant.now(), "game1", "table1", 1, 0, 1, 2, 5, 10, 10, 10, java.util.List.of());
+    HandStarted event = new HandStarted(Instant.now(), 0L, "game1", "table1", 1, 0, 1, 2, 5, 10, 10, 10, java.util.List.of());
     assertThat(listener.acceptsEvent(event)).isTrue();
   }
 
@@ -78,13 +78,13 @@ class WebSocketGameListenerTest {
   void acceptsEvent_holeCardsDealt_matchingUser() {
     // HoleCardsDealt implements both TableEvent and UserEvent.
     // The UserEvent check should come first, so it's user-filtered (not broadcast).
-    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), "game1", "table1", "alice", 0, List.of(), List.of());
+    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), 0L, "game1", "table1", "alice", 0, List.of(), List.of());
     assertThat(listener.acceptsEvent(event)).isTrue();
   }
 
   @Test
   void acceptsEvent_holeCardsDealt_otherUser() {
-    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), "game1", "table1", OTHER_USER_ID, 1, List.of(), List.of());
+    HoleCardsDealt event = new HoleCardsDealt(Instant.now(), 0L, "game1", "table1", OTHER_USER_ID, 1, List.of(), List.of());
     assertThat(listener.acceptsEvent(event)).isFalse();
   }
 

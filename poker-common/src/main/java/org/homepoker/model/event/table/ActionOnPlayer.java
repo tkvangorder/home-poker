@@ -12,6 +12,7 @@ import java.time.Instant;
 @EventMarker
 public record ActionOnPlayer(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     int seatPosition,
@@ -23,4 +24,9 @@ public record ActionOnPlayer(
     int playerChipCount,
     int potTotal
 ) implements TableEvent {
+  @Override
+  public ActionOnPlayer withSequenceNumber(long sequenceNumber) {
+    return new ActionOnPlayer(timestamp, sequenceNumber, gameId, tableId, seatPosition,
+        userId, actionDeadline, currentBet, minimumRaise, callAmount, playerChipCount, potTotal);
+  }
 }

@@ -6,5 +6,14 @@ import org.homepoker.model.event.GameEvent;
 import java.time.Instant;
 
 @EventMarker
-public record GameMessage(Instant timestamp, String gameId, String message) implements GameEvent {
+public record GameMessage(
+    Instant timestamp,
+    long sequenceNumber,
+    String gameId,
+    String message
+) implements GameEvent {
+  @Override
+  public GameMessage withSequenceNumber(long sequenceNumber) {
+    return new GameMessage(timestamp, sequenceNumber, gameId, message);
+  }
 }

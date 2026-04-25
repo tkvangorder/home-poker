@@ -10,6 +10,7 @@ import java.util.List;
 @EventMarker
 public record HandStarted(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     int handNumber,
@@ -22,4 +23,10 @@ public record HandStarted(
     int minimumRaise,
     List<SeatSummary> seats
 ) implements TableEvent {
+  @Override
+  public HandStarted withSequenceNumber(long sequenceNumber) {
+    return new HandStarted(timestamp, sequenceNumber, gameId, tableId, handNumber,
+        dealerPosition, smallBlindPosition, bigBlindPosition, smallBlindAmount,
+        bigBlindAmount, currentBet, minimumRaise, seats);
+  }
 }

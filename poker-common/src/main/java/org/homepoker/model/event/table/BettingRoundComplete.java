@@ -12,6 +12,7 @@ import java.util.List;
 @EventMarker
 public record BettingRoundComplete(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     HandPhase completedPhase,
@@ -19,4 +20,9 @@ public record BettingRoundComplete(
     List<SeatSummary> seats,
     int potTotal
 ) implements TableEvent {
+  @Override
+  public BettingRoundComplete withSequenceNumber(long sequenceNumber) {
+    return new BettingRoundComplete(timestamp, sequenceNumber, gameId, tableId,
+        completedPhase, pots, seats, potTotal);
+  }
 }

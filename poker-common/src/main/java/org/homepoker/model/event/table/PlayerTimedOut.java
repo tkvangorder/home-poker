@@ -9,10 +9,15 @@ import java.time.Instant;
 @EventMarker
 public record PlayerTimedOut(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     int seatPosition,
     String userId,
     PlayerAction defaultAction
 ) implements TableEvent {
+  @Override
+  public PlayerTimedOut withSequenceNumber(long sequenceNumber) {
+    return new PlayerTimedOut(timestamp, sequenceNumber, gameId, tableId, seatPosition, userId, defaultAction);
+  }
 }

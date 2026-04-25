@@ -58,10 +58,10 @@ public class CashGameManager extends GameManager<CashGame> {
     if (player.tableId() == null && player.chipCount() > 0 && (game.status() == GameStatus.SEATING || game.status() == GameStatus.ACTIVE)) {
       String tableId = assignPlayerToTableWithFewestPlayers(player, game, gameSettings().numberOfSeats());
       if (tableId != null) {
-        gameContext.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), tableId));
+        gameContext.queueEvent(new PlayerSeated(Instant.now(), 0L, game.id(), player.userId(), tableId));
       }
     }
-    gameContext.queueEvent(new PlayerJoined(Instant.now(), game.id(), player.userId()));
+    gameContext.queueEvent(new PlayerJoined(Instant.now(), 0L, game.id(), player.userId()));
     gameContext.forceUpdate(true);
   }
 

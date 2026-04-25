@@ -115,7 +115,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     if (table.status() == Table.Status.PAUSE_AFTER_HAND) {
       Table.Status oldStatus = table.status();
       table.status(Table.Status.PAUSED);
-      gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldStatus, Table.Status.PAUSED));
+      gameContext.queueEvent(new TableStatusChanged(Instant.now(), 0L, game.id(), table.id(), oldStatus, Table.Status.PAUSED));
       return;
     }
 
@@ -150,7 +150,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
         table.phaseStartedAt(null);
         setHandPhase(HandPhase.WAITING_FOR_PLAYERS, game, gameContext);
         gameContext.queueEvent(new WaitingForPlayers(
-            Instant.now(), game.id(), table.id(), activeCount, countSeatedPlayers()));
+            Instant.now(), 0L, game.id(), table.id(), activeCount, countSeatedPlayers()));
       }
     }
   }
@@ -166,7 +166,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     if (activeCount < 2) {
       setHandPhase(HandPhase.WAITING_FOR_PLAYERS, game, gameContext);
       gameContext.queueEvent(new WaitingForPlayers(
-          Instant.now(), game.id(), table.id(), activeCount, countSeatedPlayers()));
+          Instant.now(), 0L, game.id(), table.id(), activeCount, countSeatedPlayers()));
       return;
     }
 
@@ -230,7 +230,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
     // Emit events
     gameContext.queueEvent(new HandStarted(
-        Instant.now(), game.id(), table.id(),
+        Instant.now(), 0L, game.id(), table.id(),
         table.handNumber(), dealerPosition,
         sbPosition, bbPosition, smallBlind, bigBlind,
         table.currentBet(), table.minimumRaise(),
@@ -250,7 +250,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     for (int pos : seatsWithCards) {
       Seat seat = table.seatAt(pos);
       gameContext.queueEvent(new HoleCardsDealt(
-          Instant.now(), game.id(), table.id(),
+          Instant.now(), 0L, game.id(), table.id(),
           seat.player().userId(), pos, seat.cards(), seatsWithCards
       ));
     }
@@ -281,7 +281,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
           }
 
           gameContext.queueEvent(new PlayerTimedOut(
-              Instant.now(), game.id(), table.id(), actionPos,
+              Instant.now(), 0L, game.id(), table.id(), actionPos,
               actionSeat.player() != null ? actionSeat.player().userId() : "unknown",
               defaultAction
           ));
@@ -304,7 +304,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       collectBetsIntoPots();
 
       gameContext.queueEvent(new BettingRoundComplete(
-          Instant.now(), game.id(), table.id(),
+          Instant.now(), 0L, game.id(), table.id(),
           table.handPhase(), table.pots(),
           HandPlayerStatuses.snapshot(table), potTotal(table)
       ));
@@ -338,7 +338,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.communityCards().addAll(newCards);
 
     gameContext.queueEvent(new CommunityCardsDealt(
-        Instant.now(), game.id(), table.id(), newCards, phase, List.copyOf(table.communityCards())
+        Instant.now(), 0L, game.id(), table.id(), newCards, phase, List.copyOf(table.communityCards())
     ));
 
     // Clear actions and intents from previous betting round
@@ -385,7 +385,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
 
     gameContext.queueEvent(new ShowdownResult(
-        Instant.now(), game.id(), table.id(), potResults
+        Instant.now(), 0L, game.id(), table.id(), potResults
     ));
 
     // Mark winning cards as showCard = true
@@ -411,7 +411,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
     // Emit hand complete event
     gameContext.queueEvent(new HandComplete(
-        Instant.now(), game.id(), table.id(), table.handNumber()
+        Instant.now(), 0L, game.id(), table.id(), table.handNumber()
     ));
 
     // Remove departed players (status == OUT) and handle busted players
@@ -428,7 +428,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       Table.Status oldStatus = table.status();
       table.status(Table.Status.PAUSED);
       setHandPhase(HandPhase.WAITING_FOR_PLAYERS, game, gameContext);
-      gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldStatus, Table.Status.PAUSED));
+      gameContext.queueEvent(new TableStatusChanged(Instant.now(), 0L, game.id(), table.id(), oldStatus, Table.Status.PAUSED));
       gameContext.forceUpdate(true);
       return;
     }
@@ -445,7 +445,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       } else {
         setHandPhase(HandPhase.WAITING_FOR_PLAYERS, game, gameContext);
         gameContext.queueEvent(new WaitingForPlayers(
-            Instant.now(), game.id(), table.id(), activeCount, countSeatedPlayers()));
+            Instant.now(), 0L, game.id(), table.id(), activeCount, countSeatedPlayers()));
       }
     }
     gameContext.forceUpdate(true);
@@ -605,7 +605,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     int chipCount = player != null ? player.chipCount() : 0;
     HandPlayerStatus resultingStatus = HandPlayerStatuses.from(table, seat, seatPosition);
     gameContext.queueEvent(new PlayerActed(
-        Instant.now(), game.id(), table.id(), seatPosition,
+        Instant.now(), 0L, game.id(), table.id(), seatPosition,
         player != null ? player.userId() : "unknown",
         action, chipCount, resultingStatus,
         table.currentBet(), table.minimumRaise(), potTotal(table)
@@ -634,7 +634,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     int callAmount = Math.max(0, table.currentBet() - seat.currentBetAmount());
 
     gameContext.queueEvent(new ActionOnPlayer(
-        Instant.now(), game.id(), table.id(), actionPos, userId, deadline,
+        Instant.now(), 0L, game.id(), table.id(), actionPos, userId, deadline,
         table.currentBet(), table.minimumRaise(), callAmount, playerChips, potTotal(table)
     ));
   }
@@ -649,7 +649,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     }
     table.handPhase(newPhase);
     gameContext.queueEvent(new HandPhaseChanged(
-        Instant.now(), game.id(), table.id(), oldPhase, newPhase
+        Instant.now(), 0L, game.id(), table.id(), oldPhase, newPhase
     ));
   }
 
@@ -861,7 +861,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     // Emit the showdown result (even though there's no actual showdown)
     if (!potResults.isEmpty()) {
       gameContext.queueEvent(new ShowdownResult(
-          Instant.now(), game.id(), table.id(), potResults
+          Instant.now(), 0L, game.id(), table.id(), potResults
       ));
     }
 
@@ -955,21 +955,21 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       List<Card> flop = deck.drawCards(3);
       table.communityCards().addAll(flop);
       gameContext.queueEvent(new CommunityCardsDealt(
-          Instant.now(), game.id(), table.id(), flop, HandPhase.FLOP, List.copyOf(table.communityCards())));
+          Instant.now(), 0L, game.id(), table.id(), flop, HandPhase.FLOP, List.copyOf(table.communityCards())));
       currentCount = 3;
     }
     if (currentCount < 4) {
       List<Card> turn = deck.drawCards(1);
       table.communityCards().addAll(turn);
       gameContext.queueEvent(new CommunityCardsDealt(
-          Instant.now(), game.id(), table.id(), turn, HandPhase.TURN, List.copyOf(table.communityCards())));
+          Instant.now(), 0L, game.id(), table.id(), turn, HandPhase.TURN, List.copyOf(table.communityCards())));
       currentCount = 4;
     }
     if (currentCount < 5) {
       List<Card> river = deck.drawCards(1);
       table.communityCards().addAll(river);
       gameContext.queueEvent(new CommunityCardsDealt(
-          Instant.now(), game.id(), table.id(), river, HandPhase.RIVER, List.copyOf(table.communityCards())));
+          Instant.now(), 0L, game.id(), table.id(), river, HandPhase.RIVER, List.copyOf(table.communityCards())));
     }
   }
 

@@ -19,6 +19,7 @@ import java.util.List;
 @EventMarker
 public record HoleCardsDealt(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     String userId,
@@ -26,4 +27,9 @@ public record HoleCardsDealt(
     List<SeatCard> cards,
     List<Integer> seatsWithCards
 ) implements TableEvent, UserEvent {
+  @Override
+  public HoleCardsDealt withSequenceNumber(long sequenceNumber) {
+    return new HoleCardsDealt(timestamp, sequenceNumber, gameId, tableId, userId,
+        seatPosition, cards, seatsWithCards);
+  }
 }

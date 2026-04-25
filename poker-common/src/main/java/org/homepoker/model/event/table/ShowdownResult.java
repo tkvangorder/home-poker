@@ -9,6 +9,7 @@ import java.util.List;
 @EventMarker
 public record ShowdownResult(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     List<PotResult> potResults
@@ -31,5 +32,10 @@ public record ShowdownResult(
    * @param handDescription A description of the winning hand (e.g., "Full House, Aces over Kings")
    */
   public record Winner(int seatPosition, String userId, int amount, String handDescription) {
+  }
+
+  @Override
+  public ShowdownResult withSequenceNumber(long sequenceNumber) {
+    return new ShowdownResult(timestamp, sequenceNumber, gameId, tableId, potResults);
   }
 }

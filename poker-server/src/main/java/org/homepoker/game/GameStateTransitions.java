@@ -51,7 +51,7 @@ public class GameStateTransitions {
       if (player.chipCount() > 0 && player.status() != PlayerStatus.OUT) {
         Table table = game.tables().get(tableIds[tableIndex]);
         TableUtils.assignPlayerToRandomSeat(player, table);
-        context.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), table.id()));
+        context.queueEvent(new PlayerSeated(Instant.now(), 0L, game.id(), player.userId(), table.id()));
         tableIndex = (tableIndex + 1) % tableCount;
       }
     }

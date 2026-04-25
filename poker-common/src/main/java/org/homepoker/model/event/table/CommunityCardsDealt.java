@@ -11,10 +11,15 @@ import java.util.List;
 @EventMarker
 public record CommunityCardsDealt(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     List<Card> cards,
     HandPhase phase,
     List<Card> allCommunityCards
 ) implements TableEvent {
+  @Override
+  public CommunityCardsDealt withSequenceNumber(long sequenceNumber) {
+    return new CommunityCardsDealt(timestamp, sequenceNumber, gameId, tableId, cards, phase, allCommunityCards);
+  }
 }

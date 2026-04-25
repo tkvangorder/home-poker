@@ -12,9 +12,14 @@ import java.time.Instant;
 @EventMarker
 public record TableStatusChanged(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     Table.Status oldStatus,
     Table.Status newStatus
 ) implements TableEvent {
+  @Override
+  public TableStatusChanged withSequenceNumber(long sequenceNumber) {
+    return new TableStatusChanged(timestamp, sequenceNumber, gameId, tableId, oldStatus, newStatus);
+  }
 }

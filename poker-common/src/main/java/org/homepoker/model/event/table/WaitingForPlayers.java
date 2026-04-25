@@ -12,9 +12,14 @@ import java.time.Instant;
 @EventMarker
 public record WaitingForPlayers(
     Instant timestamp,
+    long sequenceNumber,
     String gameId,
     String tableId,
     int activePlayers,
     int seatedPlayers
 ) implements TableEvent {
+  @Override
+  public WaitingForPlayers withSequenceNumber(long sequenceNumber) {
+    return new WaitingForPlayers(timestamp, sequenceNumber, gameId, tableId, activePlayers, seatedPlayers);
+  }
 }

@@ -262,8 +262,8 @@ public abstract class GameManager<T extends Game<T>> {
         table.status(Table.Status.PAUSED);
       }
 
-      gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.SEATING));
-      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Seating is now open."));
+      gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.SEATING));
+      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Seating is now open."));
       gameContext.forceUpdate(true);
     }
   }
@@ -278,11 +278,11 @@ public abstract class GameManager<T extends Game<T>> {
       for (Table table : game.tables().values()) {
         Table.Status oldTableStatus = table.status();
         table.status(Table.Status.PLAYING);
-        gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldTableStatus, Table.Status.PLAYING));
+        gameContext.queueEvent(new TableStatusChanged(Instant.now(), 0L, game.id(), table.id(), oldTableStatus, Table.Status.PLAYING));
       }
 
-      gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.ACTIVE));
-      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game is now active."));
+      gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.ACTIVE));
+      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Game is now active."));
       gameContext.forceUpdate(true);
     }
   }
@@ -300,15 +300,15 @@ public abstract class GameManager<T extends Game<T>> {
         pauseGameRequested = false;
         GameStatus oldStatus = game.status();
         game.status(GameStatus.COMPLETED);
-        gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.COMPLETED));
-        gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game has ended."));
+        gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.COMPLETED));
+        gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Game has ended."));
         gameContext.forceUpdate(true);
       } else if (pauseGameRequested) {
         pauseGameRequested = false;
         GameStatus oldStatus = game.status();
         game.status(GameStatus.PAUSED);
-        gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.PAUSED));
-        gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game is now paused."));
+        gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.PAUSED));
+        gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Game is now paused."));
         gameContext.forceUpdate(true);
       }
       return;
@@ -326,12 +326,12 @@ public abstract class GameManager<T extends Game<T>> {
       for (Table table : game.tables().values()) {
         if (table.status() == Table.Status.PLAYING) {
           table.status(Table.Status.PAUSE_AFTER_HAND);
-          gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), Table.Status.PLAYING, Table.Status.PAUSE_AFTER_HAND));
+          gameContext.queueEvent(new TableStatusChanged(Instant.now(), 0L, game.id(), table.id(), Table.Status.PLAYING, Table.Status.PAUSE_AFTER_HAND));
         }
       }
 
-      gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.BALANCING));
-      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Balancing tables after current hands complete."));
+      gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.BALANCING));
+      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Balancing tables after current hands complete."));
       gameContext.forceUpdate(true);
     }
   }
@@ -352,8 +352,8 @@ public abstract class GameManager<T extends Game<T>> {
       pauseGameRequested = false;
       GameStatus oldStatus = game.status();
       game.status(GameStatus.COMPLETED);
-      gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.COMPLETED));
-      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game has ended."));
+      gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.COMPLETED));
+      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Game has ended."));
       gameContext.forceUpdate(true);
       return;
     }
@@ -361,8 +361,8 @@ public abstract class GameManager<T extends Game<T>> {
       pauseGameRequested = false;
       GameStatus oldStatus = game.status();
       game.status(GameStatus.PAUSED);
-      gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.PAUSED));
-      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game is now paused."));
+      gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.PAUSED));
+      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Game is now paused."));
       gameContext.forceUpdate(true);
       return;
     }
@@ -377,11 +377,11 @@ public abstract class GameManager<T extends Game<T>> {
     for (Table table : game.tables().values()) {
       Table.Status oldTableStatus = table.status();
       table.status(Table.Status.PLAYING);
-      gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldTableStatus, Table.Status.PLAYING));
+      gameContext.queueEvent(new TableStatusChanged(Instant.now(), 0L, game.id(), table.id(), oldTableStatus, Table.Status.PLAYING));
     }
 
-    gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.ACTIVE));
-    gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Tables balanced. Game resumed."));
+    gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.ACTIVE));
+    gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Tables balanced. Game resumed."));
     gameContext.forceUpdate(true);
   }
 
@@ -427,16 +427,16 @@ public abstract class GameManager<T extends Game<T>> {
       for (Table table : game.tables().values()) {
         if (table.status() == Table.Status.PLAYING) {
           table.status(Table.Status.PAUSE_AFTER_HAND);
-          gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), Table.Status.PLAYING, Table.Status.PAUSE_AFTER_HAND));
+          gameContext.queueEvent(new TableStatusChanged(Instant.now(), 0L, game.id(), table.id(), Table.Status.PLAYING, Table.Status.PAUSE_AFTER_HAND));
         }
       }
-      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game ending after current hands complete."));
+      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Game ending after current hands complete."));
     } else {
       // For SCHEDULED, SEATING, PAUSED: transition immediately to COMPLETED
       GameStatus oldStatus = game.status();
       game.status(GameStatus.COMPLETED);
-      gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.COMPLETED));
-      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game has ended."));
+      gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.COMPLETED));
+      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Game has ended."));
     }
     gameContext.forceUpdate(true);
   }
@@ -466,10 +466,10 @@ public abstract class GameManager<T extends Game<T>> {
     for (Table table : game.tables().values()) {
       if (table.status() == Table.Status.PLAYING) {
         table.status(Table.Status.PAUSE_AFTER_HAND);
-        gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), Table.Status.PLAYING, Table.Status.PAUSE_AFTER_HAND));
+        gameContext.queueEvent(new TableStatusChanged(Instant.now(), 0L, game.id(), table.id(), Table.Status.PLAYING, Table.Status.PAUSE_AFTER_HAND));
       }
     }
-    gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game pausing after current hands complete."));
+    gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Game pausing after current hands complete."));
   }
 
   private void resumeGame(ResumeGame gameCommand, T game, GameContext gameContext) {
@@ -486,11 +486,11 @@ public abstract class GameManager<T extends Game<T>> {
     for (Table table : game.tables().values()) {
       Table.Status oldTableStatus = table.status();
       table.status(Table.Status.PLAYING);
-      gameContext.queueEvent(new TableStatusChanged(Instant.now(), game.id(), table.id(), oldTableStatus, Table.Status.PLAYING));
+      gameContext.queueEvent(new TableStatusChanged(Instant.now(), 0L, game.id(), table.id(), oldTableStatus, Table.Status.PLAYING));
     }
 
-    gameContext.queueEvent(new GameStatusChanged(Instant.now(), game.id(), oldStatus, GameStatus.ACTIVE));
-    gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), "Game resumed."));
+    gameContext.queueEvent(new GameStatusChanged(Instant.now(), 0L, game.id(), oldStatus, GameStatus.ACTIVE));
+    gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), "Game resumed."));
     gameContext.forceUpdate(true);
   }
 
@@ -528,11 +528,11 @@ public abstract class GameManager<T extends Game<T>> {
     if (player.tableId() == null) {
       String tableId = GameUtils.assignPlayerToTableWithFewestPlayers(player, game, gameSettings().numberOfSeats());
       if (tableId != null) {
-        gameContext.queueEvent(new PlayerSeated(Instant.now(), game.id(), player.userId(), tableId));
+        gameContext.queueEvent(new PlayerSeated(Instant.now(), 0L, game.id(), player.userId(), tableId));
       }
     }
 
-    gameContext.queueEvent(new PlayerBuyIn(Instant.now(), game.id(), player.userId(), gameCommand.amount(), newChipCount));
+    gameContext.queueEvent(new PlayerBuyIn(Instant.now(), 0L, game.id(), player.userId(), gameCommand.amount(), newChipCount));
     gameContext.forceUpdate(true);
   }
 
@@ -550,7 +550,7 @@ public abstract class GameManager<T extends Game<T>> {
     // In SCHEDULED state, mark the player as OUT (keep record for auditing)
     if (status == GameStatus.SCHEDULED) {
       player.status(PlayerStatus.OUT);
-      gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), player.user().alias() + " has left the game."));
+      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), player.user().alias() + " has left the game."));
       gameContext.forceUpdate(true);
       return;
     }
@@ -565,7 +565,7 @@ public abstract class GameManager<T extends Game<T>> {
             if (seat.status() == Seat.Status.ACTIVE || seat.status() == Seat.Status.FOLDED) {
               // Player is in an active hand (playing or folded), mark them for removal after the hand
               player.status(PlayerStatus.OUT);
-              gameContext.queueEvent(new GameMessage(Instant.now(), game.id(),
+              gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(),
                   player.user().alias() + " will leave after the current hand."));
               gameContext.forceUpdate(true);
               return;
@@ -581,7 +581,7 @@ public abstract class GameManager<T extends Game<T>> {
     }
 
     player.status(PlayerStatus.OUT);
-    gameContext.queueEvent(new GameMessage(Instant.now(), game.id(), player.user().alias() + " has left the game."));
+    gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), player.user().alias() + " has left the game."));
     gameContext.forceUpdate(true);
   }
 
@@ -736,7 +736,7 @@ public abstract class GameManager<T extends Game<T>> {
       TableUtils.assignPlayerToRandomSeat(player, table);
       String fromTableId = previousTableIds.get(player.userId());
       if (!table.id().equals(fromTableId)) {
-        gameContext.queueEvent(new PlayerMovedTables(Instant.now(), game.id(), player.userId(), fromTableId, table.id()));
+        gameContext.queueEvent(new PlayerMovedTables(Instant.now(), 0L, game.id(), player.userId(), fromTableId, table.id()));
       }
       tableIndex = (tableIndex + 1) % tableIds.length;
     }
