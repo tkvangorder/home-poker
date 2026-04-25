@@ -41,3 +41,6 @@ coverage
 .springBeans
 **/.factorypath
 *.factorypath
+
+# Git worktrees
+.worktrees/
