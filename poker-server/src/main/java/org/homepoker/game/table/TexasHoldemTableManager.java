@@ -195,8 +195,8 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     this.deck = new Deck();
 
     // Post blinds
-    postBlind(sbPosition, smallBlind);
-    postBlind(bbPosition, bigBlind);
+    postBlind(sbPosition, smallBlind, BlindType.SMALL, game, gameContext);
+    postBlind(bbPosition, bigBlind, BlindType.BIG, game, gameContext);
 
     // Set current bet and minimum raise
     table.currentBet(bigBlind);
@@ -1181,7 +1181,8 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
 
   // ========== Blind / Chip Helpers ==========
 
-  private void postBlind(int position, int blindAmount) {
+  private void postBlind(int position, int blindAmount, BlindType blindType,
+                         Game<T> game, GameContext gameContext) {
     Seat seat = table.seatAt(position);
     Player player = seat.player();
     if (player == null) return;
@@ -1194,6 +1195,17 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     if (player.chipCount() <= 0) {
       seat.isAllIn(true);
     }
+
+    gameContext.queueEvent(new BlindPosted(
+        Instant.now(),
+        0L,
+        game.id(),
+        table.id(),
+        position,
+        player.userId(),
+        blindType,
+        (long) actualPost
+    ));
   }
 
   private void deductChips(Seat seat, int amount) {
