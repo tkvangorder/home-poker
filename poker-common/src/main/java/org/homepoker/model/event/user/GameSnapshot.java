@@ -7,6 +7,7 @@ import org.homepoker.model.game.Player;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @EventMarker
 public record GameSnapshot(
@@ -19,6 +20,8 @@ public record GameSnapshot(
     int smallBlind,
     int bigBlind,
     List<Player> players,
-    List<String> tableIds
+    List<String> tableIds,
+    long gameStreamSeq,
+    Map<String, Long> tableStreamSeqs
 ) implements UserEvent {
 }

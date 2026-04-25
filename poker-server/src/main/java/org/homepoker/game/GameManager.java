@@ -644,6 +644,10 @@ public abstract class GameManager<T extends Game<T>> {
   }
 
   private void getGameState(GetGameState gameCommand, T game, GameContext gameContext) {
+    Map<String, Long> tableSeqs = new HashMap<>();
+    for (Map.Entry<String, TableManager<T>> entry : tableManagers.entrySet()) {
+      tableSeqs.put(entry.getKey(), entry.getValue().currentStreamSeq());
+    }
     gameContext.queueEvent(new GameSnapshot(
         Instant.now(),
         gameCommand.user().id(),
@@ -654,7 +658,9 @@ public abstract class GameManager<T extends Game<T>> {
         game.smallBlind(),
         game.bigBlind(),
         List.copyOf(game.players().values()),
-        List.copyOf(game.tables().keySet())
+        List.copyOf(game.tables().keySet()),
+        gameStreamSeq.get(),
+        Map.copyOf(tableSeqs)
     ));
   }
 

@@ -56,7 +56,7 @@ public abstract class TableManager<T extends Game<T>> {
 
     switch (command) {
       case GetTableState c -> gameContext.queueEvent(new TableSnapshot(
-          Instant.now(), c.user().id(), c.gameId(), sanitizeTable(table, c.user().id())));
+          Instant.now(), c.user().id(), c.gameId(), sanitizeTable(table, c.user().id()), currentStreamSeq()));
       default ->
           // Allow the subclass to handle any commands that are specific to the game type.
           applySubcommand(command, game, gameContext);

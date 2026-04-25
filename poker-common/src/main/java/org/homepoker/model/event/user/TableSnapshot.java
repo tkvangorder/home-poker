@@ -11,6 +11,7 @@ public record TableSnapshot(
     Instant timestamp,
     String userId,
     String gameId,
-    Table table
+    Table table,
+    long streamSeq
 ) implements UserEvent {
 }
