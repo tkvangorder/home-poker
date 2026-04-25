@@ -4,7 +4,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.homepoker.game.table.TableManager;
 import org.homepoker.game.table.TableUtils;
 import org.homepoker.game.table.TexasHoldemTableManager;
+import org.homepoker.model.event.GameEvent;
+import org.homepoker.model.event.PokerEvent;
 import org.homepoker.model.event.SystemError;
+import org.homepoker.model.event.TableEvent;
+import org.homepoker.model.event.UserEvent;
 import org.homepoker.model.event.game.*;
 import org.homepoker.model.event.table.TableStatusChanged;
 import org.homepoker.model.event.user.GameSnapshot;
@@ -22,6 +26,7 @@ import org.jctools.queues.MpscLinkedQueue;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 public abstract class GameManager<T extends Game<T>> {
@@ -60,6 +65,13 @@ public abstract class GameManager<T extends Game<T>> {
    * This is an atomic boolean that is used to ensure that only one game tick is processed at a time.
    */
   private final AtomicBoolean tickLock = new AtomicBoolean(false);
+
+  /**
+   * Game-stream sequence counter. Stamps non-Table {@link GameEvent}s at fan-out so the
+   * client can detect gaps in the game-level stream. Per-table events use the table's own
+   * counter on {@link TableManager}. {@link UserEvent}s are excluded from numbering.
+   */
+  private final AtomicLong gameStreamSeq = new AtomicLong(0);
 
   /**
    * Flag set by the StartGame command, consumed by transitionGame to trigger SEATING->ACTIVE.
@@ -101,6 +113,13 @@ public abstract class GameManager<T extends Game<T>> {
   }
   public void removeGameListenersByUserId(String userId) {
     gameListeners.removeIf(listener -> userId.equals(listener.userId()));
+  }
+
+  /**
+   * Current game-stream seq (the most recent value assigned). {@code 0} means none assigned yet.
+   */
+  public long currentGameStreamSeq() {
+    return gameStreamSeq.get();
   }
 
   protected final T game() {
@@ -181,21 +200,60 @@ public abstract class GameManager<T extends Game<T>> {
         game = saveGame();
       }
 
-      // Publish events.
+      // Stamp every accumulated event in deterministic order, then publish.
+      // Stamping happens at fan-out (rather than at construction) so all listeners observe
+      // the same sequence number for the same event. We stamp regardless of whether listeners
+      // are present so the seq advances consistently — that keeps client recovery correct
+      // even when a single listener disconnects mid-stream and a snapshot is taken later.
+      List<PokerEvent> stamped = new ArrayList<>(gameContext.events().size());
+      for (PokerEvent event : gameContext.events()) {
+        stamped.add(stampEvent(event));
+      }
+
       if (!gameListeners.isEmpty()) {
-        gameContext.events().forEach(event -> {
+        for (PokerEvent event : stamped) {
           log.debug("Sending event: [{}]", event);
           for (GameListener listener : gameListeners) {
             if (listener.acceptsEvent(event)) {
               listener.onEvent(event);
             }
           }
-        });
+        }
       }
     } finally {
       // Release the lock
       tickLock.set(false);
     }
+  }
+
+  /**
+   * Stamps an event with the appropriate sequence number (game stream, the table's own
+   * stream, or {@code 0} for {@link UserEvent}). Returns the stamped copy. Game-loop thread only.
+   * <p>
+   * Type-precedence matters: {@link UserEvent} is checked first because {@code HoleCardsDealt}
+   * is both a {@code TableEvent} and a {@code UserEvent} — it must not be stamped (the
+   * client gap-detection logic ignores {@code UserEvent}s).
+   */
+  private PokerEvent stampEvent(PokerEvent event) {
+    if (event instanceof UserEvent) {
+      // UserEvents (including HoleCardsDealt) are not part of gap detection.
+      return event;
+    }
+    if (event instanceof TableEvent tableEvent) {
+      TableManager<T> tm = tableManagers.get(tableEvent.tableId());
+      if (tm == null) {
+        // Defensive: should not happen for an emitted table event, but don't crash.
+        return event;
+      }
+      long seq = tm.nextStreamSeq();
+      return tableEvent.withSequenceNumber(seq);
+    }
+    if (event instanceof GameEvent gameEvent) {
+      long seq = gameStreamSeq.incrementAndGet();
+      return gameEvent.withSequenceNumber(seq);
+    }
+    // Plain PokerEvent (e.g., SystemError) is filtered per-user, no seq.
+    return event;
   }
 
   /**
