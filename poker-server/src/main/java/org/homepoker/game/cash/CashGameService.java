@@ -9,6 +9,7 @@ import org.homepoker.lib.util.DateTimeUtils;
 import org.homepoker.model.game.*;
 import org.homepoker.model.game.cash.CashGame;
 import org.homepoker.model.game.cash.CashGameDetails;
+import org.homepoker.recording.EventRecorderService;
 import org.homepoker.security.SecurityUtilities;
 import org.homepoker.threading.VirtualThreadManager;
 import org.homepoker.user.UserManager;
@@ -37,6 +38,7 @@ public class CashGameService {
   private final SecurityUtilities securityUtilities;
   private final MongoOperations mongoOperations;
   private final VirtualThreadManager threadManager;
+  private final EventRecorderService eventRecorderService;
 
   @Nullable
   private final ScheduledFuture<?> gamesScheduler;
@@ -53,12 +55,14 @@ public class CashGameService {
   private Instant lastGameCheck = Instant.now().minusSeconds(1);
 
   public CashGameService(CashGameRepository gameRepository, UserManager userManager, SecurityUtilities securityUtilities,
-                         MongoOperations mongoOperations, VirtualThreadManager threadManager, GameServerProperties gameServerProperties) {
+                         MongoOperations mongoOperations, VirtualThreadManager threadManager, GameServerProperties gameServerProperties,
+                         EventRecorderService eventRecorderService) {
     this.gameRepository = gameRepository;
     this.userManager = userManager;
     this.mongoOperations = mongoOperations;
     this.securityUtilities = securityUtilities;
     this.threadManager = threadManager;
+    this.eventRecorderService = eventRecorderService;
 
     // Set up a scheduled task to run a game "tick" based on the game loop interval.
     if (gameServerProperties.gameLoopIntervalMilliseconds() == 0) {
@@ -181,7 +185,7 @@ public class CashGameService {
           CashGame game = gameRepository.findById(gameId).orElseThrow(
               () -> new ResourceNotFound("The cash game [" + gameId + "] does not exist.")
           );
-          return new CashGameManager(game, this,  userManager, securityUtilities);
+          return new CashGameManager(game, this,  userManager, securityUtilities, eventRecorderService);
         });
   }
 

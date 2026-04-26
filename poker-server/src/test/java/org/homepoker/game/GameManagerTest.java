@@ -677,7 +677,7 @@ public class GameManagerTest {
     private final List<PokerEvent> savedEvents = new ArrayList<>();
 
     TestableGameManager(CashGame game, CashGameService cashGameService, UserManager userManager, SecurityUtilities securityUtilities) {
-      super(game, cashGameService, userManager, securityUtilities);
+      super(game, cashGameService, userManager, securityUtilities, null);
       // Add a listener that captures all events
       addGameListener(new GameListener() {
         public String userId() {

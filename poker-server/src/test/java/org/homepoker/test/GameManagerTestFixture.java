@@ -588,7 +588,7 @@ public final class GameManagerTestFixture {
     private final List<PokerEvent> savedEvents = new ArrayList<>();
 
     public TestableGameManager(CashGame game) {
-      super(game, null, null, null);
+      super(game, null, null, null, null);
       addGameListener(new GameListener() {
         @Override
         public String userId() {

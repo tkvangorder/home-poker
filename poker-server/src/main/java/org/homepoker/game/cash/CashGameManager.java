@@ -11,10 +11,14 @@ import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.Player;
 import org.homepoker.model.game.PlayerStatus;
 import org.homepoker.model.game.cash.CashGame;
+import org.homepoker.recording.EventRecorder;
+import org.homepoker.recording.EventRecorderService;
 import org.homepoker.security.SecurityUtilities;
 import org.homepoker.user.UserManager;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
+import java.util.Map;
 
 import static org.homepoker.game.GameUtils.assignPlayerToTableWithFewestPlayers;
 
@@ -22,9 +26,18 @@ public class CashGameManager extends GameManager<CashGame> {
 
   private final CashGameService cashGameService;
 
-  public CashGameManager(CashGame game, CashGameService cashGameService, UserManager userManager, SecurityUtilities securityUtilities) {
+  public CashGameManager(CashGame game,
+                         CashGameService cashGameService,
+                         UserManager userManager,
+                         SecurityUtilities securityUtilities,
+                         @Nullable EventRecorderService eventRecorderService) {
     super(game, userManager, securityUtilities);
     this.cashGameService = cashGameService;
+
+    if (eventRecorderService != null) {
+      Map<String, Integer> seed = eventRecorderService.seedHandTracker();
+      addGameListener(new EventRecorder(eventRecorderService, seed));
+    }
   }
 
   @Override
@@ -73,7 +86,7 @@ public class CashGameManager extends GameManager<CashGame> {
    *
    */
   public CashGameManager copy() {
-    return new CashGameManager(game().copy(), cashGameService, userManager(), securityUtilities());
+    return new CashGameManager(game().copy(), cashGameService, userManager(), securityUtilities(), null);
   }
 
   @Override
