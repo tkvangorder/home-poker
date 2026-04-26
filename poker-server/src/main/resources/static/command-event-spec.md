@@ -483,6 +483,8 @@ Broadcast warning that an admin is viewing a replay of a hand on a game whose st
 
 **eventType:** `admin-viewing-replay`
 
+**Why `adminAlias` is in-band:** unlike most player-scoped events, the admin viewing a replay may not have a `Player` record on the game (they are observing, not playing). Without a `Player` entry, clients cannot resolve the admin's display name from the game snapshot. Carrying the alias on the event lets the client render `'<alias> is reviewing hand N'` directly without a separate user lookup.
+
 ---
 
 ### Table-Level Events
