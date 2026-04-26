@@ -576,7 +576,7 @@ public abstract class GameManager<T extends Game<T>> {
    * commands do not trust callers — verify the user has admin role before emitting.
    */
   private void handleAdminViewingReplay(AdminViewingReplayCommand cmd, GameContext gameContext) {
-    if (SecurityUtilities.userIsAdmin(cmd.user())) {
+    if (!SecurityUtilities.userIsAdmin(cmd.user())) {
       log.warn("Refusing AdminViewingReplayCommand from non-admin user [{}]", cmd.user().id());
       return;
     }

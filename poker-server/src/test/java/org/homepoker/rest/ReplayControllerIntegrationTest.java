@@ -20,19 +20,12 @@ import org.homepoker.recording.RecordedEvent;
 import org.homepoker.security.JwtTokenService;
 import org.homepoker.test.BaseIntegrationTest;
 import org.homepoker.test.TestDataHelper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.web.client.ResponseErrorHandler;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.test.web.servlet.client.RestTestClient;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -43,51 +36,45 @@ import static org.awaitility.Awaitility.await;
 
 class ReplayControllerIntegrationTest extends BaseIntegrationTest {
 
+  private static final ParameterizedTypeReference<List<RecordedEvent>> RECORDED_EVENT_LIST =
+      new ParameterizedTypeReference<>() {};
+  private static final String REPLAY_PATH =
+      "/admin/replay/games/{gameId}/tables/{tableId}/hands/{handNumber}";
+
   @Autowired CashGameService cashGameService;
   @Autowired EventRecorderRepository eventRecorderRepository;
   @Autowired EventRecorderService eventRecorderService;
   @Autowired JwtTokenService jwtTokenService;
 
-  /**
-   * Spring Boot 4 removed {@code TestRestTemplate}; we use a plain {@link RestTemplate} with
-   * a no-op error handler so non-2xx responses (e.g., 403) are surfaced as {@code ResponseEntity}
-   * instead of throwing.
-   */
-  private final RestTemplate restTemplate = createRestTemplate();
+  private RestTestClient client;
 
-  private static RestTemplate createRestTemplate() {
-    RestTemplate template = new RestTemplate();
-    // Treat all responses as success so non-2xx (e.g., 403) surface as ResponseEntity rather than throwing.
-    template.setErrorHandler(new ResponseErrorHandler() {
-      @Override
-      public boolean hasError(ClientHttpResponse response) throws IOException {
-        return false;
-      }
-    });
-    return template;
+  @BeforeEach
+  void setUpClient() {
+    client = RestTestClient.bindToServer()
+        .baseUrl("http://localhost:" + serverPort)
+        .build();
   }
 
   @Test
   void adminGetForExistingHandReturnsEventsInOrder() {
     String gameId = setupOneHandPlayed();
-
     String adminToken = adminToken();
-    ResponseEntity<List<RecordedEvent>> response = restTemplate.exchange(
-        url(gameId, "TABLE-0", 1),
-        HttpMethod.GET,
-        new HttpEntity<>(authHeaders(adminToken)),
-        new ParameterizedTypeReference<>() {});
 
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    List<RecordedEvent> body = response.getBody();
-    assertThat(body).isNotNull().isNotEmpty();
-
-    // Strictly non-decreasing sequence numbers (UserEvents are 0; broadcast events climb).
-    long lastSeq = -1L;
-    for (RecordedEvent ev : body) {
-      assertThat(ev.sequenceNumber()).isGreaterThanOrEqualTo(lastSeq);
-      lastSeq = Math.max(lastSeq, ev.sequenceNumber());
-    }
+    client.get()
+        .uri(REPLAY_PATH, gameId, "TABLE-0", 1)
+        .headers(h -> h.setBearerAuth(adminToken))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(RECORDED_EVENT_LIST)
+        .value(body -> {
+          assertThat(body).isNotNull().isNotEmpty();
+          // Strictly non-decreasing sequence numbers (UserEvents are 0; broadcast events climb).
+          long lastSeq = -1L;
+          for (RecordedEvent ev : body) {
+            assertThat(ev.sequenceNumber()).isGreaterThanOrEqualTo(lastSeq);
+            lastSeq = Math.max(lastSeq, ev.sequenceNumber());
+          }
+        });
   }
 
   @Test
@@ -95,13 +82,11 @@ class ReplayControllerIntegrationTest extends BaseIntegrationTest {
     String gameId = setupOneHandPlayed();
     String userToken = nonAdminToken();
 
-    ResponseEntity<String> response = restTemplate.exchange(
-        url(gameId, "TABLE-0", 1),
-        HttpMethod.GET,
-        new HttpEntity<>(authHeaders(userToken)),
-        String.class);
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    client.get()
+        .uri(REPLAY_PATH, gameId, "TABLE-0", 1)
+        .headers(h -> h.setBearerAuth(userToken))
+        .exchange()
+        .expectStatus().isForbidden();
   }
 
   @Test
@@ -109,14 +94,13 @@ class ReplayControllerIntegrationTest extends BaseIntegrationTest {
     String gameId = setupOneHandPlayed();
     String adminToken = adminToken();
 
-    ResponseEntity<List<RecordedEvent>> response = restTemplate.exchange(
-        url(gameId, "TABLE-0", 999),
-        HttpMethod.GET,
-        new HttpEntity<>(authHeaders(adminToken)),
-        new ParameterizedTypeReference<>() {});
-
-    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).isEmpty();
+    client.get()
+        .uri(REPLAY_PATH, gameId, "TABLE-0", 999)
+        .headers(h -> h.setBearerAuth(adminToken))
+        .exchange()
+        .expectStatus().isOk()
+        .expectBody(RECORDED_EVENT_LIST)
+        .value(body -> assertThat(body).isEmpty());
   }
 
   @Test
@@ -133,16 +117,16 @@ class ReplayControllerIntegrationTest extends BaseIntegrationTest {
     });
 
     String adminToken = adminToken();
-    restTemplate.exchange(
-        url(gameId, "TABLE-0", 1),
-        HttpMethod.GET,
-        new HttpEntity<>(authHeaders(adminToken)),
-        new ParameterizedTypeReference<List<RecordedEvent>>() {});
+    client.get()
+        .uri(REPLAY_PATH, gameId, "TABLE-0", 1)
+        .headers(h -> h.setBearerAuth(adminToken))
+        .exchange()
+        .expectStatus().isOk();
 
-    // The warning command was queued — give the loop a tick and assert.
+    // Single-thread test mode: processGameTick drains the warning command and synchronously
+    // notifies listeners on this thread, so no waiting needed.
     manager.processGameTick();
-    await().atMost(Duration.ofSeconds(5))
-        .until(() -> captured.stream().anyMatch(e -> e instanceof AdminViewingReplay));
+    assertThat(captured).anyMatch(e -> e instanceof AdminViewingReplay);
   }
 
   @Test
@@ -161,11 +145,11 @@ class ReplayControllerIntegrationTest extends BaseIntegrationTest {
     manager.getGameForTest().status(GameStatus.COMPLETED);
 
     String adminToken = adminToken();
-    restTemplate.exchange(
-        url(gameId, "TABLE-0", 1),
-        HttpMethod.GET,
-        new HttpEntity<>(authHeaders(adminToken)),
-        new ParameterizedTypeReference<List<RecordedEvent>>() {});
+    client.get()
+        .uri(REPLAY_PATH, gameId, "TABLE-0", 1)
+        .headers(h -> h.setBearerAuth(adminToken))
+        .exchange()
+        .expectStatus().isOk();
 
     manager.processGameTick();
     // No AdminViewingReplay should appear.
@@ -175,11 +159,6 @@ class ReplayControllerIntegrationTest extends BaseIntegrationTest {
   // -----------------------
   // Test setup helpers
   // -----------------------
-
-  private String url(String gameId, String tableId, int handNumber) {
-    return "http://localhost:" + serverPort + "/admin/replay/games/" + gameId
-        + "/tables/" + tableId + "/hands/" + handNumber;
-  }
 
   private String setupOneHandPlayed() {
     // The id "admin" is in adminUsers in application-test.yml, so UserManager.registerUser
@@ -248,11 +227,5 @@ class ReplayControllerIntegrationTest extends BaseIntegrationTest {
   private String nonAdminToken() {
     User u = createUser(TestDataHelper.user("plainuser", "password", "Plain User"));
     return jwtTokenService.generateToken(u);
-  }
-
-  private HttpHeaders authHeaders(String token) {
-    HttpHeaders headers = new HttpHeaders();
-    headers.setBearerAuth(token);
-    return headers;
   }
 }
