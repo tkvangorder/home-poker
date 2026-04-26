@@ -511,6 +511,7 @@ public abstract class GameManager<T extends Game<T>> {
       case GetGameState gameCommand -> getGameState(gameCommand, game, gameContext);
       case PlayerConnectedCommand cmd -> handlePlayerConnected(cmd, gameContext);
       case PlayerDisconnectedCommand cmd -> handlePlayerDisconnected(cmd, gameContext);
+      case AdminViewingReplayCommand cmd -> handleAdminViewingReplay(cmd, gameContext);
       default ->
         // Allow the subclass to handle any commands that are specific to child game manager.
           applyGameSpecificCommand(command, game, gameContext);
@@ -552,6 +553,27 @@ public abstract class GameManager<T extends Game<T>> {
     } else {
       activeListenerCounts.put(userId, newCount);
     }
+  }
+
+  /**
+   * Handle an {@link AdminViewingReplayCommand} by emitting an {@link AdminViewingReplay}
+   * broadcast warning. The REST endpoint already gates on {@code @PreAuthorize}, but
+   * commands do not trust callers — verify the user has admin role before emitting.
+   */
+  private void handleAdminViewingReplay(AdminViewingReplayCommand cmd, GameContext gameContext) {
+    if (!securityUtilities().userIsAdmin(cmd.user())) {
+      log.warn("Refusing AdminViewingReplayCommand from non-admin user [{}]", cmd.user().id());
+      return;
+    }
+    gameContext.queueEvent(new AdminViewingReplay(
+        Instant.now(),
+        0L,
+        game.id(),
+        cmd.user().id(),
+        cmd.user().alias(),
+        cmd.tableId(),
+        cmd.handNumber()
+    ));
   }
 
   private void endGame(EndGame gameCommand, T game, GameContext gameContext) {
