@@ -1,6 +1,7 @@
 package org.homepoker.recording;
 
 import org.homepoker.game.cash.CashGameRepository;
+import org.homepoker.game.cash.CashGameService;
 import org.homepoker.model.event.PokerEvent;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -31,9 +32,10 @@ class EventRecorderResilienceTest {
     EventRecorderRepository repo = mock(EventRecorderRepository.class);
     CashGameRepository gameRepo = mock(CashGameRepository.class);
     when(gameRepo.findAll()).thenReturn(Collections.emptyList());
+    CashGameService gameService = mock(CashGameService.class);
 
     // Capacity 2, no worker started — the queue will fill up.
-    EventRecorderService service = new EventRecorderService(repo, gameRepo, objectMapper, 2);
+    EventRecorderService service = new EventRecorderService(repo, gameRepo, gameService, objectMapper, 2);
     // NOTE: do not call start(); we want offers to accumulate.
 
     assertThat(service.offer(pendingFor("e1"))).isTrue();
@@ -58,8 +60,9 @@ class EventRecorderResilienceTest {
     });
     CashGameRepository gameRepo = mock(CashGameRepository.class);
     when(gameRepo.findAll()).thenReturn(Collections.emptyList());
+    CashGameService gameService = mock(CashGameService.class);
 
-    EventRecorderService service = new EventRecorderService(repo, gameRepo, objectMapper, 100);
+    EventRecorderService service = new EventRecorderService(repo, gameRepo, gameService, objectMapper, 100);
     service.start();
     try {
       service.offer(pendingFor("e1"));

@@ -8,6 +8,8 @@ import org.homepoker.model.event.TableEvent;
 import org.homepoker.model.event.UserEvent;
 import org.homepoker.model.event.table.HandComplete;
 import org.homepoker.model.event.table.HandStarted;
+import org.homepoker.user.SystemUsers;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -93,14 +95,15 @@ public class EventRecorder extends UserGameListener {
     }
   }
 
-  private Integer computeHandNumber(PokerEvent event, String tableId) {
+  @Nullable
+  private Integer computeHandNumber(PokerEvent event, @Nullable String tableId) {
     if (event instanceof HandStarted hs) return hs.handNumber();
     if (event instanceof HandComplete hc) return hc.handNumber();
     if (tableId == null) return null;
     return currentHandByTable.get(tableId);
   }
 
-  private void updateHandTracker(PokerEvent event, String tableId) {
+  private void updateHandTracker(PokerEvent event, @Nullable String tableId) {
     if (tableId == null) return;
     if (event instanceof HandStarted hs) {
       currentHandByTable.put(tableId, hs.handNumber());

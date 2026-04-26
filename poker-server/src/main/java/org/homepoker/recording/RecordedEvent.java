@@ -1,5 +1,6 @@
 package org.homepoker.recording;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -26,11 +27,11 @@ import java.util.Map;
  */
 @Document(collection = "recordedEvents")
 public record RecordedEvent(
-    @Id String id,
-    String gameId,
-    String tableId,
-    Integer handNumber,
-    String userId,
+		@Nullable @Id String id,
+    @Nullable String gameId,
+    @Nullable String tableId,
+    @Nullable Integer handNumber,
+    @Nullable String userId,
     String eventType,
     long sequenceNumber,
     Instant eventTimestamp,

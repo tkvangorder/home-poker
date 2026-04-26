@@ -1,6 +1,7 @@
 package org.homepoker.recording;
 
 import org.homepoker.model.event.PokerEvent;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 
@@ -17,10 +18,10 @@ import java.time.Instant;
  */
 record PendingRecording(
     PokerEvent event,
-    String gameId,
-    String tableId,
-    Integer handNumber,
-    String userId,
+    @Nullable String gameId,
+    @Nullable String tableId,
+    @Nullable Integer handNumber,
+    @Nullable String userId,
     long sequenceNumber,
     Instant eventTimestamp,
     Instant recordedAt

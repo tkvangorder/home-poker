@@ -19,6 +19,7 @@ import org.homepoker.model.command.*;
 import org.homepoker.model.game.*;
 import org.homepoker.model.game.cash.CashGame;
 import org.homepoker.security.SecurityUtilities;
+import org.homepoker.user.SystemUsers;
 import org.homepoker.user.UserManager;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.MpscLinkedQueue;
@@ -143,7 +144,7 @@ public abstract class GameManager<T extends Game<T>> {
     // Defense in depth: never evict the EventRecorder's synthetic identity. A real user with
     // this id cannot exist (registration enforces email-format on the id), but if some
     // future code path passes the reserved id here, we refuse silently.
-    if (org.homepoker.recording.SystemUsers.EVENT_RECORDER_ID.equals(userId)) {
+    if (SystemUsers.EVENT_RECORDER_ID.equals(userId)) {
       return;
     }
 
@@ -288,25 +289,30 @@ public abstract class GameManager<T extends Game<T>> {
    * client gap-detection logic ignores {@code UserEvent}s).
    */
   private PokerEvent stampEvent(PokerEvent event) {
-    if (event instanceof UserEvent) {
-      // UserEvents (including HoleCardsDealt) are not part of gap detection.
-      return event;
-    }
-    if (event instanceof TableEvent tableEvent) {
-      TableManager<T> tm = tableManagers.get(tableEvent.tableId());
-      if (tm == null) {
-        // Defensive: should not happen for an emitted table event, but don't crash.
+		switch (event) {
+			case UserEvent userEvent -> {
+				// UserEvents (including HoleCardsDealt) are not part of gap detection.
+				return event;
+				// UserEvents (including HoleCardsDealt) are not part of gap detection.
+			}
+			case TableEvent tableEvent -> {
+				TableManager<T> tm = tableManagers.get(tableEvent.tableId());
+				if (tm == null) {
+					// Defensive: should not happen for an emitted table event, but don't crash.
+					return event;
+				}
+				long seq = tm.nextStreamSeq();
+				return tableEvent.withSequenceNumber(seq);
+			}
+			case GameEvent gameEvent -> {
+				long seq = gameStreamSeq.incrementAndGet();
+				return gameEvent.withSequenceNumber(seq);
+			}
+			default -> {
+        // Plain PokerEvent (e.g., SystemError) is filtered per-user, no seq.
         return event;
-      }
-      long seq = tm.nextStreamSeq();
-      return tableEvent.withSequenceNumber(seq);
-    }
-    if (event instanceof GameEvent gameEvent) {
-      long seq = gameStreamSeq.incrementAndGet();
-      return gameEvent.withSequenceNumber(seq);
-    }
-    // Plain PokerEvent (e.g., SystemError) is filtered per-user, no seq.
-    return event;
+			}
+		}
   }
 
   /**
@@ -570,7 +576,7 @@ public abstract class GameManager<T extends Game<T>> {
    * commands do not trust callers — verify the user has admin role before emitting.
    */
   private void handleAdminViewingReplay(AdminViewingReplayCommand cmd, GameContext gameContext) {
-    if (!securityUtilities().userIsAdmin(cmd.user())) {
+    if (SecurityUtilities.userIsAdmin(cmd.user())) {
       log.warn("Refusing AdminViewingReplayCommand from non-admin user [{}]", cmd.user().id());
       return;
     }

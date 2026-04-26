@@ -4,12 +4,19 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.homepoker.game.cash.CashGameRepository;
+import org.homepoker.game.cash.CashGameService;
+import org.homepoker.model.game.GameCriteria;
 import org.homepoker.model.game.GameStatus;
+import org.homepoker.model.game.Table;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -38,8 +45,11 @@ public class EventRecorderService {
   private static final TypeReference<Map<String, Object>> PAYLOAD_TYPE_REF =
       new TypeReference<>() {};
 
+  private static final Duration HAND_TRACKER_LOOKBACK = Duration.ofDays(7);
+
   private final EventRecorderRepository repository;
   private final CashGameRepository cashGameRepository;
+  private final CashGameService cashGameService;
   private final ObjectMapper objectMapper;
   private final LinkedBlockingQueue<PendingRecording> queue;
   private final int queueCapacity;
@@ -49,15 +59,18 @@ public class EventRecorderService {
   private final AtomicLong shutdownLossCount = new AtomicLong();
 
   private volatile boolean running;
+  @Nullable
   private Thread worker;
 
   public EventRecorderService(
       EventRecorderRepository repository,
       CashGameRepository cashGameRepository,
+      @Lazy CashGameService cashGameService,
       ObjectMapper webSocketObjectMapper,
       @Value("${poker.recording.queue-capacity:10000}") int queueCapacity) {
     this.repository = repository;
     this.cashGameRepository = cashGameRepository;
+    this.cashGameService = cashGameService;
     this.objectMapper = webSocketObjectMapper;
     this.queueCapacity = queueCapacity;
     this.queue = new LinkedBlockingQueue<>(queueCapacity);
@@ -112,7 +125,7 @@ public class EventRecorderService {
    * the worker thread. On overflow we increment the dropped-event counter and log every
    * {@value #LOG_DROP_EVERY_N} drops.
    */
-  public boolean offer(PendingRecording pending) {
+   boolean offer(PendingRecording pending) {
     if (!queue.offer(pending)) {
       long dropped = droppedEventCount.incrementAndGet();
       if (dropped % LOG_DROP_EVERY_N == 0) {
@@ -135,22 +148,27 @@ public class EventRecorderService {
   /**
    * Seed {@code currentHandByTable} for tables that were mid-hand at server restart.
    * Intended for <strong>startup-only</strong> invocation (single-shot, before any commands
-   * flow). For each non-{@code COMPLETED} game whose tables are {@code PLAYING}, look up
-   * the most recently recorded {@code handNumber} for that table.
+   * flow). Limits the search to non-{@code COMPLETED} games started within
+   * {@link #HAND_TRACKER_LOOKBACK}, then for each {@code PLAYING} table looks up the most
+   * recently recorded {@code handNumber}.
    */
   public Map<String, Integer> seedHandTracker() {
     Map<String, Integer> seed = new HashMap<>();
-    cashGameRepository.findAll().forEach(game -> {
-      if (game.status() == GameStatus.COMPLETED) return;
-      game.tables().values().stream()
-          .filter(table -> table.status() == org.homepoker.model.game.Table.Status.PLAYING)
-          .forEach(table -> repository
-              .findTopByGameIdAndTableIdOrderByHandNumberDesc(game.id(), table.id())
-              .ifPresent(rec -> {
-                if (rec.handNumber() != null) {
-                  seed.put(table.id(), rec.handNumber());
-                }
-              }));
+    GameCriteria criteria = GameCriteria.builder()
+        .startTime(Instant.now().minus(HAND_TRACKER_LOOKBACK))
+        .build();
+    cashGameService.findGames(criteria).forEach(details -> {
+      if (details.status() == GameStatus.COMPLETED) return;
+      cashGameRepository.findById(details.id()).ifPresent(game ->
+          game.tables().values().stream()
+              .filter(table -> table.status() == Table.Status.PLAYING)
+              .forEach(table -> repository
+                  .findTopByGameIdAndTableIdOrderByHandNumberDesc(game.id(), table.id())
+                  .ifPresent(rec -> {
+                    if (rec.handNumber() != null) {
+                      seed.put(table.id(), rec.handNumber());
+                    }
+                  })));
     });
     return seed;
   }

@@ -1,4 +1,4 @@
-package org.homepoker.recording;
+package org.homepoker.user;
 
 import org.homepoker.model.user.User;
 
