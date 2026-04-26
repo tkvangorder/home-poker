@@ -46,6 +46,14 @@ public abstract class GameManager<T extends Game<T>> {
   private final List<GameListener> gameListeners = new ArrayList<>();
 
   /**
+   * Active-listener ref count keyed by userId. Mutated only on the game-loop thread,
+   * via {@link PlayerConnectedCommand} / {@link PlayerDisconnectedCommand} processing.
+   * The transition from absent/0 to 1 emits {@code PlayerReconnected} (when a Player
+   * record exists); the transition from 1 to 0 emits {@code PlayerDisconnected}.
+   */
+  private final Map<String, Integer> activeListenerCounts = new HashMap<>();
+
+  /**
    * Per-table manager instances. Each table has its own manager that owns the Table reference and transient state (e.g. Deck).
    */
   private final NavigableMap<String, TableManager<T>> tableManagers = new TreeMap<>();
@@ -103,16 +111,45 @@ public abstract class GameManager<T extends Game<T>> {
     }
   }
 
+  /**
+   * Register a listener for game events. Each invocation appends a separate listener
+   * instance — multi-socket-per-user is supported by ref-counting connections rather than
+   * collapsing them. The first active listener for a user that already has a Player record
+   * triggers a {@code PlayerReconnected} event; subsequent listeners for the same user do
+   * not emit additional events.
+   */
   public void addGameListener(GameListener listener) {
-    // Remove any existing listeners for this user (handles reconnect scenarios)
-    removeGameListenersByUserId(listener.userId());
     gameListeners.add(listener);
+    submitCommand(new PlayerConnectedCommand(game.id(), listener.userId()));
   }
+
+  /**
+   * Remove a single listener instance. If this was the last active listener for the user,
+   * a {@code PlayerDisconnected} event will be emitted on the next tick.
+   */
   public void removeGameListener(GameListener listener) {
-    gameListeners.remove(listener);
+    if (gameListeners.remove(listener)) {
+      submitCommand(new PlayerDisconnectedCommand(game.id(), listener.userId()));
+    }
   }
+
+  /**
+   * Remove every listener associated with the given user id. One
+   * {@code PlayerDisconnectedCommand} is queued per removed listener so the ref-count
+   * decrements track the actual number of removals, and the eventual transition to 0
+   * fires exactly one {@code PlayerDisconnected} event.
+   */
   public void removeGameListenersByUserId(String userId) {
-    gameListeners.removeIf(listener -> userId.equals(listener.userId()));
+    int removed = 0;
+    for (Iterator<GameListener> it = gameListeners.iterator(); it.hasNext(); ) {
+      if (userId.equals(it.next().userId())) {
+        it.remove();
+        removed++;
+      }
+    }
+    for (int i = 0; i < removed; i++) {
+      submitCommand(new PlayerDisconnectedCommand(game.id(), userId));
+    }
   }
 
   /**
@@ -465,9 +502,48 @@ public abstract class GameManager<T extends Game<T>> {
       case BuyIn gameCommand -> buyIn(gameCommand, game, gameContext);
       case LeaveGame gameCommand -> leaveGame(gameCommand, game, gameContext);
       case GetGameState gameCommand -> getGameState(gameCommand, game, gameContext);
+      case PlayerConnectedCommand cmd -> handlePlayerConnected(cmd, gameContext);
+      case PlayerDisconnectedCommand cmd -> handlePlayerDisconnected(cmd, gameContext);
       default ->
         // Allow the subclass to handle any commands that are specific to child game manager.
           applyGameSpecificCommand(command, game, gameContext);
+    }
+  }
+
+  /**
+   * Increment the active-listener ref count for the user. The transition from
+   * absent (or 0) to 1 emits {@link PlayerReconnected} when a Player record already
+   * exists for the user. If no Player record exists yet (e.g., admin observer or a
+   * brand-new connection that has not yet submitted JoinGame) no event is emitted —
+   * the {@code JoinGame} path is responsible for {@code PlayerJoined}.
+   */
+  private void handlePlayerConnected(PlayerConnectedCommand cmd, GameContext gameContext) {
+    String userId = cmd.connectedUserId();
+    int newCount = activeListenerCounts.merge(userId, 1, Integer::sum);
+    if (newCount == 1 && game.players().containsKey(userId)) {
+      gameContext.queueEvent(new PlayerReconnected(
+          Instant.now(), 0L, game.id(), userId));
+    }
+  }
+
+  /**
+   * Decrement the active-listener ref count for the user. The transition from 1 to 0
+   * emits {@link PlayerDisconnected}. Stale decrements (no entry, or non-positive count)
+   * are ignored defensively.
+   */
+  private void handlePlayerDisconnected(PlayerDisconnectedCommand cmd, GameContext gameContext) {
+    String userId = cmd.disconnectedUserId();
+    Integer current = activeListenerCounts.get(userId);
+    if (current == null || current <= 0) {
+      return;
+    }
+    int newCount = current - 1;
+    if (newCount == 0) {
+      activeListenerCounts.remove(userId);
+      gameContext.queueEvent(new PlayerDisconnected(
+          Instant.now(), 0L, game.id(), userId));
+    } else {
+      activeListenerCounts.put(userId, newCount);
     }
   }
 
