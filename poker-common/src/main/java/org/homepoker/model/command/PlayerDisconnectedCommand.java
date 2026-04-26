@@ -8,17 +8,21 @@ import org.homepoker.model.user.User;
  * Decrements the active-listener ref count for the user on the game-loop thread; the
  * transition from 1 to 0 emits a {@code PlayerDisconnected} event.
  * <p>
- * This command is never produced by an external client.
+ * Server-internal only — intentionally NOT annotated with {@code @GameCommandMarker} so it is
+ * excluded from the polymorphic Jackson registry that {@code PokerWebSocketHandler}
+ * deserializes inbound messages with. An authenticated client must not be able to forge a
+ * disconnect for another userId.
  */
-@GameCommandMarker
 public record PlayerDisconnectedCommand(String gameId, String disconnectedUserId) implements GameCommand {
   @JsonIgnore
   @Override
   public User user() {
+    // Synthetic identity: only the id is meaningful. Other fields are sentinel values so
+    // log lines that print this user are obviously internal.
     return User.builder()
         .id(disconnectedUserId)
-        .email(disconnectedUserId)
-        .name(disconnectedUserId)
+        .email("<internal>")
+        .name("<internal>")
         .phone("")
         .build();
   }
