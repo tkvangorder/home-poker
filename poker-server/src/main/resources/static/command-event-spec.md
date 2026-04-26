@@ -10,6 +10,43 @@ This document catalogs all commands and events in the poker server. It serves as
 - All events use an `eventType` JSON discriminator derived from the class name in kebab-case (e.g., `HandStarted` -> `hand-started`).
 - The `user` field on commands is **never serialized** — it is injected server-side from the authenticated session.
 - **Seat positions are 1-indexed.** Every `seatPosition`, `dealerPosition`, `actionPosition`, `smallBlindPosition`, `bigBlindPosition`, `lastRaiserPosition`, and `Pot.seatPositions` value on the wire is in the range `1..numberOfSeats` (i.e. seat 1 through seat 9 for a 9-seat table). Clients should render these values as-is.
+- **All `GameEvent` payloads carry a `sequenceNumber` field** (a `long` immediately after `timestamp`). It is the per-stream monotonic ID used for client-side gap detection. See [Sequence Numbers & Gap Detection](#sequence-numbers--gap-detection) below for the full contract.
+
+---
+
+## Sequence Numbers & Gap Detection
+
+The server maintains two independent monotonic streams per game:
+
+- **Game stream** — one counter at the game level. Stamps every broadcast `GameEvent` that is NOT a `TableEvent` (e.g. `GameStatusChanged`, `PlayerJoined`, `PlayerDisconnected`).
+- **Table stream(s)** — one counter per table. Stamps every broadcast `TableEvent` for that table (e.g. `HandStarted`, `BlindPosted`, `PlayerActed`).
+
+Both counters start at `1` and advance by `1` per stamped event. They are independent — table-1 seq 5 and table-2 seq 5 are unrelated. Counters are in-memory only; a server restart resets them, and clients recover by requesting a fresh snapshot.
+
+### What carries a sequence number
+
+| Event category | Stamped? | Notes |
+|----------------|----------|-------|
+| Broadcast `GameEvent` (not `TableEvent`) | Yes | Stamped from the game stream. |
+| Broadcast `TableEvent` | Yes | Stamped from that table's stream. |
+| `UserEvent` (incl. `HoleCardsDealt`, snapshots, `UserMessage`) | **No** | Always `sequenceNumber = 0`. Excluded from gap detection. |
+| `SystemError` | No | Per-user-targeted; carries no `sequenceNumber` field. |
+
+`HoleCardsDealt` implements both `TableEvent` and `UserEvent`. The `UserEvent` filter takes precedence — it is delivered only to the target player and carries `sequenceNumber = 0`. **Clients must not advance the table-stream expectation when receiving a `HoleCardsDealt`.**
+
+### Client recovery flow
+
+A client tracks one expected counter per stream it is subscribed to (one for the game stream plus one per table it is watching).
+
+For each received broadcast event:
+
+| `event.sequenceNumber` vs expected | Action |
+|---|---|
+| `seq == expected` | Accept; increment expected. |
+| `seq > expected` | Gap detected; discard local state for this stream and request a snapshot via `GetGameState` / `GetTableState`. |
+| `seq < expected` | Duplicate or out-of-order; ignore. |
+
+After a snapshot, resume from the `gameStreamSeq` / `tableStreamSeqs` (on `GameSnapshot`) or `streamSeq` (on `TableSnapshot`) carried in the snapshot payload. The next broadcast event on that stream will be `seq + 1`.
 
 ---
 
@@ -300,12 +337,13 @@ Game-level events report changes to game-wide state. They implement `GameEvent`.
 
 The game transitioned between lifecycle states.
 
-| Field       | Type       | Description                 |
-|-------------|------------|-----------------------------|
-| `timestamp` | Instant    | When the transition occurred|
-| `gameId`    | String     | Game ID                     |
-| `oldStatus` | GameStatus | Previous state              |
-| `newStatus` | GameStatus | New state                   |
+| Field            | Type       | Description                  |
+|------------------|------------|------------------------------|
+| `timestamp`      | Instant    | When the transition occurred |
+| `sequenceNumber` | long       | Game-stream sequence number  |
+| `gameId`         | String     | Game ID                      |
+| `oldStatus`      | GameStatus | Previous state               |
+| `newStatus`      | GameStatus | New state                    |
 
 **eventType:** `game-status-changed`
 
@@ -317,11 +355,12 @@ The game transitioned between lifecycle states.
 
 Informational message broadcast to all game participants.
 
-| Field       | Type    | Description      |
-|-------------|---------|------------------|
-| `timestamp` | Instant | When emitted     |
-| `gameId`    | String  | Game ID          |
-| `message`   | String  | Message content  |
+| Field            | Type    | Description                 |
+|------------------|---------|-----------------------------|
+| `timestamp`      | Instant | When emitted                |
+| `sequenceNumber` | long    | Game-stream sequence number |
+| `gameId`         | String  | Game ID                     |
+| `message`        | String  | Message content             |
 
 **eventType:** `game-message`
 
@@ -331,13 +370,14 @@ Informational message broadcast to all game participants.
 
 A player bought chips.
 
-| Field          | Type    | Description               |
-|----------------|---------|---------------------------|
-| `timestamp`    | Instant | When the buy-in occurred  |
-| `gameId`       | String  | Game ID                   |
-| `userId`       | String  | Player who bought in      |
-| `amount`       | int     | Chips purchased           |
-| `newChipCount` | int     | Player's total chip count |
+| Field            | Type    | Description                 |
+|------------------|---------|-----------------------------|
+| `timestamp`      | Instant | When the buy-in occurred    |
+| `sequenceNumber` | long    | Game-stream sequence number |
+| `gameId`         | String  | Game ID                     |
+| `userId`         | String  | Player who bought in        |
+| `amount`         | int     | Chips purchased             |
+| `newChipCount`   | int     | Player's total chip count   |
 
 **eventType:** `player-buy-in`
 
@@ -347,11 +387,12 @@ A player bought chips.
 
 A player has joined the game.
 
-| Field       | Type    | Description              |
-|-------------|---------|--------------------------|
-| `timestamp` | Instant | When the player joined   |
-| `gameId`    | String  | Game ID                  |
-| `userId`    | String  | Player who joined        |
+| Field            | Type    | Description                 |
+|------------------|---------|-----------------------------|
+| `timestamp`      | Instant | When the player joined      |
+| `sequenceNumber` | long    | Game-stream sequence number |
+| `gameId`         | String  | Game ID                     |
+| `userId`         | String  | Player who joined           |
 
 **eventType:** `player-joined`
 
@@ -361,12 +402,13 @@ A player has joined the game.
 
 A player was assigned to a seat at a table. Emitted during initial seating (SCHEDULED -> SEATING transition), when a player joins during SEATING/ACTIVE, or when a player rejoins after leaving.
 
-| Field       | Type    | Description                      |
-|-------------|---------|----------------------------------|
-| `timestamp` | Instant | When the player was seated       |
-| `gameId`    | String  | Game ID                          |
-| `userId`    | String  | Player who was seated            |
-| `tableId`   | String  | Table the player was assigned to |
+| Field            | Type    | Description                      |
+|------------------|---------|----------------------------------|
+| `timestamp`      | Instant | When the player was seated       |
+| `sequenceNumber` | long    | Game-stream sequence number      |
+| `gameId`         | String  | Game ID                          |
+| `userId`         | String  | Player who was seated            |
+| `tableId`        | String  | Table the player was assigned to |
 
 **eventType:** `player-seated`
 
@@ -376,15 +418,52 @@ A player was assigned to a seat at a table. Emitted during initial seating (SCHE
 
 A player was reassigned to a different table during table balancing. Only emitted when the player's table actually changes.
 
-| Field         | Type    | Description                  |
-|---------------|---------|------------------------------|
-| `timestamp`   | Instant | When the move occurred       |
-| `gameId`      | String  | Game ID                      |
-| `userId`      | String  | Player who was moved         |
-| `fromTableId` | String  | Previous table               |
-| `toTableId`   | String  | Destination table            |
+| Field            | Type    | Description                 |
+|------------------|---------|-----------------------------|
+| `timestamp`      | Instant | When the move occurred      |
+| `sequenceNumber` | long    | Game-stream sequence number |
+| `gameId`         | String  | Game ID                     |
+| `userId`         | String  | Player who was moved        |
+| `fromTableId`    | String  | Previous table              |
+| `toTableId`      | String  | Destination table           |
 
 **eventType:** `player-moved-tables`
+
+---
+
+#### PlayerDisconnected
+
+A player's last active WebSocket listener for this game went away. Other players can use this to render presence state ("Alice disconnected") without confusing it with a `LeaveGame` (the player remains in the game).
+
+Emitted on the 1→0 transition of the per-user listener ref count. If the same user has multiple sockets connected, this fires only when the **last** socket closes. The player's seat, chips, and game state are unaffected.
+
+| Field            | Type    | Description                              |
+|------------------|---------|------------------------------------------|
+| `timestamp`      | Instant | When the last listener for the user left |
+| `sequenceNumber` | long    | Game-stream sequence number              |
+| `gameId`         | String  | Game ID                                  |
+| `userId`         | String  | Player whose connection dropped          |
+
+**eventType:** `player-disconnected`
+
+**Notes:**
+- The existing action-timeout path (`PlayerTimedOut`) continues to be the only thing that acts on an absent player's turn. A disconnect alone does not auto-fold or auto-leave.
+- Clients may delay surfacing this in the UI to debounce flaky connections; the event itself fires immediately.
+
+---
+
+#### PlayerReconnected
+
+A player's WebSocket listener came back after a previous `PlayerDisconnected`. Emitted on the 0→1 transition of the per-user listener ref count, **only when a `Player` record already exists for that user in the game**. If no `Player` record exists yet, the existing `PlayerJoined` / `JoinGame` flow handles the announcement instead.
+
+| Field            | Type    | Description                                                |
+|------------------|---------|------------------------------------------------------------|
+| `timestamp`      | Instant | When the first new listener for the user attached          |
+| `sequenceNumber` | long    | Game-stream sequence number                                |
+| `gameId`         | String  | Game ID                                                    |
+| `userId`         | String  | Player whose connection was restored                       |
+
+**eventType:** `player-reconnected`
 
 ---
 
@@ -396,13 +475,14 @@ Table-level events report changes within a specific table's hand. They implement
 
 The table's administrative status transitioned.
 
-| Field       | Type         | Description                                          |
-|-------------|--------------|------------------------------------------------------|
-| `timestamp` | Instant      | When the transition occurred                         |
-| `gameId`    | String       | Game ID                                              |
-| `tableId`   | String       | Table ID                                             |
-| `oldStatus` | Table.Status | Previous status                                      |
-| `newStatus` | Table.Status | New status (`PLAYING`, `PAUSE_AFTER_HAND`, `PAUSED`) |
+| Field            | Type         | Description                                          |
+|------------------|--------------|------------------------------------------------------|
+| `timestamp`      | Instant      | When the transition occurred                         |
+| `sequenceNumber` | long         | Per-table stream sequence number                     |
+| `gameId`         | String       | Game ID                                              |
+| `tableId`        | String       | Table ID                                             |
+| `oldStatus`      | Table.Status | Previous status                                      |
+| `newStatus`      | Table.Status | New status (`PLAYING`, `PAUSE_AFTER_HAND`, `PAUSED`) |
 
 **eventType:** `table-status-changed`
 
@@ -412,13 +492,14 @@ The table's administrative status transitioned.
 
 The table's hand phase transitioned. Emitted on every phase change (including transient phases like DEAL/FLOP/TURN/RIVER/SHOWDOWN/HAND_COMPLETE), so clients can drive UI state directly from this event.
 
-| Field       | Type      | Description                  |
-|-------------|-----------|------------------------------|
-| `timestamp` | Instant   | When the transition occurred |
-| `gameId`    | String    | Game ID                      |
-| `tableId`   | String    | Table ID                     |
-| `oldPhase`  | HandPhase | Previous hand phase          |
-| `newPhase`  | HandPhase | New hand phase               |
+| Field            | Type      | Description                      |
+|------------------|-----------|----------------------------------|
+| `timestamp`      | Instant   | When the transition occurred     |
+| `sequenceNumber` | long      | Per-table stream sequence number |
+| `gameId`         | String    | Game ID                          |
+| `tableId`        | String    | Table ID                         |
+| `oldPhase`       | HandPhase | Previous hand phase              |
+| `newPhase`       | HandPhase | New hand phase                   |
 
 **eventType:** `hand-phase-changed`
 
@@ -428,13 +509,14 @@ The table's hand phase transitioned. Emitted on every phase change (including tr
 
 The table is in `WAITING_FOR_PLAYERS` because there are not enough eligible players to start a hand.
 
-| Field           | Type    | Description                                              |
-|-----------------|---------|----------------------------------------------------------|
-| `timestamp`     | Instant | When emitted                                             |
-| `gameId`        | String  | Game ID                                                  |
-| `tableId`       | String  | Table ID                                                 |
-| `activePlayers` | int     | Number of players currently eligible to play (with chips)|
-| `seatedPlayers` | int     | Number of non-empty seats at the table                   |
+| Field            | Type    | Description                                              |
+|------------------|---------|----------------------------------------------------------|
+| `timestamp`      | Instant | When emitted                                             |
+| `sequenceNumber` | long    | Per-table stream sequence number                         |
+| `gameId`         | String  | Game ID                                                  |
+| `tableId`        | String  | Table ID                                                 |
+| `activePlayers`  | int     | Number of players currently eligible to play (with chips)|
+| `seatedPlayers`  | int     | Number of non-empty seats at the table                   |
 
 **eventType:** `waiting-for-players`
 
@@ -447,6 +529,7 @@ A new hand has begun. Carries a full seat snapshot so clients can render the tab
 | Field                | Type               | Description                                                 |
 |----------------------|--------------------|-------------------------------------------------------------|
 | `timestamp`          | Instant            | When the hand started                                       |
+| `sequenceNumber`     | long               | Per-table stream sequence number                            |
 | `gameId`             | String             | Game ID                                                     |
 | `tableId`            | String             | Table ID                                                    |
 | `handNumber`         | int                | Monotonically increasing                                    |
@@ -461,6 +544,29 @@ A new hand has begun. Carries a full seat snapshot so clients can render the tab
 
 **eventType:** `hand-started`
 
+**Emission order around blinds:** `BlindPosted(SMALL)` → `BlindPosted(BIG)` → `HandStarted` → `HoleCardsDealt` (per player, user-targeted) → `HandPhaseChanged(PRE_FLOP_BETTING)` → `ActionOnPlayer`. The `seats[]` snapshot in `HandStarted` reflects post-blind chip counts; the two `BlindPosted` events are the authoritative transaction record for the chips that moved.
+
+---
+
+#### BlindPosted
+
+A blind has been posted. Emitted twice per hand under normal play — once for the small blind, once for the big blind, in that order. The `amountPosted` is the actual chips deducted from the player; for an all-in-on-blind the amount equals the player's stack and may be less than the configured blind level.
+
+| Field            | Type      | Description                                                                |
+|------------------|-----------|----------------------------------------------------------------------------|
+| `timestamp`      | Instant   | When the blind was posted                                                  |
+| `sequenceNumber` | long      | Per-table stream sequence number                                           |
+| `gameId`         | String    | Game ID                                                                    |
+| `tableId`        | String    | Table ID                                                                   |
+| `seatPosition`   | int       | 1-indexed seat position of the player posting the blind                    |
+| `userId`         | String    | Player posting the blind                                                   |
+| `blindType`      | BlindType | `SMALL` or `BIG` (extensible — see [BlindType](#blindtype))                |
+| `amountPosted`   | long      | Actual chips deducted (`min(blindLevel, playerStack)`; less than the blind level indicates all-in-on-blind) |
+
+**eventType:** `blind-posted`
+
+**All-in-on-blind detection:** if `amountPosted < expected blind level for this seat`, the player went all-in posting the blind. The seat's `isAllIn` flag in subsequent `HandStarted.seats[]` / `BettingRoundComplete.seats[]` entries will reflect this. No separate event is emitted for this case.
+
 ---
 
 #### HoleCardsDealt
@@ -470,6 +576,7 @@ Hole cards dealt to a specific player. This is a **private event** — only the 
 | Field            | Type           | Description                                                        |
 |------------------|----------------|--------------------------------------------------------------------|
 | `timestamp`      | Instant        | When cards were dealt                                              |
+| `sequenceNumber` | long           | Always `0` — `HoleCardsDealt` is a `UserEvent` and is excluded from gap detection. Clients must not advance the table-stream expectation when receiving this event. |
 | `gameId`         | String         | Game ID                                                            |
 | `tableId`        | String         | Table ID                                                           |
 | `userId`         | String         | Player receiving cards                                             |
@@ -489,6 +596,7 @@ Community cards dealt (flop, turn, or river).
 | Field                | Type       | Description                                           |
 |----------------------|------------|-------------------------------------------------------|
 | `timestamp`          | Instant    | When cards were dealt                                 |
+| `sequenceNumber`     | long       | Per-table stream sequence number                      |
 | `gameId`             | String     | Game ID                                               |
 | `tableId`            | String     | Table ID                                              |
 | `cards`              | List<Card> | The cards dealt in this event (3 for flop, 1 o/w)     |
@@ -506,6 +614,7 @@ A player performed an action during a betting round. The event carries the resul
 | Field              | Type             | Description                                                     |
 |--------------------|------------------|-----------------------------------------------------------------|
 | `timestamp`        | Instant          | When the action occurred                                        |
+| `sequenceNumber`   | long             | Per-table stream sequence number                                |
 | `gameId`           | String           | Game ID                                                         |
 | `tableId`          | String           | Table ID                                                        |
 | `seatPosition`     | int              | 1-indexed seat position of the player                           |
@@ -525,14 +634,15 @@ A player performed an action during a betting round. The event carries the resul
 
 A player failed to act within the time limit; a default action was applied.
 
-| Field           | Type         | Description                       |
-|-----------------|--------------|-----------------------------------|
-| `timestamp`     | Instant      | When the timeout occurred         |
-| `gameId`        | String       | Game ID                           |
-| `tableId`       | String       | Table ID                          |
-| `seatPosition`  | int          | 1-indexed seat position of the player |
-| `userId`        | String       | Player who timed out              |
-| `defaultAction` | PlayerAction | The action applied (Check/Fold)   |
+| Field            | Type         | Description                           |
+|------------------|--------------|---------------------------------------|
+| `timestamp`      | Instant      | When the timeout occurred             |
+| `sequenceNumber` | long         | Per-table stream sequence number      |
+| `gameId`         | String       | Game ID                               |
+| `tableId`        | String       | Table ID                              |
+| `seatPosition`   | int          | 1-indexed seat position of the player |
+| `userId`         | String       | Player who timed out                  |
+| `defaultAction`  | PlayerAction | The action applied (Check/Fold)       |
 
 **eventType:** `player-timed-out`
 **Follow-up:** A `PlayerActed` event for the same seat is emitted immediately afterward carrying the post-action state (resulting status, pot total, etc.).
@@ -546,6 +656,7 @@ Action has moved to a specific seat. Carries the full decision context so client
 | Field              | Type    | Description                                                       |
 |--------------------|---------|-------------------------------------------------------------------|
 | `timestamp`        | Instant | When the action moved                                             |
+| `sequenceNumber`   | long    | Per-table stream sequence number                                  |
 | `gameId`           | String  | Game ID                                                           |
 | `tableId`          | String  | Table ID                                                          |
 | `seatPosition`     | int     | 1-indexed seat position of the player on the clock                |
@@ -568,6 +679,7 @@ All active players have acted; the betting round is finished. Includes a full pe
 | Field            | Type               | Description                                       |
 |------------------|--------------------|---------------------------------------------------|
 | `timestamp`      | Instant            | When the round completed                          |
+| `sequenceNumber` | long               | Per-table stream sequence number                  |
 | `gameId`         | String             | Game ID                                           |
 | `tableId`        | String             | Table ID                                          |
 | `completedPhase` | HandPhase          | Which betting phase completed                     |
@@ -583,12 +695,13 @@ All active players have acted; the betting round is finished. Includes a full pe
 
 Hand reached showdown; winners determined and pots awarded.
 
-| Field        | Type             | Description                    |
-|--------------|------------------|--------------------------------|
-| `timestamp`  | Instant          | When showdown resolved         |
-| `gameId`     | String           | Game ID                        |
-| `tableId`    | String           | Table ID                       |
-| `potResults` | List<PotResult>  | Results for each pot           |
+| Field            | Type             | Description                      |
+|------------------|------------------|----------------------------------|
+| `timestamp`      | Instant          | When showdown resolved           |
+| `sequenceNumber` | long             | Per-table stream sequence number |
+| `gameId`         | String           | Game ID                          |
+| `tableId`        | String           | Table ID                         |
+| `potResults`     | List<PotResult>  | Results for each pot             |
 
 **eventType:** `showdown-result`
 
@@ -615,12 +728,13 @@ Hand reached showdown; winners determined and pots awarded.
 
 The hand has finished; entering the review period.
 
-| Field        | Type    | Description                  |
-|--------------|---------|------------------------------|
-| `timestamp`  | Instant | When the hand completed      |
-| `gameId`     | String  | Game ID                      |
-| `tableId`    | String  | Table ID                     |
-| `handNumber` | int     | The completed hand number    |
+| Field            | Type    | Description                      |
+|------------------|---------|----------------------------------|
+| `timestamp`      | Instant | When the hand completed          |
+| `sequenceNumber` | long    | Per-table stream sequence number |
+| `gameId`         | String  | Game ID                          |
+| `tableId`        | String  | Table ID                         |
+| `handNumber`     | int     | The completed hand number        |
 
 **eventType:** `hand-complete`
 
@@ -647,37 +761,44 @@ A direct message sent to a specific player (e.g., validation errors, notificatio
 
 #### GameSnapshot
 
-A snapshot of the current game state, sent in response to a `GetGameState` command.
+A snapshot of the current game state, sent in response to a `GetGameState` command. Carries resume-point fields the client uses to re-anchor gap detection on every stream after a snapshot-based recovery.
 
-| Field       | Type          | Description                     |
-|-------------|---------------|---------------------------------|
-| `timestamp` | Instant       | When the snapshot was taken      |
-| `userId`    | String        | Requesting player ID             |
-| `gameId`    | String        | Game ID                          |
-| `gameName`  | String        | Human-readable game name         |
-| `status`    | GameStatus    | Current game status              |
-| `startTime` | Instant       | Scheduled start time             |
-| `smallBlind`| int           | Small blind amount               |
-| `bigBlind`  | int           | Big blind amount                 |
-| `players`   | List\<Player> | All players in the game          |
-| `tableIds`  | List\<String> | IDs of all tables in the game    |
+| Field              | Type                | Description                                                                    |
+|--------------------|---------------------|--------------------------------------------------------------------------------|
+| `timestamp`        | Instant             | When the snapshot was taken                                                    |
+| `userId`           | String              | Requesting player ID                                                           |
+| `gameId`           | String              | Game ID                                                                        |
+| `gameName`         | String              | Human-readable game name                                                       |
+| `status`           | GameStatus          | Current game status                                                            |
+| `startTime`        | Instant             | Scheduled start time                                                           |
+| `smallBlind`       | int                 | Small blind amount                                                             |
+| `bigBlind`         | int                 | Big blind amount                                                               |
+| `players`          | List\<Player>       | All players in the game                                                        |
+| `tableIds`         | List\<String>       | IDs of all tables in the game                                                  |
+| `gameStreamSeq`    | long                | Most recently assigned game-stream sequence number. Resume from this value: the next broadcast `GameEvent` (non-`TableEvent`) will be `gameStreamSeq + 1`. |
+| `tableStreamSeqs`  | Map<String, long>   | `tableId → most recently assigned per-table sequence number`. The next broadcast `TableEvent` for a given table will be `tableStreamSeqs[tableId] + 1`. |
 
 **eventType:** `game-snapshot`
+
+`GameSnapshot` is itself a `UserEvent` and is delivered only to the requesting user. It carries no `sequenceNumber` of its own.
 
 ---
 
 #### TableSnapshot
 
-A snapshot of a specific table's state, sent in response to a `GetTableState` command. Hole cards and pending intents are stripped from all seats except the requesting user's.
+A snapshot of a specific table's state, sent in response to a `GetTableState` command. Hole cards and pending intents are stripped from all seats except the requesting user's. Carries the resume-point for this table's stream.
 
-| Field       | Type    | Description                    |
-|-------------|---------|--------------------------------|
-| `timestamp` | Instant | When the snapshot was taken     |
-| `userId`    | String  | Requesting player ID           |
-| `gameId`    | String  | Game ID                        |
-| `table`     | Table   | Full table state (sanitized)   |
+| Field       | Type    | Description                                                                                       |
+|-------------|---------|---------------------------------------------------------------------------------------------------|
+| `timestamp` | Instant | When the snapshot was taken                                                                       |
+| `userId`    | String  | Requesting player ID                                                                              |
+| `gameId`    | String  | Game ID                                                                                           |
+| `table`     | Table   | Full table state (sanitized)                                                                      |
+| `streamSeq` | long    | Most recently assigned per-table sequence number. The next broadcast `TableEvent` for this table will be `streamSeq + 1`. |
 
 **eventType:** `table-snapshot`
+
+`TableSnapshot` is itself a `UserEvent` and is delivered only to the requesting user. It carries no `sequenceNumber` of its own — `streamSeq` is the resume point for the table stream, distinct from the snapshot's identity.
 
 ---
 
@@ -776,6 +897,17 @@ Compact per-seat snapshot embedded in table events (`HandStarted`, `BettingRound
 | `status`           | HandPlayerStatus | No       | Codified per-hand status of the seat                    |
 | `chipCount`        | int              | No       | Player's current chip count                             |
 | `currentBetAmount` | int              | No       | Chips wagered by this seat in the current betting round |
+
+---
+
+### BlindType
+
+The kind of blind being posted in a `BlindPosted` event. Additively extensible: the wire format is the enum name, so adding `ANTE`, `STRADDLE`, or `DEAD_BLIND` later is forward-compatible.
+
+| Value   | Description                                  |
+|---------|----------------------------------------------|
+| `SMALL` | Small blind (posted by the SB seat)          |
+| `BIG`   | Big blind (posted by the BB seat)            |
 
 ---
 
