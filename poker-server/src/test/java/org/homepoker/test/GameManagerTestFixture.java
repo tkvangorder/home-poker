@@ -3,8 +3,10 @@ package org.homepoker.test;
 import org.homepoker.game.GameListener;
 import org.homepoker.game.GameManager;
 import org.homepoker.game.GameSettings;
+import org.homepoker.game.cash.CashGameManager;
 import org.homepoker.game.table.TableManager;
 import org.homepoker.model.command.GameCommand;
+import org.homepoker.model.command.JoinGame;
 import org.homepoker.model.command.PlayerActionCommand;
 import org.homepoker.model.command.StartGame;
 import org.homepoker.model.event.PokerEvent;
@@ -22,7 +24,9 @@ import org.homepoker.model.user.User;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Test fixture that builds a deterministic, in-memory {@link GameManager} for unit tests.
@@ -43,6 +47,13 @@ import java.util.List;
 public final class GameManagerTestFixture {
 
   private final TestableGameManager manager;
+
+  /**
+   * Per-user list of listeners registered via {@link #registerListener(User)}, in
+   * registration order. Used by {@link #unregisterOneListenerFor(User)} to remove a
+   * specific listener instance rather than every listener for a given user.
+   */
+  private final Map<String, List<GameListener>> registeredListeners = new HashMap<>();
 
   private GameManagerTestFixture(TestableGameManager manager) {
     this.manager = manager;
@@ -95,6 +106,27 @@ public final class GameManagerTestFixture {
     return new GameManagerTestFixture(buildHeadsUpShortStackSbManager(stackSize, smallBlindAmount));
   }
 
+  /**
+   * A bare game in {@link GameStatus#SEATING} with no tables and no players. Intended for
+   * tests that drive the listener / connect / disconnect plumbing in isolation; the game has
+   * never started a hand.
+   */
+  public static GameManagerTestFixture emptyGame() {
+    User owner = TestDataHelper.adminUser();
+    CashGame game = CashGame.builder()
+        .id("test-game")
+        .name("Empty Test Game")
+        .type(GameType.TEXAS_HOLDEM)
+        .status(GameStatus.SEATING)
+        .startTime(Instant.now())
+        .maxBuyIn(10000)
+        .smallBlind(25)
+        .bigBlind(50)
+        .owner(owner)
+        .build();
+    return new GameManagerTestFixture(new TestableGameManager(game));
+  }
+
   /** All events captured by the test listener since the fixture was built. */
   public List<PokerEvent> savedEvents() {
     return manager.savedEvents();
@@ -140,6 +172,94 @@ public final class GameManagerTestFixture {
   /** Process one game tick on the underlying manager. */
   public void tick() {
     manager.processGameTick();
+  }
+
+  /**
+   * Deterministic, named test users for connection-flow tests. Returned via
+   * {@link #users()} so callers read like {@code fixture.users().alice()}.
+   */
+  public static final class Users {
+    private Users() {}
+
+    public User alice() {
+      return TestDataHelper.user("alice", "password", "Alice");
+    }
+
+    public User bob() {
+      return TestDataHelper.user("bob", "password", "Bob");
+    }
+  }
+
+  private static final Users USERS = new Users();
+
+  /** Accessor for canonical, deterministic test users. */
+  public Users users() {
+    return USERS;
+  }
+
+  /**
+   * Submit a {@link JoinGame} command for the given user and process one tick so the
+   * Player record is added to the game. Suitable in {@link GameStatus#SEATING}; the
+   * fixture's empty game has no tables so the player will not be auto-seated, which is
+   * what the connection-flow tests want.
+   */
+  public void joinGame(User user) {
+    manager.submitCommand(new JoinGame(manager.getGame().id(), user));
+    manager.processGameTick();
+  }
+
+  /**
+   * Register a fresh capturing listener for {@code user}. Each call appends a new
+   * listener instance, supporting the multi-socket-per-user scenarios that the
+   * ref-counted tracking is designed for.
+   */
+  public void registerListener(User user) {
+    GameListener listener = new GameListener() {
+      @Override
+      public String userId() {
+        return user.id();
+      }
+
+      @Override
+      public boolean acceptsEvent(PokerEvent event) {
+        return true;
+      }
+
+      @Override
+      public void onEvent(PokerEvent event) {
+        // Capture is handled by the fixture-level test-listener; per-user listeners
+        // exist only to drive the ref-count plumbing.
+      }
+    };
+    registeredListeners.computeIfAbsent(user.id(), id -> new ArrayList<>()).add(listener);
+    manager.addGameListener(listener);
+  }
+
+  /**
+   * Remove every listener previously registered for {@code user} via
+   * {@link #registerListener(User)} (and any other listener with the same user id).
+   * Drives {@link GameManager#removeGameListenersByUserId(String)}.
+   */
+  public void unregisterListenersFor(User user) {
+    registeredListeners.remove(user.id());
+    manager.removeGameListenersByUserId(user.id());
+  }
+
+  /**
+   * Remove one specific listener instance previously registered for {@code user}.
+   * The earliest-registered listener still attached is removed; the rest remain.
+   */
+  public void unregisterOneListenerFor(User user) {
+    List<GameListener> listeners = registeredListeners.get(user.id());
+    if (listeners == null || listeners.isEmpty()) {
+      throw new IllegalStateException(
+          "No listeners registered for user " + user.id() + " via registerListener()");
+    }
+    GameListener listener = listeners.removeFirst();
+    if (listeners.isEmpty()) {
+      registeredListeners.remove(user.id());
+    }
+    manager.removeGameListener(listener);
   }
 
   /**
@@ -459,14 +579,16 @@ public final class GameManagerTestFixture {
 
   /**
    * In-memory {@link GameManager} that does not require Spring or a database. Persistence
-   * is a no-op and a built-in listener captures every event for assertion.
+   * is a no-op and a built-in listener captures every event for assertion. Extends
+   * {@link CashGameManager} so {@code JoinGame} (and any other cash-game-specific
+   * commands) are dispatched through the production code path.
    */
-  public static final class TestableGameManager extends GameManager<CashGame> {
+  public static final class TestableGameManager extends CashGameManager {
 
     private final List<PokerEvent> savedEvents = new ArrayList<>();
 
     public TestableGameManager(CashGame game) {
-      super(game, null, null);
+      super(game, null, null, null);
       addGameListener(new GameListener() {
         @Override
         public String userId() {
