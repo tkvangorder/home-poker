@@ -467,6 +467,24 @@ A player's WebSocket listener came back after a previous `PlayerDisconnected`. E
 
 ---
 
+#### AdminViewingReplay
+
+Broadcast warning that an admin is viewing a replay of a hand on a game whose status is not `COMPLETED`. Emitted exactly once per replay request against an in-progress game; not emitted for replays of `COMPLETED` games. Players receiving this can surface it in the UI to make admin observation visible.
+
+| Field            | Type    | Description                                       |
+|------------------|---------|---------------------------------------------------|
+| `timestamp`      | Instant | When the warning was emitted                      |
+| `sequenceNumber` | long    | Game-stream sequence number                       |
+| `gameId`         | String  | Game ID                                           |
+| `adminUserId`    | String  | Admin's user ID                                   |
+| `adminAlias`     | String  | Admin's alias (display name)                      |
+| `tableId`        | String  | Table being replayed                              |
+| `handNumber`     | int     | Hand number being replayed                        |
+
+**eventType:** `admin-viewing-replay`
+
+---
+
 ### Table-Level Events
 
 Table-level events report changes within a specific table's hand. They implement `TableEvent`.
