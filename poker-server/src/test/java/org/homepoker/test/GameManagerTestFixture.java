@@ -69,6 +69,32 @@ public final class GameManagerTestFixture {
     return new GameManagerTestFixture(buildSingleTableMidHandManager());
   }
 
+  /**
+   * Convenience scenario: same as {@link #singleTableMidHand()} — the hand has been dealt
+   * and an {@code ActionOnPlayer} event has been emitted. Provided as a named alias for
+   * tests that specifically assert on the {@code HandStarted} → {@code BlindPosted}
+   * → {@code ActionOnPlayer} ordering.
+   */
+  public static GameManagerTestFixture singleTableHandStartedThroughActionOnPlayer() {
+    return new GameManagerTestFixture(buildSingleTableMidHandManager());
+  }
+
+  /**
+   * Convenience scenario for testing all-in-on-blind: a 2-player heads-up table where the
+   * small-blind seat starts with {@code stackSize} chips and the configured small blind is
+   * {@code smallBlindAmount > stackSize}. After the deal, the SB player posts {@code
+   * stackSize} (capped by {@code Math.min}) and is marked all-in.
+   * <p>
+   * Heads-up rule: dealer is the small blind. The fixture pre-sets {@code dealerPosition(2)}
+   * so after the first {@link
+   * org.homepoker.game.table.TexasHoldemTableManager}'s dealer rotation the dealer/SB lands
+   * on seat 1; the BB lands on seat 2.
+   */
+  public static GameManagerTestFixture singleTableSmallBlindPlayerStackBelowBlind(
+      int stackSize, int smallBlindAmount) {
+    return new GameManagerTestFixture(buildHeadsUpShortStackSbManager(stackSize, smallBlindAmount));
+  }
+
   /** All events captured by the test listener since the fixture was built. */
   public List<PokerEvent> savedEvents() {
     return manager.savedEvents();
@@ -126,6 +152,25 @@ public final class GameManagerTestFixture {
       throw new IllegalArgumentException("No such table: " + tableId);
     }
     return tm.currentStreamSeq();
+  }
+
+  /** Configured small blind amount for this game. */
+  public int smallBlindAmount() {
+    return manager.getGame().smallBlind();
+  }
+
+  /** Configured big blind amount for this game. */
+  public int bigBlindAmount() {
+    return manager.getGame().bigBlind();
+  }
+
+  /**
+   * The seat at the given 1-based position on the (first/only) table. Intended for
+   * single-table fixtures; ambiguous if multiple tables are present.
+   */
+  public Seat seatAt(int position) {
+    Table table = manager.getGame().tables().firstEntry().getValue();
+    return table.seatAt(position);
   }
 
   /** The most-recently-saved event captured by the listener. */
@@ -220,6 +265,40 @@ public final class GameManagerTestFixture {
     return manager;
   }
 
+  private static TestableGameManager buildHeadsUpShortStackSbManager(
+      int sbStackSize, int smallBlindAmount) {
+    if (sbStackSize >= smallBlindAmount) {
+      throw new IllegalArgumentException(
+          "sbStackSize (" + sbStackSize + ") must be less than smallBlindAmount ("
+              + smallBlindAmount + ") for the all-in-on-blind scenario");
+    }
+    User owner = TestDataHelper.adminUser();
+    CashGame game = CashGame.builder()
+        .id("test-game")
+        .name("Heads-Up Short Stack SB Test Game")
+        .type(GameType.TEXAS_HOLDEM)
+        .status(GameStatus.SEATING)
+        .startTime(Instant.now())
+        .maxBuyIn(10000)
+        .smallBlind(smallBlindAmount)
+        .bigBlind(smallBlindAmount * 2)
+        .owner(owner)
+        .build();
+
+    seatHeadsUpShortStackTable(game, "TABLE-0", sbStackSize);
+
+    TestableGameManager manager = new TestableGameManager(game);
+    manager.submitCommand(new StartGame(game.id(), owner));
+    // Tick 1: drains StartGame, transitions SEATING -> ACTIVE.
+    manager.processGameTick();
+    // Tick 2: transitionFromActive deals the first hand. postBlind(SMALL) fires for seat 1
+    // (the dealer, which is also SB in heads-up); the player's chip count is below the small
+    // blind so amountPosted == sbStackSize and the seat is marked all-in. postBlind(BIG)
+    // fires for seat 2.
+    manager.processGameTick();
+    return manager;
+  }
+
   private static TestableGameManager buildTwoTableManager() {
     User owner = TestDataHelper.adminUser();
     // Start in SEATING so that submitting StartGame produces a game-level GameStatusChanged
@@ -245,6 +324,50 @@ public final class GameManagerTestFixture {
     // for each table (PAUSED → PLAYING), and a GameMessage.
     manager.submitCommand(new StartGame(game.id(), owner));
     return manager;
+  }
+
+  private static void seatHeadsUpShortStackTable(CashGame game, String tableId, int sbStackSize) {
+    Table table = Table.builder()
+        .id(tableId)
+        .emptySeats(GameSettings.TEXAS_HOLDEM_SETTINGS.numberOfSeats())
+        .status(Table.Status.PAUSED)
+        .build();
+
+    // Pre-set dealer so the first rotation lands on seat 1 (dealer == SB in heads-up).
+    table.dealerPosition(2);
+    game.tables().put(table.id(), table);
+
+    // Seat 1: SB / dealer with the short stack.
+    User sbUser = TestDataHelper.user(tableId + "-player-sb", "password", "SB Player");
+    Player sbPlayer = Player.builder()
+        .user(sbUser)
+        .status(PlayerStatus.ACTIVE)
+        .chipCount(sbStackSize)
+        .buyInTotal(sbStackSize)
+        .reBuys(0)
+        .addOns(0)
+        .build();
+    game.addPlayer(sbPlayer);
+    Seat sbSeat = table.seats().get(0);
+    sbSeat.status(Seat.Status.JOINED_WAITING);
+    sbSeat.player(sbPlayer);
+    sbPlayer.tableId(tableId);
+
+    // Seat 2: BB with a comfortable stack.
+    User bbUser = TestDataHelper.user(tableId + "-player-bb", "password", "BB Player");
+    Player bbPlayer = Player.builder()
+        .user(bbUser)
+        .status(PlayerStatus.ACTIVE)
+        .chipCount(10000)
+        .buyInTotal(10000)
+        .reBuys(0)
+        .addOns(0)
+        .build();
+    game.addPlayer(bbPlayer);
+    Seat bbSeat = table.seats().get(1);
+    bbSeat.status(Seat.Status.JOINED_WAITING);
+    bbSeat.player(bbPlayer);
+    bbPlayer.tableId(tableId);
   }
 
   private static void seatTable(CashGame game, String tableId, int playerCount) {
