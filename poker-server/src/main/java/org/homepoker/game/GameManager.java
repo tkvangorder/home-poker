@@ -170,6 +170,15 @@ public abstract class GameManager<T extends Game<T>> {
     return game;
   }
 
+  /**
+   * Test-only accessor — do not use outside test fixtures. Exposed so integration tests
+   * can mutate or inspect the in-memory game state directly when driving rare branches
+   * (e.g., forcing {@code GameStatus.COMPLETED} without ticking through the full lifecycle).
+   */
+  public T gameForTestOnly() {
+    return game;
+  }
+
   public String gameId() {
     return game.id();
   }

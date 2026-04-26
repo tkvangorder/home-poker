@@ -5,6 +5,7 @@ import org.homepoker.lib.exception.SecurityException;
 import org.homepoker.lib.exception.ValidationException;
 import org.homepoker.model.Message;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -46,6 +47,18 @@ public class RestExceptionHandler {
   @ResponseBody
   @ResponseStatus(HttpStatus.FORBIDDEN)
   public Message handleException(SecurityException e) {
+    return Message.error(e.getMessage());
+  }
+
+  /**
+   * Spring Security throws {@link AccessDeniedException} (or its subclass
+   * {@code AuthorizationDeniedException}) when {@code @PreAuthorize} fails. Map to 403.
+   * Without this, the catch-all {@code Exception} handler below would return 500.
+   */
+  @ExceptionHandler(AccessDeniedException.class)
+  @ResponseBody
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  public Message handleException(AccessDeniedException e) {
     return Message.error(e.getMessage());
   }
 

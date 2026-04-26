@@ -89,6 +89,15 @@ public class CashGameManager extends GameManager<CashGame> {
     return new CashGameManager(game().copy(), cashGameService, userManager(), securityUtilities(), null);
   }
 
+  /**
+   * Test-only accessor — exposes the in-memory {@link CashGame} so integration tests
+   * can mutate state directly (e.g., flipping {@code GameStatus} to drive rare branches).
+   * Do not use outside test fixtures.
+   */
+  public CashGame getGameForTest() {
+    return gameForTestOnly();
+  }
+
   @Override
   protected CashGame persistGameState(CashGame game) {
     return cashGameService.saveGame(game);
