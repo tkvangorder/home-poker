@@ -189,6 +189,11 @@ public class CashGameService {
         });
   }
 
+  /** Test-only: drop the cached CashGameManager so the next getGameManger() reconstructs it. */
+  public void invalidateGameManagerForTest(String gameId) {
+    getGameManagerMap().remove(gameId);
+  }
+
   /**
    * Create/schedule a new game.
    * <p>

@@ -3,10 +3,12 @@ package org.homepoker.recording;
 import org.homepoker.game.GameSettings;
 import org.homepoker.game.cash.CashGameManager;
 import org.homepoker.game.cash.CashGameService;
+import org.homepoker.model.command.PlayerActionCommand;
 import org.homepoker.model.command.StartGame;
 import org.homepoker.model.game.GameStatus;
 import org.homepoker.model.game.GameType;
 import org.homepoker.model.game.Player;
+import org.homepoker.model.game.PlayerAction;
 import org.homepoker.model.game.PlayerStatus;
 import org.homepoker.model.game.Seat;
 import org.homepoker.model.game.Table;
@@ -126,5 +128,112 @@ class EventRecorderIntegrationTest extends BaseIntegrationTest {
     assertThat(all)
         .filteredOn(r -> "hole-cards-dealt".equals(r.eventType()))
         .allSatisfy(r -> assertThat(r.sequenceNumber()).isZero());
+  }
+
+  /**
+   * Simulates a server restart while a hand is in progress: drive a game to mid-hand, persist
+   * its state, drop the cached {@code CashGameManager}, then re-acquire it. The reconstructed
+   * manager's {@code EventRecorder} runs {@code seedHandTracker()} during construction. After
+   * the restart, the next event captured for that table must carry {@code handNumber = 1} —
+   * proving the seed correctly recovered the open hand from Mongo.
+   */
+  @Test
+  void afterRestartCurrentHandByTableIsSeededFromRecording() {
+    User owner = createUser(TestDataHelper.user("admin", "password", "Admin"));
+    String gameId = "recording-restart-it-" + System.nanoTime();
+
+    CashGame game = CashGame.builder()
+        .id(gameId)
+        .name("Recording Restart IT")
+        .type(GameType.TEXAS_HOLDEM)
+        .status(GameStatus.SEATING)
+        .startTime(Instant.now())
+        .maxBuyIn(10000)
+        .smallBlind(25)
+        .bigBlind(50)
+        .owner(owner)
+        .build();
+
+    Table table = Table.builder()
+        .id("TABLE-0")
+        .emptySeats(GameSettings.TEXAS_HOLDEM_SETTINGS.numberOfSeats())
+        .status(Table.Status.PAUSED)
+        .build();
+    table.dealerPosition(5);
+    game.tables().put(table.id(), table);
+
+    for (int i = 0; i < 5; i++) {
+      String uid = "rec-restart-player-" + i;
+      User u = createUser(TestDataHelper.user(uid, "password", "Player " + uid));
+      Player p = Player.builder()
+          .user(u).status(PlayerStatus.ACTIVE)
+          .chipCount(10000).buyInTotal(10000).reBuys(0).addOns(0).build();
+      game.addPlayer(p);
+      Seat s = table.seats().get(i);
+      s.status(Seat.Status.JOINED_WAITING);
+      s.player(p);
+      p.tableId(table.id());
+    }
+
+    cashGameRepository.save(game);
+
+    // Phase 1: drive into a hand. After tick 2, table is PRE_FLOP_BETTING with HandStarted(1).
+    CashGameManager manager = cashGameService.getGameManger(gameId);
+    manager.submitCommand(new StartGame(gameId, owner));
+    manager.processGameTick();
+    manager.processGameTick();
+
+    // Persist the post-tick state explicitly so seedHandTracker() observes Table.Status.PLAYING
+    // when the simulated restart occurs.
+    cashGameRepository.save(manager.getGameForTest());
+
+    // Wait for phase-1 writes to flush. Specifically, wait for HandStarted(handNumber=1) on TABLE-0.
+    await().atMost(Duration.ofSeconds(5)).until(() ->
+        eventRecorderRepository.findAll().stream().anyMatch(r ->
+            gameId.equals(r.gameId())
+                && "TABLE-0".equals(r.tableId())
+                && r.handNumber() != null && r.handNumber() == 1
+                && "hand-started".equals(r.eventType())));
+
+    // Snapshot the recorded event count for this table BEFORE the restart so we can detect
+    // a post-restart write below.
+    long phase1TableEventCount = eventRecorderRepository.findAll().stream()
+        .filter(r -> gameId.equals(r.gameId()) && "TABLE-0".equals(r.tableId()))
+        .count();
+
+    // Phase 2: simulate restart by dropping the cached manager and re-acquiring it. The
+    // reconstructed manager's constructor runs seedHandTracker() before any tick.
+    cashGameService.invalidateGameManagerForTest(gameId);
+    CashGameManager fresh = cashGameService.getGameManger(gameId);
+
+    // Drive one more TableEvent: submit a Fold for the seat currently on the clock.
+    Table freshTable = fresh.getGameForTest().tables().get("TABLE-0");
+    int actionPos = freshTable.actionPosition();
+    Seat actionSeat = freshTable.seatAt(actionPos);
+    User actor = actionSeat.player().user();
+    fresh.submitCommand(new PlayerActionCommand(gameId, "TABLE-0", actor, new PlayerAction.Fold()));
+    fresh.processGameTick();
+
+    // Wait until the post-restart events have flushed (count strictly grew).
+    await().atMost(Duration.ofSeconds(5)).until(() ->
+        eventRecorderRepository.findAll().stream()
+            .filter(r -> gameId.equals(r.gameId()) && "TABLE-0".equals(r.tableId()))
+            .count() > phase1TableEventCount);
+
+    // Collect all events for this game/table written AFTER the restart (i.e., new entries
+    // beyond the snapshot). With the seed working, every TableEvent emitted in this hand
+    // (e.g., PlayerActed) must be tagged with handNumber=1 — NOT null.
+    List<RecordedEvent> phase2Events = eventRecorderRepository.findAll().stream()
+        .filter(r -> gameId.equals(r.gameId()) && "TABLE-0".equals(r.tableId()))
+        .sorted((a, b) -> a.recordedAt().compareTo(b.recordedAt()))
+        .skip(phase1TableEventCount)
+        .toList();
+
+    assertThat(phase2Events)
+        .as("post-restart events for TABLE-0 must carry handNumber=1 (seed recovered the open hand)")
+        .isNotEmpty()
+        .allSatisfy(r -> assertThat(r.handNumber())
+            .as("event %s should be tagged with handNumber=1", r.eventType())
+            .isEqualTo(1));
   }
 }
