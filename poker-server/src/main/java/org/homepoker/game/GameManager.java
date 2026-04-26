@@ -21,11 +21,10 @@ import org.homepoker.model.game.cash.CashGame;
 import org.homepoker.security.SecurityUtilities;
 import org.homepoker.user.SystemUsers;
 import org.homepoker.user.UserManager;
-import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscLinkedQueue;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -33,12 +32,10 @@ import java.util.concurrent.atomic.AtomicLong;
 public abstract class GameManager<T extends Game<T>> {
 
   /**
-   * This is a non-blocking queue that allows multiple threads to add commands to the queue and a single thread (the game loop thread) that will drain those commands.
-   * The contract guarantee (multi-producers, one consumer) is defined by the implementation MpscLinkedQueue and the capacity is unbounded.
-   * <p>
-   * The game loop thread is the only thread that will drain the commands and manipulate the game state.
+   * Unbounded, lock-free queue for commands submitted from any number of producer threads
+   * and drained by a single consumer (the game loop thread).
    */
-  private final MessagePassingQueue<GameCommand> pendingCommands = new MpscLinkedQueue<>();
+  private final ConcurrentLinkedQueue<GameCommand> pendingCommands = new ConcurrentLinkedQueue<>();
 
   /**
    * For now, using an immutable list of listeners. If there are concerns about performance or a need to find listeners
@@ -209,9 +206,12 @@ public abstract class GameManager<T extends Game<T>> {
     try {
       GameContext gameContext = new GameContext(gameSettings());
 
-      // Process queued Commands
+      // Process queued Commands. Snapshot what's currently in the queue; commands offered
+      // mid-drain are picked up on the next tick.
       List<GameCommand> commands = new ArrayList<>();
-      pendingCommands.drain(commands::add);
+      for (GameCommand drained = pendingCommands.poll(); drained != null; drained = pendingCommands.poll()) {
+        commands.add(drained);
+      }
 
       for (GameCommand command : commands) {
         log.debug("Processing command: [{}]", command);

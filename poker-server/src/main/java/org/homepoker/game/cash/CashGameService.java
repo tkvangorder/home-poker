@@ -13,7 +13,6 @@ import org.homepoker.recording.EventRecorderService;
 import org.homepoker.security.SecurityUtilities;
 import org.homepoker.threading.VirtualThreadManager;
 import org.homepoker.user.UserManager;
-import org.jctools.maps.NonBlockingHashMap;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -24,6 +23,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,9 +48,7 @@ public class CashGameService {
    */
   private final AtomicBoolean processLock = new AtomicBoolean(false);
 
-  //I am using a non-blocking variant of ConcurrentHashMap so I can use an atomic computeIfAbsent
-  //without blocking the event loop.
-  private final Map<String, CashGameManager> gameManagerMap = new NonBlockingHashMap<>();
+  private final Map<String, CashGameManager> gameManagerMap = new ConcurrentHashMap<>();
 
   private Instant lastGameCheck = Instant.now().minusSeconds(1);
 
