@@ -140,6 +140,13 @@ public abstract class GameManager<T extends Game<T>> {
    * fires exactly one {@code PlayerDisconnected} event.
    */
   public void removeGameListenersByUserId(String userId) {
+    // Defense in depth: never evict the EventRecorder's synthetic identity. A real user with
+    // this id cannot exist (registration enforces email-format on the id), but if some
+    // future code path passes the reserved id here, we refuse silently.
+    if (org.homepoker.recording.SystemUsers.EVENT_RECORDER_ID.equals(userId)) {
+      return;
+    }
+
     int removed = 0;
     for (Iterator<GameListener> it = gameListeners.iterator(); it.hasNext(); ) {
       if (userId.equals(it.next().userId())) {
