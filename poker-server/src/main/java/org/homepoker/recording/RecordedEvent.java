@@ -15,7 +15,12 @@ import java.util.Map;
  *   <li>{@code gameId} — always present</li>
  *   <li>{@code tableId} — null for game-level events</li>
  *   <li>{@code handNumber} — null for events outside any hand window</li>
- *   <li>{@code userId} — null for non-{@code UserEvent} events</li>
+ *   <li>{@code userId} — <strong>recipient</strong> only: set when the event implements
+ *       {@code UserEvent} (e.g., {@code HoleCardsDealt} addressed to a specific player).
+ *       The <em>actor</em> userId for events like {@code PlayerActed} is NOT denormalized
+ *       to this column; consumers querying by actor must crack open {@code payload.userId}
+ *       (un-indexed). The replay endpoint in v1 only filters by
+ *       {@code (gameId, tableId, handNumber)} so this is acceptable for now.</li>
  *   <li>{@code sequenceNumber} — 0 for {@code UserEvent}s; the real per-stream seq otherwise</li>
  * </ul>
  */

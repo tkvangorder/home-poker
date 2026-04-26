@@ -28,6 +28,10 @@ import java.util.Map;
  *
  * <p>Errors thrown inside {@code onEvent} are caught and logged — a broken recorder must
  * not break the game loop.
+ *
+ * <p><strong>Threading:</strong> {@code currentHandByTable} is mutated only from the
+ * game-loop thread (the sole caller of {@code onEvent}). Do not invoke {@code onEvent}
+ * concurrently — the backing map is a plain {@link HashMap}.
  */
 @Slf4j
 public class EventRecorder extends UserGameListener {
@@ -64,24 +68,21 @@ public class EventRecorder extends UserGameListener {
       Integer handNumber = computeHandNumber(event, tableId);
 
       long sequenceNumber = (event instanceof GameEvent ge) ? ge.sequenceNumber() : 0L;
-      Instant eventTimestamp = event.timestamp();
 
-      Map<String, Object> payload = service.toPayload(event);
-
-      RecordedEvent recorded = new RecordedEvent(
-          null,
+      // Hand the raw event off to the worker thread; the heavy ObjectMapper.convertValue
+      // call happens inside writeOne(), not here on the game-loop thread.
+      PendingRecording pending = new PendingRecording(
+          event,
           gameId,
           tableId,
           handNumber,
           userId,
-          event.eventType(),
           sequenceNumber,
-          eventTimestamp,
-          Instant.now(),
-          payload
+          event.timestamp(),
+          Instant.now()
       );
 
-      service.offer(recorded);
+      service.offer(pending);
 
       // Update the tracker AFTER tagging so HandStarted is recorded with its own number
       // and HandComplete is recorded under the closing hand.
