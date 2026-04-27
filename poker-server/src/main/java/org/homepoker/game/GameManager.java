@@ -27,6 +27,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
+import org.homepoker.poker.Deck;
 
 @Slf4j
 public abstract class GameManager<T extends Game<T>> {
@@ -338,8 +340,17 @@ public abstract class GameManager<T extends Game<T>> {
   /**
    * Creates a new table manager (and its underlying Table) for a brand-new table.
    */
+  /**
+   * Hook for tests to inject a deterministic deck. Default returns {@code Deck::new}
+   * (production behavior — random shuffle). Overrides should return a fresh supplier
+   * if they need per-hand control.
+   */
+  protected Supplier<Deck> deckSupplier() {
+    return Deck::new;
+  }
+
   protected TableManager<T> createTableManager(String tableId) {
-    return TexasHoldemTableManager.forNewTable(tableId, gameSettings);
+    return TexasHoldemTableManager.forNewTable(tableId, gameSettings, deckSupplier());
   }
 
   /**

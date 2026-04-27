@@ -17,6 +17,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Supplier;
 
 public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> {
 
@@ -25,14 +26,22 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
   @Nullable
   private Deck deck;
 
-  private TexasHoldemTableManager(GameSettings gameSettings, Table table) {
+  private final Supplier<Deck> deckSupplier;
+
+  private TexasHoldemTableManager(GameSettings gameSettings, Table table, Supplier<Deck> deckSupplier) {
     super(gameSettings, table);
+    this.deckSupplier = deckSupplier;
   }
 
   /**
    * Creates a new table manager for a brand-new table with empty seats.
    */
   public static <T extends Game<T>> TexasHoldemTableManager<T> forNewTable(String tableId, GameSettings settings) {
+    return forNewTable(tableId, settings, Deck::new);
+  }
+
+  public static <T extends Game<T>> TexasHoldemTableManager<T> forNewTable(
+      String tableId, GameSettings settings, Supplier<Deck> deckSupplier) {
     List<Seat> seats = new ArrayList<>();
     for (int i = 0; i < settings.numberOfSeats(); i++) {
       seats.add(Seat.builder().build());
@@ -41,7 +50,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
         .id(tableId)
         .seats(seats)
         .build();
-    return new TexasHoldemTableManager<>(settings, table);
+    return new TexasHoldemTableManager<>(settings, table, deckSupplier);
   }
 
   /**
@@ -49,7 +58,7 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
    * the deck is recovered from the dealt cards.
    */
   public static <T extends Game<T>> TexasHoldemTableManager<T> forExistingTable(Table table, GameSettings settings) {
-    TexasHoldemTableManager<T> manager = new TexasHoldemTableManager<>(settings, table);
+    TexasHoldemTableManager<T> manager = new TexasHoldemTableManager<>(settings, table, Deck::new);
     manager.recoverDeck();
     return manager;
   }
@@ -191,8 +200,8 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
     table.smallBlindPosition(sbPosition);
     table.bigBlindPosition(bbPosition);
 
-    // Create a new deck
-    this.deck = new Deck();
+    // Create a new deck (test fixtures may inject a stacked deck via the supplier)
+    this.deck = deckSupplier.get();
 
     // Post blinds
     postBlind(sbPosition, smallBlind, BlindType.SMALL, game, gameContext);
