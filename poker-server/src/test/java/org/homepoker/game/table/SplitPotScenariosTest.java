@@ -289,6 +289,118 @@ class SplitPotScenariosTest {
     assertThat(fixture.seatAt(3).player().chipCount()).isEqualTo(100);
   }
 
+  // -------- D1: folded contributor (3 pots, folded player ineligible) --------
+  @Test
+  void splitPot_threePots_foldedContributor() {
+    Deck deck = DeckBuilder.holdem(4)
+        .holeCards(1, "Kc Kd")  // would win — but folds on flop
+        .holeCards(2, "Qs Qh")
+        .holeCards(3, "Js Jh")
+        .holeCards(4, "8c 8d")
+        .flop("7s 5d 3h").turn("4c").river("2s")
+        .build();
+
+    SplitPotScenarioFixture fixture = SplitPotScenarioFixture.builder()
+        .stacks(2000, 300, 500, 2000)
+        .deck(deck)
+        .build();
+
+    Table table = fixture.table();
+    assertThat(table.actionPosition()).isEqualTo(4); // UTG
+
+    // Preflop: UTG raises to 200; everyone calls.
+    submitAction(fixture, new PlayerAction.Raise(200)); // seat 4
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 1
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 2
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 3 (BB had 50, calls 150 more)
+
+    fixture.tick();
+    assertThat(fixture.table().handPhase()).isEqualTo(HandPhase.FLOP_BETTING);
+
+    // Flop: SB (seat 2) bets all-in 100; seat 3 calls; seat 4 calls; seat 1 FOLDS.
+    submitAction(fixture, new PlayerAction.Bet(100));   // seat 2 all-in
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 3
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 4
+    submitAction(fixture, new PlayerAction.Fold());     // seat 1 (FOLDS)
+
+    fixture.tick();
+    assertThat(fixture.table().handPhase()).isEqualTo(HandPhase.TURN_BETTING);
+
+    // Turn: seat 3 bets all-in 200; seat 4 calls.
+    submitAction(fixture, new PlayerAction.Bet(200));   // seat 3 all-in
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 4
+
+    runUntilHandComplete(fixture);
+
+    // Pots:
+    //   Pot 0: 200*4=800, eligible {1,2,3,4} (set when collected at end of preflop, before
+    //          seat 1 folded — but evaluatePotWinners skips folded seats at showdown)
+    //   Pot 1: 100*3=300 (flop, eligible {2,3,4})
+    //   Pot 2: 200*2=400 (turn, eligible {3,4})
+    ShowdownAssert.from(fixture.savedEvents())
+        .hasPotCount(3)
+        .pot(0).amount(800).winner(2, "Pair").and()
+        .pot(1).amount(300).winner(2, "Pair").and()
+        .pot(2).amount(400).winner(3, "Pair").and()
+        .totalAwarded(1500);
+
+    assertChipConservation(fixture);
+    assertThat(fixture.seatAt(1).player().chipCount()).isEqualTo(1800); // 2000 - 200 (folded after preflop call only)
+    assertThat(fixture.seatAt(2).player().chipCount()).isEqualTo(1100); // 800 + 300
+    assertThat(fixture.seatAt(3).player().chipCount()).isEqualTo(400);
+    assertThat(fixture.seatAt(4).player().chipCount()).isEqualTo(1500); // 2000 - 500
+  }
+
+  // -------- D2: folded contributor + chopped pot --------
+  @Test
+  void splitPot_foldedContributorWithChoppedPot() {
+    Deck deck = DeckBuilder.holdem(4)
+        .holeCards(1, "Kc Kd")  // would win — but folds on flop
+        .holeCards(2, "Qs Qh")
+        .holeCards(3, "Qd Qc")  // tied with seat 2
+        .holeCards(4, "8c 8d")
+        .flop("7s 5h 3d").turn("2c").river("4h")
+        .build();
+
+    SplitPotScenarioFixture fixture = SplitPotScenarioFixture.builder()
+        .stacks(2000, 300, 300, 2000)
+        .deck(deck)
+        .build();
+
+    Table table = fixture.table();
+    assertThat(table.actionPosition()).isEqualTo(4); // UTG
+
+    // Preflop: UTG raises to 300; everyone calls.
+    submitAction(fixture, new PlayerAction.Raise(300)); // seat 4
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 1
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 2 all-in
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 3 all-in
+
+    fixture.tick();
+    assertThat(fixture.table().handPhase()).isEqualTo(HandPhase.FLOP_BETTING);
+
+    // Flop: only seats 1 & 4 not all-in. Seat 4 bets 500; seat 1 FOLDS.
+    submitAction(fixture, new PlayerAction.Bet(500));   // seat 4
+    submitAction(fixture, new PlayerAction.Fold());     // seat 1
+
+    runUntilHandComplete(fixture);
+
+    // Pots:
+    //   Pot 0: 1200 (eligible {1,2,3,4}, seat 1 folded -> contested by {2,3,4}, chop 2/3)
+    //   Pot 1: 500 (eligible {4} — uncalled flop bet, won back at showdown)
+    ShowdownAssert.from(fixture.savedEvents())
+        .hasPotCount(2)
+        .pot(0).amount(1200).winners(2, 3).chopsEvenly().and()
+        .pot(1).amount(500).winner(4, "Pair").and()
+        .totalAwarded(1700);
+
+    assertChipConservation(fixture);
+    assertThat(fixture.seatAt(1).player().chipCount()).isEqualTo(1700);
+    assertThat(fixture.seatAt(2).player().chipCount()).isEqualTo(600);
+    assertThat(fixture.seatAt(3).player().chipCount()).isEqualTo(600);
+    assertThat(fixture.seatAt(4).player().chipCount()).isEqualTo(1700);
+  }
+
   // ============================================================
   // Helpers
   // ============================================================
