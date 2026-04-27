@@ -103,6 +103,107 @@ class SplitPotScenariosTest {
     assertThat(fixture.seatAt(5).player().chipCount()).isEqualTo(1300);
   }
 
+  // -------- B1: 3 pots, all-ins staggered across streets --------
+  @Test
+  void splitPot_threePots_allInsAcrossStreets() {
+    Deck deck = DeckBuilder.holdem(4)
+        .holeCards(1, "As Ah")
+        .holeCards(2, "Ks Kh")
+        .holeCards(3, "Qs Qh")
+        .holeCards(4, "8c 8d")
+        .flop("Js Tc 7d").turn("4h").river("2s")
+        .build();
+
+    SplitPotScenarioFixture fixture = SplitPotScenarioFixture.builder()
+        .stacks(100, 300, 500, 2000)
+        .deck(deck)
+        .build();
+
+    Table table = fixture.table();
+    assertThat(table.actionPosition()).isEqualTo(4); // UTG
+
+    // Preflop: everyone calls 50.
+    submitAction(fixture, new PlayerAction.Call(0)); // seat 4
+    submitAction(fixture, new PlayerAction.Call(0)); // seat 1
+    submitAction(fixture, new PlayerAction.Call(0)); // seat 2 (already 25 in as SB)
+    submitAction(fixture, new PlayerAction.Check()); // seat 3 (BB)
+
+    // Tick to deal the flop.
+    fixture.tick();
+    assertThat(fixture.table().handPhase()).isEqualTo(HandPhase.FLOP_BETTING);
+
+    // Flop: SB (seat 2) bets all-in 250; seat 3 calls 250; seat 4 calls 250; seat 1 all-in for 50.
+    submitAction(fixture, new PlayerAction.Bet(250));   // seat 2 all-in
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 3
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 4
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 1 all-in for 50
+
+    // Tick to deal the turn.
+    fixture.tick();
+    assertThat(fixture.table().handPhase()).isEqualTo(HandPhase.TURN_BETTING);
+
+    // Turn: seat 3 bets all-in 200; seat 4 calls.
+    submitAction(fixture, new PlayerAction.Bet(200));   // seat 3 all-in
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 4
+
+    // River: no betting (only seat 4 not all-in). Tick through to HAND_COMPLETE.
+    runUntilHandComplete(fixture);
+
+    ShowdownAssert.from(fixture.savedEvents())
+        .hasPotCount(3)
+        .pot(0).amount(400).winner(1, "Pair").and()
+        .pot(1).amount(600).winner(2, "Pair").and()
+        .pot(2).amount(400).winner(3, "Pair").and()
+        .totalAwarded(1400);
+
+    assertChipConservation(fixture);
+    assertThat(fixture.seatAt(4).player().chipCount()).isEqualTo(1500);
+  }
+
+  // -------- B2: 2 pots, preflop all-ins + flop all-in (pot accumulation) --------
+  @Test
+  void splitPot_twoPots_preflopPlusFlopAllIn() {
+    Deck deck = DeckBuilder.holdem(3)
+        .holeCards(1, "As Ah")
+        .holeCards(2, "Ks Kh")
+        .holeCards(3, "Qs Qh")
+        .flop("Js Tc 7d").turn("4h").river("2s")
+        .build();
+
+    SplitPotScenarioFixture fixture = SplitPotScenarioFixture.builder()
+        .stacks(200, 400, 2000)
+        .deck(deck)
+        .build();
+
+    Table table = fixture.table();
+    // 3 players: dealer=1 (UTG in 3-handed), SB=2, BB=3.
+    assertThat(table.actionPosition()).isEqualTo(1);
+
+    // Preflop: dealer all-in 200; SB calls 200; BB calls 200.
+    submitAction(fixture, new PlayerAction.Raise(200));  // seat 1 all-in
+    submitAction(fixture, new PlayerAction.Call(0));     // seat 2
+    submitAction(fixture, new PlayerAction.Call(0));     // seat 3
+
+    // Tick to deal the flop.
+    fixture.tick();
+    assertThat(fixture.table().handPhase()).isEqualTo(HandPhase.FLOP_BETTING);
+
+    // Flop: SB (seat 2) bets all-in 200; seat 3 calls.
+    submitAction(fixture, new PlayerAction.Bet(200));    // seat 2 all-in
+    submitAction(fixture, new PlayerAction.Call(0));     // seat 3
+
+    runUntilHandComplete(fixture);
+
+    ShowdownAssert.from(fixture.savedEvents())
+        .hasPotCount(2)
+        .pot(0).amount(600).winner(1, "Pair").and()
+        .pot(1).amount(400).winner(2, "Pair").and()
+        .totalAwarded(1000);
+
+    assertChipConservation(fixture);
+    assertThat(fixture.seatAt(3).player().chipCount()).isEqualTo(1600);
+  }
+
   // ============================================================
   // Helpers
   // ============================================================
