@@ -33,8 +33,19 @@ public class Deck {
     RandomUtils.shuffleCollection(cards);
   }
 
-  private Deck(List<Card> remainingCards) {
-    cards.addAll(remainingCards);
+  /**
+   * Test/recovery constructor: builds a deck containing exactly the cards provided,
+   * in the order provided (no shuffle). The first card returned by {@link #drawCards(int)}
+   * is the first card in the list. Duplicates are rejected.
+   */
+  public Deck(List<Card> stackedCards) {
+    Set<Card> seen = new HashSet<>();
+    for (Card card : stackedCards) {
+      if (!seen.add(card)) {
+        throw new IllegalArgumentException("Stacked deck contains duplicate card: " + card);
+      }
+    }
+    cards.addAll(stackedCards);
   }
 
   /**
