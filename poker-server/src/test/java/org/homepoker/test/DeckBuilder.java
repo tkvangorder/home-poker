@@ -12,14 +12,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Test-only builder that produces a {@link Deck} whose draw order matches the dealer's
- * order in Texas Hold'em:
+ * Test-only builder that produces a {@link Deck} whose draw order matches the implementation's
+ * deal order in {@link org.homepoker.game.table.TexasHoldemTableManager}:
  * <ol>
- *   <li>Hole-card round 1: one card to each seat 1..N</li>
- *   <li>Hole-card round 2: one card to each seat 1..N</li>
- *   <li>Burn, flop (3 cards)</li>
- *   <li>Burn, turn (1 card)</li>
- *   <li>Burn, river (1 card)</li>
+ *   <li>For each seat 1..N: 2 hole cards drawn together (no alternating round, no burn)</li>
+ *   <li>Flop (3 cards, no burn)</li>
+ *   <li>Turn (1 card, no burn)</li>
+ *   <li>River (1 card, no burn)</li>
  *   <li>All remaining cards from the 52-card set, appended in arbitrary order</li>
  * </ol>
  *
@@ -96,48 +95,29 @@ public final class DeckBuilder {
     LinkedHashSet<Card> used = new LinkedHashSet<>();
     List<Card> ordered = new ArrayList<>(52);
 
-    // Hole-card round 1
+    // Hole cards: 2 per seat, in seat order — matches TexasHoldemTableManager.transitionFromDeal.
     for (int seat = 1; seat <= numSeats; seat++) {
-      addUnique(ordered, used, holeCards.get(seat).get(0));
-    }
-    // Hole-card round 2
-    for (int seat = 1; seat <= numSeats; seat++) {
-      addUnique(ordered, used, holeCards.get(seat).get(1));
+      List<Card> seatHoles = holeCards.get(seat);
+      addUnique(ordered, used, seatHoles.get(0));
+      addUnique(ordered, used, seatHoles.get(1));
     }
 
-    // Build a list of unused cards from the standard deck (deterministic order).
-    List<Card> spareCards = new ArrayList<>();
+    // Flop, turn, river — no burn cards (production code does not burn).
+    for (Card c : flop) addUnique(ordered, used, c);
+    addUnique(ordered, used, turn);
+    addUnique(ordered, used, river);
+
+    // Append any remaining unused cards so the deck always holds 52 (defensive).
     for (CardSuit suit : CardSuit.values()) {
       for (CardValue value : CardValue.values()) {
         Card c = new Card(value, suit);
-        if (!used.contains(c)
-            && !flop.contains(c) && !c.equals(turn) && !c.equals(river)) {
-          spareCards.add(c);
+        if (!used.contains(c)) {
+          addUnique(ordered, used, c);
         }
       }
     }
 
-    // Burn + flop
-    addUnique(ordered, used, popSpare(spareCards));
-    for (Card c : flop) addUnique(ordered, used, c);
-    // Burn + turn
-    addUnique(ordered, used, popSpare(spareCards));
-    addUnique(ordered, used, turn);
-    // Burn + river
-    addUnique(ordered, used, popSpare(spareCards));
-    addUnique(ordered, used, river);
-
-    // Append any remaining unused cards so the deck always holds 52 (defensive).
-    for (Card c : spareCards) addUnique(ordered, used, c);
-
     return new Deck(ordered);
-  }
-
-  private static Card popSpare(List<Card> spares) {
-    if (spares.isEmpty()) {
-      throw new IllegalStateException("Ran out of cards while filling burn cards");
-    }
-    return spares.removeFirst();
   }
 
   private static void addUnique(List<Card> ordered, LinkedHashSet<Card> used, Card card) {

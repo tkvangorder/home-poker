@@ -12,7 +12,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class DeckBuilderTest {
 
   @Test
-  void dealsHoleCardsInRoundOrderThenBoard() {
+  void dealsHoleCardsTwoPerSeatThenBoard() {
     Deck deck = DeckBuilder.holdem(3)
         .holeCards(1, "As Ks")
         .holeCards(2, "Qd Qc")
@@ -22,26 +22,24 @@ class DeckBuilderTest {
         .river("4h")
         .build();
 
-    // Hole-card round 1 (one to each seat)
-    assertThat(deck.drawCards(1)).containsExactly(card(CardValue.ACE, CardSuit.SPADE));
-    assertThat(deck.drawCards(1)).containsExactly(card(CardValue.QUEEN, CardSuit.DIAMOND));
-    assertThat(deck.drawCards(1)).containsExactly(card(CardValue.EIGHT, CardSuit.HEART));
-    // Hole-card round 2
-    assertThat(deck.drawCards(1)).containsExactly(card(CardValue.KING, CardSuit.SPADE));
-    assertThat(deck.drawCards(1)).containsExactly(card(CardValue.QUEEN, CardSuit.CLUB));
-    assertThat(deck.drawCards(1)).containsExactly(card(CardValue.EIGHT, CardSuit.DIAMOND));
-    // Burn 1
-    deck.drawCards(1);
-    // Flop
+    // Hole cards: 2 per seat, in seat order (matches TexasHoldemTableManager.drawCards(2) loop).
+    assertThat(deck.drawCards(2)).containsExactly(
+        card(CardValue.ACE, CardSuit.SPADE),
+        card(CardValue.KING, CardSuit.SPADE));
+    assertThat(deck.drawCards(2)).containsExactly(
+        card(CardValue.QUEEN, CardSuit.DIAMOND),
+        card(CardValue.QUEEN, CardSuit.CLUB));
+    assertThat(deck.drawCards(2)).containsExactly(
+        card(CardValue.EIGHT, CardSuit.HEART),
+        card(CardValue.EIGHT, CardSuit.DIAMOND));
+    // Flop (no burn).
     assertThat(deck.drawCards(3)).containsExactly(
         card(CardValue.JACK, CardSuit.SPADE),
         card(CardValue.TEN, CardSuit.SPADE),
         card(CardValue.TWO, CardSuit.CLUB));
-    // Burn 2 + Turn
-    deck.drawCards(1);
+    // Turn (no burn).
     assertThat(deck.drawCards(1)).containsExactly(card(CardValue.THREE, CardSuit.DIAMOND));
-    // Burn 3 + River
-    deck.drawCards(1);
+    // River (no burn).
     assertThat(deck.drawCards(1)).containsExactly(card(CardValue.FOUR, CardSuit.HEART));
   }
 

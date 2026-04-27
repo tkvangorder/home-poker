@@ -58,7 +58,12 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
    * the deck is recovered from the dealt cards.
    */
   public static <T extends Game<T>> TexasHoldemTableManager<T> forExistingTable(Table table, GameSettings settings) {
-    TexasHoldemTableManager<T> manager = new TexasHoldemTableManager<>(settings, table, Deck::new);
+    return forExistingTable(table, settings, Deck::new);
+  }
+
+  public static <T extends Game<T>> TexasHoldemTableManager<T> forExistingTable(
+      Table table, GameSettings settings, Supplier<Deck> deckSupplier) {
+    TexasHoldemTableManager<T> manager = new TexasHoldemTableManager<>(settings, table, deckSupplier);
     manager.recoverDeck();
     return manager;
   }

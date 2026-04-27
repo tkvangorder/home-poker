@@ -165,14 +165,22 @@ public final class SplitPotScenarioFixture {
 
   /**
    * In-memory CashGameManager that captures all events and overrides the deck supplier.
+   * <p>
+   * The deck supplier is held in a {@link ThreadLocal} so the override works during the
+   * super-constructor (which calls {@link #deckSupplier()} via
+   * {@code createTableManagerForExistingTable} before any instance field of this subclass
+   * has been initialized).
    */
   static final class FixtureGameManager extends CashGameManager {
+
+    private static final ThreadLocal<Supplier<Deck>> PENDING_SUPPLIER = new ThreadLocal<>();
 
     private final List<PokerEvent> savedEvents = new ArrayList<>();
     private final Supplier<Deck> deckSupplier;
 
     FixtureGameManager(CashGame game, Supplier<Deck> deckSupplier) {
-      super(game, null, null, null, null);
+      super(initSupplier(game, deckSupplier), null, null, null, null);
+      PENDING_SUPPLIER.remove();
       this.deckSupplier = deckSupplier;
       addGameListener(new org.homepoker.game.GameListener() {
         @Override public String userId() { return "split-pot-listener"; }
@@ -181,9 +189,20 @@ public final class SplitPotScenarioFixture {
       });
     }
 
+    /**
+     * Stashes the deck supplier in a {@link ThreadLocal} before invoking {@code super(...)}
+     * so {@link #deckSupplier()} can return it during the super constructor's call chain.
+     */
+    private static CashGame initSupplier(CashGame game, Supplier<Deck> supplier) {
+      PENDING_SUPPLIER.set(supplier);
+      return game;
+    }
+
     @Override
     protected Supplier<Deck> deckSupplier() {
-      return deckSupplier;
+      Supplier<Deck> pending = PENDING_SUPPLIER.get();
+      if (pending != null) return pending;
+      return deckSupplier != null ? deckSupplier : Deck::new;
     }
 
     @Override

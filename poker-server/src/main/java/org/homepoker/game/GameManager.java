@@ -357,7 +357,7 @@ public abstract class GameManager<T extends Game<T>> {
    * Creates a table manager for an existing (persisted) table, recovering transient state if mid-hand.
    */
   protected TableManager<T> createTableManagerForExistingTable(Table table) {
-    return TexasHoldemTableManager.forExistingTable(table, gameSettings);
+    return TexasHoldemTableManager.forExistingTable(table, gameSettings, deckSupplier());
   }
 
   /**
