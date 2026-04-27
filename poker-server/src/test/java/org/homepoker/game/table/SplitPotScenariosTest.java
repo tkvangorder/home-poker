@@ -204,6 +204,91 @@ class SplitPotScenariosTest {
     assertThat(fixture.seatAt(3).player().chipCount()).isEqualTo(1600);
   }
 
+  // -------- C1: 3 pots, two-way chop on main pot --------
+  @Test
+  void splitPot_threePots_chopOnMainPot() {
+    Deck deck = DeckBuilder.holdem(4)
+        .holeCards(1, "Qs Qh")
+        .holeCards(2, "Qd Qc")
+        .holeCards(3, "Js Jh")
+        .holeCards(4, "8c 8d")
+        .flop("7s 5h 4d").turn("3c").river("2s")
+        .build();
+
+    SplitPotScenarioFixture fixture = SplitPotScenarioFixture.builder()
+        .stacks(100, 100, 300, 500)
+        .deck(deck)
+        .build();
+
+    Table table = fixture.table();
+    assertThat(table.actionPosition()).isEqualTo(4); // UTG with 4 players
+
+    submitAction(fixture, new PlayerAction.Raise(500)); // seat 4 all-in 500
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 1 all-in for 100
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 2 all-in for 100
+    submitAction(fixture, new PlayerAction.Call(0));    // seat 3 all-in for 300
+
+    runUntilHandComplete(fixture);
+
+    // Pot structure:
+    // Pot 0: 100*4 = 400, eligible {1,2,3,4}, seats 1 & 2 chop (both pocket queens)
+    // Pot 1: 200*2 = 400, eligible {3,4}, seat 3 wins (jacks beat eights)
+    // Pot 2: 200*1 = 200, eligible {4} only — uncalled bet returned as a 1-eligible pot
+    ShowdownAssert.from(fixture.savedEvents())
+        .hasPotCount(3)
+        .pot(0).amount(400).winners(1, 2).chopsEvenly().and()
+        .pot(1).amount(400).winner(3, "Pair").and()
+        .pot(2).amount(200).winner(4, "Pair").and()
+        .totalAwarded(1000);
+
+    assertChipConservation(fixture);
+    assertThat(fixture.seatAt(1).player().chipCount()).isEqualTo(200);
+    assertThat(fixture.seatAt(2).player().chipCount()).isEqualTo(200);
+    assertThat(fixture.seatAt(3).player().chipCount()).isEqualTo(400);
+    assertThat(fixture.seatAt(4).player().chipCount()).isEqualTo(200);
+  }
+
+  // -------- C2: odd-chip distribution on tied main pot --------
+  @Test
+  void splitPot_oddChipDistribution() {
+    Deck deck = DeckBuilder.holdem(3)
+        .holeCards(1, "Ah Ad")
+        .holeCards(2, "As Ac")
+        .holeCards(3, "Ks Kh")
+        .flop("7c 5d 3h").turn("9s").river("2c")
+        .build();
+
+    SplitPotScenarioFixture fixture = SplitPotScenarioFixture.builder()
+        .stacks(151, 200, 300)
+        .deck(deck)
+        .build();
+
+    Table table = fixture.table();
+    assertThat(table.actionPosition()).isEqualTo(1); // dealer = UTG in 3-handed
+
+    submitAction(fixture, new PlayerAction.Raise(151)); // seat 1 all-in for 151
+    submitAction(fixture, new PlayerAction.Raise(200)); // seat 2 all-in for 200
+    submitAction(fixture, new PlayerAction.Raise(300)); // seat 3 all-in for 300
+
+    runUntilHandComplete(fixture);
+
+    // Pot structure:
+    // Pot 0: 151*3 = 453, eligible {1,2,3}, seats 1 & 2 chop (both pocket aces) → 226 + 1 odd
+    // Pot 1: 49*2 = 98, eligible {2,3}, seat 2 wins (aces beat kings)
+    // Pot 2: 100*1 = 100, eligible {3} — uncalled portion returned to seat 3
+    ShowdownAssert.from(fixture.savedEvents())
+        .hasPotCount(3)
+        .pot(0).amount(453).winners(1, 2).oddChipTo(1).and()
+        .pot(1).amount(98).winner(2, "Pair").and()
+        .pot(2).amount(100).winner(3, "Pair").and()
+        .totalAwarded(651);
+
+    assertChipConservation(fixture);
+    assertThat(fixture.seatAt(1).player().chipCount()).isEqualTo(227);
+    assertThat(fixture.seatAt(2).player().chipCount()).isEqualTo(324);
+    assertThat(fixture.seatAt(3).player().chipCount()).isEqualTo(100);
+  }
+
   // ============================================================
   // Helpers
   // ============================================================
