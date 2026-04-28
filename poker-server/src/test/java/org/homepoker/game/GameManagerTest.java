@@ -574,6 +574,58 @@ public class GameManagerTest {
     assertThat(maxCount - minCount).isLessThanOrEqualTo(1);
   }
 
+  @Test
+  void lonePlayer_movesImmediatelyToTableWithEmptySeat() {
+    CashGame game = buildGameInActive(0);
+    game.tables().clear();
+    game.players().clear();
+    Table sourceTable = buildTableWithPlayers("TABLE-0", 1, game, PlayerStatus.BUYING_IN);
+    Table destTable = buildTableWithPlayers("TABLE-1", 3, game, PlayerStatus.BUYING_IN);
+    game.tables().put(sourceTable.id(), sourceTable);
+    game.tables().put(destTable.id(), destTable);
+
+    String movedUserId = sourceTable.seats().stream()
+        .filter(s -> s.status() != Seat.Status.EMPTY)
+        .findFirst().orElseThrow().player().userId();
+
+    TestableGameManager manager = createManager(game);
+    manager.processGameTick();
+
+    // Game stays ACTIVE — no game-wide BALANCING needed for a lone-player move
+    assertThat(manager.getGame().status()).isEqualTo(GameStatus.ACTIVE);
+    // Source table is now empty; destination has the new player
+    Table src = manager.getGame().tables().get("TABLE-0");
+    Table dst = manager.getGame().tables().get("TABLE-1");
+    if (src != null) {
+      assertThat(src.numberOfPlayers()).isEqualTo(0);
+    }
+    assertThat(dst.numberOfPlayers()).isEqualTo(4);
+    assertThat(manager.getGame().players().get(movedUserId).tableId()).isEqualTo("TABLE-1");
+    assertThat(manager.savedEvents()).anyMatch(e ->
+        e instanceof org.homepoker.model.event.game.PlayerMovedTables m
+            && m.userId().equals(movedUserId)
+            && "TABLE-0".equals(m.fromTableId())
+            && "TABLE-1".equals(m.toTableId()));
+  }
+
+  @Test
+  void lonePlayer_singleTable_doesNotMove() {
+    CashGame game = buildGameInActive(0);
+    game.tables().clear();
+    game.players().clear();
+    Table onlyTable = buildTableWithPlayers("TABLE-0", 1, game, PlayerStatus.BUYING_IN);
+    game.tables().put(onlyTable.id(), onlyTable);
+
+    TestableGameManager manager = createManager(game);
+    manager.processGameTick();
+
+    assertThat(manager.getGame().status()).isEqualTo(GameStatus.ACTIVE);
+    assertThat(manager.getGame().tables()).containsKey("TABLE-0");
+    assertThat(manager.getGame().tables().get("TABLE-0").numberOfPlayers()).isEqualTo(1);
+    assertThat(manager.savedEvents()).noneMatch(e ->
+        e instanceof org.homepoker.model.event.game.PlayerMovedTables);
+  }
+
   // --- Helper methods ---
 
   private CashGame buildGame(GameStatus status, Instant startTime, int playerCount) {

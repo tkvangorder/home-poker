@@ -338,9 +338,6 @@ public abstract class GameManager<T extends Game<T>> {
   protected abstract T persistGameState(T game);
 
   /**
-   * Creates a new table manager (and its underlying Table) for a brand-new table.
-   */
-  /**
    * Hook for tests to inject a deterministic deck. Default returns {@code Deck::new}
    * (production behavior — random shuffle). Overrides should return a fresh supplier
    * if they need per-hand control.
@@ -444,6 +441,12 @@ public abstract class GameManager<T extends Game<T>> {
 
     // Check if we need to create a new table for overflow
     checkForNewTable(game);
+
+    // Immediately relocate lone players (1-player tables) to any table with an
+    // available seat, without disrupting in-progress hands at other tables.
+    if (!pauseGameRequested && !endGameRequested) {
+      relocateLonePlayers(game, gameContext);
+    }
 
     // Check if tables need rebalancing (only when no pause/end is pending)
     if (!pauseGameRequested && !endGameRequested && tablesNeedBalancing(game)) {
@@ -835,6 +838,49 @@ public abstract class GameManager<T extends Game<T>> {
       return cashGame.maxBuyIn();
     }
     return Integer.MAX_VALUE;
+  }
+
+  /**
+   * Move any lone player (a table with exactly one seated player and no hand in progress)
+   * to another table that has an empty seat. The lone player can't play alone, so don't
+   * make them wait for other tables to finish hands — slot them in as JOINED_WAITING and
+   * let the next PREDEAL pick them up. The vacated source table becomes empty and will be
+   * cleaned up by the existing empty-table sweep in tablesNeedBalancing().
+   */
+  private void relocateLonePlayers(T game, GameContext gameContext) {
+    if (game.tables().size() < 2) {
+      return;
+    }
+    for (Table source : new ArrayList<>(game.tables().values())) {
+      if (source.numberOfPlayers() != 1 || source.handPhase() != HandPhase.WAITING_FOR_PLAYERS) {
+        continue;
+      }
+      Table destination = null;
+      for (Table candidate : game.tables().values()) {
+        if (candidate == source) continue;
+        if (candidate.seats().stream().anyMatch(s -> s.status() == Seat.Status.EMPTY)) {
+          destination = candidate;
+          break;
+        }
+      }
+      if (destination == null) {
+        continue;
+      }
+      Seat sourceSeat = source.seats().stream()
+          .filter(s -> s.status() != Seat.Status.EMPTY && s.player() != null)
+          .findFirst()
+          .orElse(null);
+      if (sourceSeat == null) {
+        continue;
+      }
+      Player player = sourceSeat.player();
+      String fromTableId = source.id();
+      sourceSeat.status(Seat.Status.EMPTY);
+      sourceSeat.player(null);
+      TableUtils.assignPlayerToRandomSeat(player, destination);
+      gameContext.queueEvent(new PlayerMovedTables(
+          Instant.now(), 0L, game.id(), player.userId(), fromTableId, destination.id()));
+    }
   }
 
   /**
