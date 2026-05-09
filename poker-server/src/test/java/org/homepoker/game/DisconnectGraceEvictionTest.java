@@ -187,6 +187,41 @@ class DisconnectGraceEvictionTest {
         .isNotNull();
   }
 
+  @Test
+  void resumeFromPausedRefreshesDisconnectedAtSoSweepGivesFreshGrace() {
+    // singleTableMidHand puts the game in ACTIVE with 5 seated players. Force PAUSED to
+    // simulate an admin-paused game where one player has been disconnected for far longer
+    // than the grace period. On resume, the refresh must reset the stamp so the player
+    // is NOT instantly evicted on the next tick.
+    GameManagerTestFixture fixture = GameManagerTestFixture.singleTableMidHand();
+    Player target = pickNonActionPlayer(fixture);
+
+    Instant stale = Instant.now().minusSeconds(300);
+    target.disconnectedAt(stale);
+
+    // Force the state directly — we're testing the refresh on resume, not the two-phase
+    // pause flow. Tables must also be PAUSED for ResumeGame's table-status loop.
+    fixture.manager().gameForTestOnly().status(org.homepoker.model.game.GameStatus.PAUSED);
+    for (org.homepoker.model.game.Table t : fixture.manager().getGame().tables().values()) {
+      t.status(org.homepoker.model.game.Table.Status.PAUSED);
+    }
+
+    // Resume via the public command path. The admin user is the game owner — the same
+    // user the singleTableMidHand fixture uses to create and start the game.
+    User admin = org.homepoker.test.TestDataHelper.adminUser();
+    fixture.submitCommand(new org.homepoker.model.command.ResumeGame(fixture.gameId(), admin));
+    fixture.tick();
+
+    Player after = fixture.manager().getGame().players().get(target.userId());
+    assertThat(after.disconnectedAt())
+        .as("PAUSED → ACTIVE must refresh the stale stamp so the player gets a fresh window")
+        .isNotNull()
+        .isAfter(stale);
+    assertThat(after.status())
+        .as("with a refreshed stamp, the same-tick sweep must NOT evict the player")
+        .isNotEqualTo(org.homepoker.model.game.PlayerStatus.OUT);
+  }
+
   // ------------------------------------------------------------------
   // helpers
   // ------------------------------------------------------------------

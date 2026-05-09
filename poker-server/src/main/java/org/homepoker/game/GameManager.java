@@ -411,6 +411,7 @@ public abstract class GameManager<T extends Game<T>> {
       startGameRequested = false;
       GameStatus oldStatus = game.status();
       game.status(GameStatus.ACTIVE);
+      refreshDisconnectGraceTimestamps(game);
 
       // Set all tables to PLAYING
       for (Table table : game.tables().values()) {
@@ -699,6 +700,7 @@ public abstract class GameManager<T extends Game<T>> {
 
     GameStatus oldStatus = game.status();
     game.status(GameStatus.ACTIVE);
+    refreshDisconnectGraceTimestamps(game);
 
     for (Table table : game.tables().values()) {
       Table.Status oldTableStatus = table.status();
@@ -844,6 +846,22 @@ public abstract class GameManager<T extends Game<T>> {
       removePlayerFromGame(player, game, gameContext,
           alias + " disconnected; will be removed after the current hand.",
           alias + " was removed after the disconnect grace period expired.");
+    }
+  }
+
+  /**
+   * Reset every non-null {@code Player.disconnectedAt} to {@code Instant.now()}. Called when
+   * the game enters the sweep-eligible {@code ACTIVE} state from a state where the sweep
+   * was gated off ({@code SEATING}, {@code PAUSED}). Without this, stamps that accumulated
+   * during the non-sweep window would fire {@link #sweepDisconnectedPlayers} on the very
+   * next tick, denying the disconnected player any effective grace.
+   */
+  private void refreshDisconnectGraceTimestamps(T game) {
+    Instant now = Instant.now();
+    for (Player player : game.players().values()) {
+      if (player.disconnectedAt() != null) {
+        player.disconnectedAt(now);
+      }
     }
   }
 
