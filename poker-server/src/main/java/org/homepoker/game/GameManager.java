@@ -759,26 +759,38 @@ public abstract class GameManager<T extends Game<T>> {
       throw new ValidationException("You have not joined this game.");
     }
 
-    // In SCHEDULED state, mark the player as OUT (keep record for auditing)
-    if (status == GameStatus.SCHEDULED) {
-      player.status(PlayerStatus.OUT);
-      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), player.user().alias() + " has left the game."));
-      gameContext.forceUpdate(true);
-      return;
-    }
+    String alias = player.user().alias();
+    removePlayerFromGame(player, game, gameContext,
+        alias + " will leave after the current hand.",
+        alias + " has left the game.");
+  }
 
-    // If the player is seated, check if they are in an active hand
+  /**
+   * Remove a player from the game, vacating their seat if possible. If the player is in
+   * an active hand (seat status {@code ACTIVE} or {@code FOLDED}), the seat is retained
+   * and the player is marked {@code OUT} — the seat is freed when the hand ends. Otherwise
+   * the seat is vacated immediately. In all cases the player's status is set to
+   * {@code OUT} and a {@link GameMessage} is emitted; {@code disconnectedAt} is cleared
+   * so a re-joined player gets a fresh grace window. Used by the explicit
+   * {@code LeaveGame} command and by the disconnect-grace-period sweep.
+   *
+   * @param midHandMessage   message text emitted when the player is in an active hand
+   *                         (e.g., "Alice will leave after the current hand.")
+   * @param departureMessage message text emitted on immediate vacate or when the player
+   *                         was not seated (e.g., "Alice has left the game.")
+   */
+  private void removePlayerFromGame(Player player, T game, GameContext gameContext,
+                                    String midHandMessage, String departureMessage) {
     if (player.tableId() != null) {
       Table table = game.tables().get(player.tableId());
       if (table != null) {
-        // Find the player's seat
         for (Seat seat : table.seats()) {
           if (seat.player() != null && seat.player().userId().equals(player.userId())) {
             if (seat.status() == Seat.Status.ACTIVE || seat.status() == Seat.Status.FOLDED) {
               // Player is in an active hand (playing or folded), mark them for removal after the hand
               player.status(PlayerStatus.OUT);
-              gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(),
-                  player.user().alias() + " will leave after the current hand."));
+              player.disconnectedAt(null);
+              gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), midHandMessage));
               gameContext.forceUpdate(true);
               return;
             }
@@ -793,7 +805,8 @@ public abstract class GameManager<T extends Game<T>> {
     }
 
     player.status(PlayerStatus.OUT);
-    gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), player.user().alias() + " has left the game."));
+    player.disconnectedAt(null);
+    gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), departureMessage));
     gameContext.forceUpdate(true);
   }
 
