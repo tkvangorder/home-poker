@@ -552,20 +552,28 @@ public abstract class GameManager<T extends Game<T>> {
    * absent (or 0) to 1 emits {@link PlayerReconnected} when a Player record already
    * exists for the user. If no Player record exists yet (e.g., admin observer or a
    * brand-new connection that has not yet submitted JoinGame) no event is emitted —
-   * the {@code JoinGame} path is responsible for {@code PlayerJoined}.
+   * the {@code JoinGame} path is responsible for {@code PlayerJoined}. The same 0→1
+   * transition clears any pending {@code disconnectedAt} timestamp on the Player so
+   * the grace-period sweep does not evict a reconnected user.
    */
   private void handlePlayerConnected(PlayerConnectedCommand cmd, GameContext gameContext) {
     String userId = cmd.connectedUserId();
     int newCount = activeListenerCounts.merge(userId, 1, Integer::sum);
-    if (newCount == 1 && game.players().containsKey(userId)) {
-      gameContext.queueEvent(new PlayerReconnected(
-          Instant.now(), 0L, game.id(), userId));
+    if (newCount == 1) {
+      Player player = game.players().get(userId);
+      if (player != null) {
+        player.disconnectedAt(null);
+        gameContext.queueEvent(new PlayerReconnected(
+            Instant.now(), 0L, game.id(), userId));
+      }
     }
   }
 
   /**
    * Decrement the active-listener ref count for the user. The transition from 1 to 0
-   * emits {@link PlayerDisconnected}. Stale decrements (no entry, or non-positive count)
+   * emits {@link PlayerDisconnected} and stamps {@code Player.disconnectedAt} so the
+   * grace-period sweep can evict the player after {@code disconnectGraceSeconds}
+   * elapse without a reconnect. Stale decrements (no entry, or non-positive count)
    * are ignored defensively.
    */
   private void handlePlayerDisconnected(PlayerDisconnectedCommand cmd, GameContext gameContext) {
@@ -577,6 +585,10 @@ public abstract class GameManager<T extends Game<T>> {
     int newCount = current - 1;
     if (newCount == 0) {
       activeListenerCounts.remove(userId);
+      Player player = game.players().get(userId);
+      if (player != null) {
+        player.disconnectedAt(Instant.now());
+      }
       gameContext.queueEvent(new PlayerDisconnected(
           Instant.now(), 0L, game.id(), userId));
     } else {
