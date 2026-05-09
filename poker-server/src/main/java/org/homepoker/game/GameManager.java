@@ -105,6 +105,14 @@ public abstract class GameManager<T extends Game<T>> {
     // TODO, as we add other game types, we can switch on game.type() to determine which table manager to use.
     this.gameSettings = GameSettings.TEXAS_HOLDEM_SETTINGS;
 
+    // The disconnect grace timer lives only in memory — after a server restart every
+    // player gets a fresh window. (We never persist activeListenerCounts either, so on
+    // restart all players look "connected"; clearing disconnectedAt keeps the model
+    // consistent with that.)
+    for (Player player : game.players().values()) {
+      player.disconnectedAt(null);
+    }
+
     // Create table managers for any existing tables (handles persistence reload + deck recovery)
     for (Table table : game.tables().values()) {
       tableManagers.put(table.id(), createTableManagerForExistingTable(table));

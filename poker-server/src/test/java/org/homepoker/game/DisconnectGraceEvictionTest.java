@@ -85,4 +85,30 @@ class DisconnectGraceEvictionTest {
         .as("ref-count 2→1 must NOT stamp disconnectedAt — only 1→0 does")
         .isNull();
   }
+
+  @Test
+  void constructorResetsDisconnectedAtForAllLoadedPlayers() {
+    // Build a game where two players already have a stale disconnectedAt — simulates
+    // loading the game from MongoDB after a server restart.
+    GameManagerTestFixture seed = GameManagerTestFixture.emptyGame();
+    User alice = seed.users().alice();
+    User bob = seed.users().bob();
+    seed.joinGame(alice);
+    seed.joinGame(bob);
+
+    Instant fakePast = Instant.now().minusSeconds(3600);
+    seed.manager().getGame().players().get(alice.id()).disconnectedAt(fakePast);
+    seed.manager().getGame().players().get(bob.id()).disconnectedAt(fakePast);
+
+    // Hand the underlying CashGame to a fresh manager (the "after restart" case).
+    GameManagerTestFixture.TestableGameManager reloaded =
+        new GameManagerTestFixture.TestableGameManager(seed.manager().getGame());
+
+    assertThat(reloaded.getGame().players().get(alice.id()).disconnectedAt())
+        .as("constructor must clear disconnectedAt for Alice after reload")
+        .isNull();
+    assertThat(reloaded.getGame().players().get(bob.id()).disconnectedAt())
+        .as("constructor must clear disconnectedAt for Bob after reload")
+        .isNull();
+  }
 }
