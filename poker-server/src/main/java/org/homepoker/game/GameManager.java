@@ -248,6 +248,11 @@ public abstract class GameManager<T extends Game<T>> {
         }
       }
 
+      // Evict players whose disconnect grace period has elapsed. Runs after commands
+      // (so a same-tick LeaveGame wins over an eviction) and before transitionGame
+      // (so the rebalancing logic sees the post-eviction seat layout).
+      sweepDisconnectedPlayers(game, gameContext);
+
       transitionGame(game, gameContext);
 
       if (game.status() == GameStatus.ACTIVE || game.status() == GameStatus.BALANCING || game.status() == GameStatus.PAUSED) {
@@ -808,6 +813,38 @@ public abstract class GameManager<T extends Game<T>> {
     player.disconnectedAt(null);
     gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), departureMessage));
     gameContext.forceUpdate(true);
+  }
+
+  /**
+   * Walk every player and evict any whose {@code disconnectedAt} is older than
+   * {@code disconnectGraceSeconds}. Gated to {@link GameStatus#ACTIVE} and
+   * {@link GameStatus#BALANCING}: while the game is {@code SCHEDULED}, {@code SEATING},
+   * {@code PAUSED}, or {@code COMPLETED}, the timer does not advance and stamps survive
+   * in case play resumes (or, for {@code COMPLETED}, are simply ignored). Eviction
+   * delegates to {@link #removePlayerFromGame} so the mid-hand-vs-immediate vacate
+   * behavior matches an explicit {@code LeaveGame}.
+   */
+  private void sweepDisconnectedPlayers(T game, GameContext gameContext) {
+    GameStatus status = game.status();
+    if (status != GameStatus.ACTIVE && status != GameStatus.BALANCING) {
+      return;
+    }
+    Instant cutoff = Instant.now().minusSeconds(gameSettings.disconnectGraceSeconds());
+    // Snapshot the players collection to avoid surprises if removePlayerFromGame is
+    // ever extended to mutate game.players() (today it does not).
+    for (Player player : new ArrayList<>(game.players().values())) {
+      if (player.status() == PlayerStatus.OUT) {
+        continue;
+      }
+      Instant disconnectedAt = player.disconnectedAt();
+      if (disconnectedAt == null || !disconnectedAt.isBefore(cutoff)) {
+        continue;
+      }
+      String alias = player.user().alias();
+      removePlayerFromGame(player, game, gameContext,
+          alias + " disconnected; will be removed after the current hand.",
+          alias + " was removed after the disconnect grace period expired.");
+    }
   }
 
   private void getGameState(GetGameState gameCommand, T game, GameContext gameContext) {

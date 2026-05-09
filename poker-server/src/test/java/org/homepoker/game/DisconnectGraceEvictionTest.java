@@ -111,4 +111,103 @@ class DisconnectGraceEvictionTest {
         .as("constructor must clear disconnectedAt for Bob after reload")
         .isNull();
   }
+
+  @Test
+  void freshDisconnectDoesNotEvict() {
+    // singleTableMidHand puts the game in ACTIVE with 5 seated players in PRE_FLOP_BETTING.
+    // Pick a non-action seat to disconnect so the action timeout does not interfere.
+    GameManagerTestFixture fixture = GameManagerTestFixture.singleTableMidHand();
+
+    Player target = pickNonActionPlayer(fixture);
+    fixture.registerListener(target.user());
+    fixture.tick();
+    fixture.unregisterListenersFor(target.user());
+    fixture.tick();
+
+    // disconnectedAt is just now (within seconds), well under the 120s grace window.
+    fixture.tick();
+
+    Player after = fixture.manager().getGame().players().get(target.userId());
+    assertThat(after.status())
+        .as("a freshly disconnected player must NOT be evicted before the grace period elapses")
+        .isNotEqualTo(org.homepoker.model.game.PlayerStatus.OUT);
+    assertThat(after.tableId())
+        .as("the seat must remain assigned to the player while the grace period is unexpired")
+        .isNotNull();
+  }
+
+  @Test
+  void staleDisconnectMidHandMarksOutAndRetainsSeat() {
+    GameManagerTestFixture fixture = GameManagerTestFixture.singleTableMidHand();
+
+    Player target = pickNonActionPlayer(fixture);
+    String tableId = target.tableId();
+    fixture.registerListener(target.user());
+    fixture.tick();
+    fixture.unregisterListenersFor(target.user());
+    fixture.tick();
+
+    // Force the timestamp into the past, beyond the default 120s grace.
+    target.disconnectedAt(Instant.now().minusSeconds(200));
+    fixture.tick();
+
+    Player after = fixture.manager().getGame().players().get(target.userId());
+    assertThat(after.status())
+        .as("expired grace period during an active hand marks the player OUT")
+        .isEqualTo(org.homepoker.model.game.PlayerStatus.OUT);
+
+    // Seat must be retained — the hand is in progress (seat status ACTIVE).
+    org.homepoker.model.game.Table table = fixture.manager().getGame().tables().get(tableId);
+    boolean stillSeated = table.seats().stream()
+        .anyMatch(s -> s.player() != null && s.player().userId().equals(target.userId()));
+    assertThat(stillSeated)
+        .as("during a hand, the seat must remain occupied; it is freed when the hand ends")
+        .isTrue();
+  }
+
+  @Test
+  void pausedGameDoesNotEvictDespiteStaleDisconnect() {
+    GameManagerTestFixture fixture = GameManagerTestFixture.singleTableMidHand();
+
+    Player target = pickNonActionPlayer(fixture);
+    target.disconnectedAt(Instant.now().minusSeconds(3600));
+    // Force the game to PAUSED directly. The sweep is gated on ACTIVE/BALANCING; PAUSED
+    // is a stable state where admins have explicitly paused play and should not lose
+    // seats.
+    fixture.manager().gameForTestOnly().status(org.homepoker.model.game.GameStatus.PAUSED);
+
+    fixture.tick();
+
+    Player after = fixture.manager().getGame().players().get(target.userId());
+    assertThat(after.status())
+        .as("sweep is gated to ACTIVE/BALANCING; a PAUSED game must not evict anyone")
+        .isNotEqualTo(org.homepoker.model.game.PlayerStatus.OUT);
+    assertThat(after.disconnectedAt())
+        .as("disconnectedAt is left intact while the sweep is gated off")
+        .isNotNull();
+  }
+
+  // ------------------------------------------------------------------
+  // helpers
+  // ------------------------------------------------------------------
+
+  /**
+   * Pick a seated player whose seat is NOT the current action position. This keeps the
+   * action timeout in {@code transitionFromBetting} from auto-folding the player we're
+   * trying to test against.
+   */
+  private static Player pickNonActionPlayer(GameManagerTestFixture fixture) {
+    org.homepoker.model.game.Table table =
+        fixture.manager().getGame().tables().firstEntry().getValue();
+    Integer actionPos = table.actionPosition(); // 1-based, may be null
+    java.util.List<org.homepoker.model.game.Seat> seats = table.seats();
+    for (int i = 0; i < seats.size(); i++) {
+      int oneBasedPosition = i + 1;
+      org.homepoker.model.game.Seat seat = seats.get(i);
+      if (seat.player() == null) continue;
+      if (actionPos != null && oneBasedPosition == actionPos) continue;
+      return seat.player();
+    }
+    throw new IllegalStateException("No non-action seated player found");
+  }
 }
