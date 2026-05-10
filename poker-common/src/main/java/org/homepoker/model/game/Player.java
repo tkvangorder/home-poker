@@ -1,5 +1,6 @@
 package org.homepoker.model.game;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
@@ -44,7 +45,7 @@ public final class Player {
    * so a server restart gives everyone a fresh grace window.
    */
   @Nullable
-  @JsonProperty
+  @JsonIgnore
   private Instant disconnectedAt;
 
   public String userId() {
