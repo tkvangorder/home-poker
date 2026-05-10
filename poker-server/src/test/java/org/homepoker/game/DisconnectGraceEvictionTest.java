@@ -222,6 +222,71 @@ class DisconnectGraceEvictionTest {
         .isNotEqualTo(org.homepoker.model.game.PlayerStatus.OUT);
   }
 
+  @Test
+  void staleDisconnectOutsideActiveHandImmediatelyVacatesSeat() {
+    GameManagerTestFixture fixture = GameManagerTestFixture.singleTableMidHand();
+    Player target = pickNonActionPlayer(fixture);
+    String tableId = target.tableId();
+
+    // Force the target's seat into JOINED_WAITING — the seat status that means "at the
+    // table but not in the current hand". That puts the eviction on the immediate-vacate
+    // branch of removePlayerFromGame instead of the mid-hand "mark OUT, retain seat" branch.
+    org.homepoker.model.game.Table table = fixture.manager().getGame().tables().get(tableId);
+    org.homepoker.model.game.Seat targetSeat = table.seats().stream()
+        .filter(s -> s.player() != null && s.player().userId().equals(target.userId()))
+        .findFirst()
+        .orElseThrow();
+    targetSeat.status(org.homepoker.model.game.Seat.Status.JOINED_WAITING);
+
+    target.disconnectedAt(Instant.now().minusSeconds(200));
+    fixture.tick();
+
+    Player after = fixture.manager().getGame().players().get(target.userId());
+    assertThat(after.status())
+        .as("expired grace OUTSIDE an active hand marks the player OUT")
+        .isEqualTo(org.homepoker.model.game.PlayerStatus.OUT);
+    assertThat(after.tableId())
+        .as("the seat is vacated immediately when the player is not in the current hand")
+        .isNull();
+
+    org.homepoker.model.game.Table tableAfter = fixture.manager().getGame().tables().get(tableId);
+    boolean stillSeated = tableAfter.seats().stream()
+        .anyMatch(s -> s.player() != null && s.player().userId().equals(target.userId()));
+    assertThat(stillSeated)
+        .as("the seat itself must be empty — no player reference retained")
+        .isFalse();
+  }
+
+  @Test
+  void startGameFromSeatingRefreshesDisconnectedAt() {
+    // Companion to resumeFromPausedRefreshesDisconnectedAtSoSweepGivesFreshGrace — exercises
+    // the SEATING → ACTIVE invocation of refreshDisconnectGraceTimestamps inside
+    // transitionFromSeating.
+    GameManagerTestFixture fixture = GameManagerTestFixture.singleTableMidHand();
+    Player target = pickNonActionPlayer(fixture);
+
+    // Force the game back to SEATING so transitionFromSeating will fire on the next tick
+    // when StartGame is processed. Tables stay PLAYING — transitionFromSeating sets them
+    // back to PLAYING after the status flip, so the no-op there is harmless.
+    fixture.manager().gameForTestOnly().status(org.homepoker.model.game.GameStatus.SEATING);
+
+    Instant stale = Instant.now().minusSeconds(300);
+    target.disconnectedAt(stale);
+
+    org.homepoker.model.user.User admin = org.homepoker.test.TestDataHelper.adminUser();
+    fixture.submitCommand(new org.homepoker.model.command.StartGame(fixture.gameId(), admin));
+    fixture.tick();
+
+    Player after = fixture.manager().getGame().players().get(target.userId());
+    assertThat(after.disconnectedAt())
+        .as("SEATING → ACTIVE must refresh the stale stamp so the player gets a fresh window")
+        .isNotNull()
+        .isAfter(stale);
+    assertThat(after.status())
+        .as("with a refreshed stamp, the same-tick sweep must NOT evict the player")
+        .isNotEqualTo(org.homepoker.model.game.PlayerStatus.OUT);
+  }
+
   // ------------------------------------------------------------------
   // helpers
   // ------------------------------------------------------------------
