@@ -105,6 +105,14 @@ public abstract class GameManager<T extends Game<T>> {
     // TODO, as we add other game types, we can switch on game.type() to determine which table manager to use.
     this.gameSettings = GameSettings.TEXAS_HOLDEM_SETTINGS;
 
+    // The disconnect grace timer lives only in memory — after a server restart every
+    // player gets a fresh window. (We never persist activeListenerCounts either, so on
+    // restart all players look "connected"; clearing disconnectedAt keeps the model
+    // consistent with that.)
+    for (Player player : game.players().values()) {
+      player.disconnectedAt(null);
+    }
+
     // Create table managers for any existing tables (handles persistence reload + deck recovery)
     for (Table table : game.tables().values()) {
       tableManagers.put(table.id(), createTableManagerForExistingTable(table));
@@ -239,6 +247,11 @@ public abstract class GameManager<T extends Game<T>> {
           gameContext.queueEvent(builder.build());
         }
       }
+
+      // Evict players whose disconnect grace period has elapsed. Runs after commands
+      // (so a same-tick LeaveGame wins over an eviction) and before transitionGame
+      // (so the rebalancing logic sees the post-eviction seat layout).
+      sweepDisconnectedPlayers(game, gameContext);
 
       transitionGame(game, gameContext);
 
@@ -398,6 +411,7 @@ public abstract class GameManager<T extends Game<T>> {
       startGameRequested = false;
       GameStatus oldStatus = game.status();
       game.status(GameStatus.ACTIVE);
+      refreshDisconnectGraceTimestamps(game);
 
       // Set all tables to PLAYING
       for (Table table : game.tables().values()) {
@@ -552,20 +566,28 @@ public abstract class GameManager<T extends Game<T>> {
    * absent (or 0) to 1 emits {@link PlayerReconnected} when a Player record already
    * exists for the user. If no Player record exists yet (e.g., admin observer or a
    * brand-new connection that has not yet submitted JoinGame) no event is emitted —
-   * the {@code JoinGame} path is responsible for {@code PlayerJoined}.
+   * the {@code JoinGame} path is responsible for {@code PlayerJoined}. The same 0→1
+   * transition clears any pending {@code disconnectedAt} timestamp on the Player so
+   * the grace-period sweep does not evict a reconnected user.
    */
   private void handlePlayerConnected(PlayerConnectedCommand cmd, GameContext gameContext) {
     String userId = cmd.connectedUserId();
     int newCount = activeListenerCounts.merge(userId, 1, Integer::sum);
-    if (newCount == 1 && game.players().containsKey(userId)) {
-      gameContext.queueEvent(new PlayerReconnected(
-          Instant.now(), 0L, game.id(), userId));
+    if (newCount == 1) {
+      Player player = game.players().get(userId);
+      if (player != null) {
+        player.disconnectedAt(null);
+        gameContext.queueEvent(new PlayerReconnected(
+            Instant.now(), 0L, game.id(), userId));
+      }
     }
   }
 
   /**
    * Decrement the active-listener ref count for the user. The transition from 1 to 0
-   * emits {@link PlayerDisconnected}. Stale decrements (no entry, or non-positive count)
+   * emits {@link PlayerDisconnected} and stamps {@code Player.disconnectedAt} so the
+   * grace-period sweep can evict the player after {@code disconnectGraceSeconds}
+   * elapse without a reconnect. Stale decrements (no entry, or non-positive count)
    * are ignored defensively.
    */
   private void handlePlayerDisconnected(PlayerDisconnectedCommand cmd, GameContext gameContext) {
@@ -577,6 +599,10 @@ public abstract class GameManager<T extends Game<T>> {
     int newCount = current - 1;
     if (newCount == 0) {
       activeListenerCounts.remove(userId);
+      Player player = game.players().get(userId);
+      if (player != null) {
+        player.disconnectedAt(Instant.now());
+      }
       gameContext.queueEvent(new PlayerDisconnected(
           Instant.now(), 0L, game.id(), userId));
     } else {
@@ -674,6 +700,7 @@ public abstract class GameManager<T extends Game<T>> {
 
     GameStatus oldStatus = game.status();
     game.status(GameStatus.ACTIVE);
+    refreshDisconnectGraceTimestamps(game);
 
     for (Table table : game.tables().values()) {
       Table.Status oldTableStatus = table.status();
@@ -739,26 +766,38 @@ public abstract class GameManager<T extends Game<T>> {
       throw new ValidationException("You have not joined this game.");
     }
 
-    // In SCHEDULED state, mark the player as OUT (keep record for auditing)
-    if (status == GameStatus.SCHEDULED) {
-      player.status(PlayerStatus.OUT);
-      gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), player.user().alias() + " has left the game."));
-      gameContext.forceUpdate(true);
-      return;
-    }
+    String alias = player.user().alias();
+    removePlayerFromGame(player, game, gameContext,
+        alias + " will leave after the current hand.",
+        alias + " has left the game.");
+  }
 
-    // If the player is seated, check if they are in an active hand
+  /**
+   * Remove a player from the game, vacating their seat if possible. If the player is in
+   * an active hand (seat status {@code ACTIVE} or {@code FOLDED}), the seat is retained
+   * and the player is marked {@code OUT} — the seat is freed when the hand ends. Otherwise
+   * the seat is vacated immediately. In all cases the player's status is set to
+   * {@code OUT} and a {@link GameMessage} is emitted; {@code disconnectedAt} is cleared
+   * so a re-joined player gets a fresh grace window. Used by the explicit
+   * {@code LeaveGame} command and by the disconnect-grace-period sweep.
+   *
+   * @param midHandMessage   message text emitted when the player is in an active hand
+   *                         (e.g., "Alice will leave after the current hand.")
+   * @param departureMessage message text emitted on immediate vacate or when the player
+   *                         was not seated (e.g., "Alice has left the game.")
+   */
+  private void removePlayerFromGame(Player player, T game, GameContext gameContext,
+                                    String midHandMessage, String departureMessage) {
     if (player.tableId() != null) {
       Table table = game.tables().get(player.tableId());
       if (table != null) {
-        // Find the player's seat
         for (Seat seat : table.seats()) {
           if (seat.player() != null && seat.player().userId().equals(player.userId())) {
             if (seat.status() == Seat.Status.ACTIVE || seat.status() == Seat.Status.FOLDED) {
               // Player is in an active hand (playing or folded), mark them for removal after the hand
               player.status(PlayerStatus.OUT);
-              gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(),
-                  player.user().alias() + " will leave after the current hand."));
+              player.disconnectedAt(null);
+              gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), midHandMessage));
               gameContext.forceUpdate(true);
               return;
             }
@@ -773,8 +812,57 @@ public abstract class GameManager<T extends Game<T>> {
     }
 
     player.status(PlayerStatus.OUT);
-    gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), player.user().alias() + " has left the game."));
+    player.disconnectedAt(null);
+    gameContext.queueEvent(new GameMessage(Instant.now(), 0L, game.id(), departureMessage));
     gameContext.forceUpdate(true);
+  }
+
+  /**
+   * Walk every player and evict any whose {@code disconnectedAt} is older than
+   * {@code disconnectGraceSeconds}. Gated to {@link GameStatus#ACTIVE} and
+   * {@link GameStatus#BALANCING}: while the game is {@code SCHEDULED}, {@code SEATING},
+   * {@code PAUSED}, or {@code COMPLETED}, the timer does not advance and stamps survive
+   * in case play resumes (or, for {@code COMPLETED}, are simply ignored). Eviction
+   * delegates to {@link #removePlayerFromGame} so the mid-hand-vs-immediate vacate
+   * behavior matches an explicit {@code LeaveGame}.
+   */
+  private void sweepDisconnectedPlayers(T game, GameContext gameContext) {
+    GameStatus status = game.status();
+    if (status != GameStatus.ACTIVE && status != GameStatus.BALANCING) {
+      return;
+    }
+    Instant cutoff = Instant.now().minusSeconds(gameSettings.disconnectGraceSeconds());
+    // Snapshot the players collection to avoid surprises if removePlayerFromGame is
+    // ever extended to mutate game.players() (today it does not).
+    for (Player player : new ArrayList<>(game.players().values())) {
+      if (player.status() == PlayerStatus.OUT) {
+        continue;
+      }
+      Instant disconnectedAt = player.disconnectedAt();
+      if (disconnectedAt == null || !disconnectedAt.isBefore(cutoff)) {
+        continue;
+      }
+      String alias = player.user().alias();
+      removePlayerFromGame(player, game, gameContext,
+          alias + " disconnected; will be removed after the current hand.",
+          alias + " was removed after the disconnect grace period expired.");
+    }
+  }
+
+  /**
+   * Reset every non-null {@code Player.disconnectedAt} to {@code Instant.now()}. Called when
+   * the game enters the sweep-eligible {@code ACTIVE} state from a state where the sweep
+   * was gated off ({@code SEATING}, {@code PAUSED}). Without this, stamps that accumulated
+   * during the non-sweep window would fire {@link #sweepDisconnectedPlayers} on the very
+   * next tick, denying the disconnected player any effective grace.
+   */
+  private void refreshDisconnectGraceTimestamps(T game) {
+    Instant now = Instant.now();
+    for (Player player : game.players().values()) {
+      if (player.disconnectedAt() != null) {
+        player.disconnectedAt(now);
+      }
+    }
   }
 
   private void getGameState(GetGameState gameCommand, T game, GameContext gameContext) {

@@ -11,6 +11,7 @@ import lombok.Builder;
  * @param seatingTimeSeconds The number of seconds (prior to the start of the game) that players can join the game
  * @param actionTimeSeconds The number of seconds that players have to make an action when it is their turn
  * @param reviewHandTimeSeconds The number of seconds that players have to review hand results (and show their cards)
+ * @param disconnectGraceSeconds Seconds a player can be disconnected before being auto-removed from the game
  */
 @Builder
 public record GameSettings(
@@ -22,6 +23,7 @@ public record GameSettings(
     int reviewHandTimeSeconds,
     int predealTimeSeconds,
     int tableMergeGraceSeconds,
+    int disconnectGraceSeconds,
     boolean allowPostToPlay,
     boolean requireMissedBlindPost
 ) {
@@ -35,6 +37,7 @@ public record GameSettings(
       .reviewHandTimeSeconds(8)
       .predealTimeSeconds(15)
       .tableMergeGraceSeconds(60)
+      .disconnectGraceSeconds(120)
       .allowPostToPlay(true)
       .requireMissedBlindPost(false)
       .build();
