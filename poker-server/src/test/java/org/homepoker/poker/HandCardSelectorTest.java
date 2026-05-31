@@ -23,7 +23,9 @@ class HandCardSelectorTest {
 
   @Test
   void flushPicksTheFlushSuitNotASameValueCardInAnotherSuit() {
-    List<Card> pool = parseCards("Ah Kh 9h 5h 2h As Kd");
+    // As/Kd come BEFORE Ah/Kh so a naive value-only impl would pick the spade ace
+    // and diamond king; suit-filtering must select the hearts instead.
+    List<Card> pool = parseCards("As Kd Ah Kh 9h 5h 2h");
     List<CardValue> values = List.of(ACE, KING, NINE, FIVE, TWO);
 
     List<Card> selected = HandCardSelector.select(pool, HandRank.FLUSH, values);
