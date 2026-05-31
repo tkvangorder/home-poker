@@ -1,5 +1,6 @@
 package org.homepoker.test;
 
+import org.homepoker.lib.poker.PokerUtilities;
 import org.homepoker.model.event.PokerEvent;
 import org.homepoker.model.event.table.ShowdownResult;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,31 @@ class ShowdownAssertTest {
             new ShowdownResult.Winner(3, "u3", 100, "Pair", List.of())))));
     ShowdownAssert.from(List.of(event))
         .pot(0).winners(1, 2, 3).oddChipTo(1);
+  }
+
+  @Test
+  void winningCardsMatchesRegardlessOfOrder() {
+    ShowdownResult event = new ShowdownResult(
+        Instant.now(), 1L, "g", "t",
+        List.of(new ShowdownResult.PotResult(0, 100,
+            List.of(new ShowdownResult.Winner(1, "u1", 100, "THREE_OF_A_KIND",
+                PokerUtilities.parseCards("As Ah Ad Ks 9s"))))));
+
+    ShowdownAssert.from(List.of(event))
+        .pot(0).winner(1, "THREE_OF_A_KIND").winningCards(1, "9s Ks As Ah Ad");
+  }
+
+  @Test
+  void winningCardsFailsWhenCardsDiffer() {
+    ShowdownResult event = new ShowdownResult(
+        Instant.now(), 1L, "g", "t",
+        List.of(new ShowdownResult.PotResult(0, 100,
+            List.of(new ShowdownResult.Winner(1, "u1", 100, "PAIR",
+                PokerUtilities.parseCards("As Ah Ks 9s 5d"))))));
+
+    assertThatThrownBy(() ->
+        ShowdownAssert.from(List.of(event)).pot(0).winningCards(1, "As Ah Ks 9s 2c"))
+        .isInstanceOf(AssertionError.class);
   }
 
   @Test

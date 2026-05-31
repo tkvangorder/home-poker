@@ -1,7 +1,9 @@
 package org.homepoker.test;
 
+import org.homepoker.lib.poker.PokerUtilities;
 import org.homepoker.model.event.PokerEvent;
 import org.homepoker.model.event.table.ShowdownResult;
+import org.homepoker.model.poker.Card;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -94,6 +96,25 @@ public final class ShowdownAssert {
           .containsIgnoringCase(handDescriptionContains);
       assertThat(w.amount()).as("pot[%d] winner amount equals pot amount", index)
           .isEqualTo(pot.potAmount());
+      return this;
+    }
+
+    /**
+     * Asserts the winning cards recorded for the given seat match {@code expectedCards}
+     * (a space-separated card string like {@code "As Ah Ad Ks 9s"}), order-independent.
+     */
+    public PotAssert winningCards(int seatPosition, String expectedCards) {
+      ShowdownResult.Winner w = pot.winners().stream()
+          .filter(x -> x.seatPosition() == seatPosition)
+          .findFirst()
+          .orElse(null);
+      assertThat(w)
+          .as("pot[%d] has a winner at seat %d", index, seatPosition)
+          .isNotNull();
+      List<Card> expected = PokerUtilities.parseCards(expectedCards);
+      assertThat(w.winningCards())
+          .as("pot[%d] seat %d winning cards", index, seatPosition)
+          .containsExactlyInAnyOrderElementsOf(expected);
       return this;
     }
 
