@@ -73,6 +73,10 @@ class ShowdownWinningCardsTest {
         .toList();
 
     assertThat(allWinningCards)
+        .as("a showdown with winning cards must have been emitted")
+        .isNotEmpty();
+
+    assertThat(allWinningCards)
         .as("loser's hole cards must not appear in any winner's winningCards")
         .doesNotContainAnyElementsOf(loserHoleCards);
   }
