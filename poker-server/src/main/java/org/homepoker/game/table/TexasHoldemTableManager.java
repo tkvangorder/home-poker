@@ -867,7 +867,8 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       Table.Pot pot = table.pots().get(i);
       totalWon += pot.amount();
       potResults.add(new ShowdownResult.PotResult(i, pot.amount(),
-          List.of(new ShowdownResult.Winner(winnerPosition, winner.userId(), pot.amount(), "Last player standing"))));
+          List.of(new ShowdownResult.Winner(
+              winnerPosition, winner.userId(), pot.amount(), "Last player standing", List.of()))));
     }
 
     winner.chipCount(winner.chipCount() + totalWon);
@@ -936,7 +937,8 @@ public class TexasHoldemTableManager<T extends Game<T>> extends TableManager<T> 
       player.chipCount(player.chipCount() + amount);
 
       String handDesc = shr.result().getRank().toString() + " : " + shr.result().getCardValues();
-      winners.add(new ShowdownResult.Winner(shr.position(), player.userId(), amount, handDesc));
+      winners.add(new ShowdownResult.Winner(
+          shr.position(), player.userId(), amount, handDesc, shr.result().getHandCards()));
     }
 
     return winners;

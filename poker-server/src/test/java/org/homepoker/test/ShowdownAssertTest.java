@@ -17,9 +17,9 @@ class ShowdownAssertTest {
         Instant.now(), 1L, "g", "t",
         List.of(
             new ShowdownResult.PotResult(0, 400,
-                List.of(new ShowdownResult.Winner(1, "user-1", 400, "Pair of Aces"))),
+                List.of(new ShowdownResult.Winner(1, "user-1", 400, "Pair of Aces", List.of()))),
             new ShowdownResult.PotResult(1, 600,
-                List.of(new ShowdownResult.Winner(2, "user-2", 600, "Pair of Kings")))
+                List.of(new ShowdownResult.Winner(2, "user-2", 600, "Pair of Kings", List.of())))
         ));
     List<PokerEvent> events = List.of(event);
 
@@ -35,8 +35,8 @@ class ShowdownAssertTest {
     ShowdownResult event = new ShowdownResult(
         Instant.now(), 1L, "g", "t",
         List.of(new ShowdownResult.PotResult(0, 600, List.of(
-            new ShowdownResult.Winner(1, "u1", 300, "Two Pair"),
-            new ShowdownResult.Winner(2, "u2", 300, "Two Pair")))));
+            new ShowdownResult.Winner(1, "u1", 300, "Two Pair", List.of()),
+            new ShowdownResult.Winner(2, "u2", 300, "Two Pair", List.of())))));
     ShowdownAssert.from(List.of(event))
         .hasPotCount(1)
         .pot(0).amount(600).winners(1, 2).chopsEvenly();
@@ -47,9 +47,9 @@ class ShowdownAssertTest {
     ShowdownResult event = new ShowdownResult(
         Instant.now(), 1L, "g", "t",
         List.of(new ShowdownResult.PotResult(0, 301, List.of(
-            new ShowdownResult.Winner(1, "u1", 101, "Pair"),
-            new ShowdownResult.Winner(2, "u2", 100, "Pair"),
-            new ShowdownResult.Winner(3, "u3", 100, "Pair")))));
+            new ShowdownResult.Winner(1, "u1", 101, "Pair", List.of()),
+            new ShowdownResult.Winner(2, "u2", 100, "Pair", List.of()),
+            new ShowdownResult.Winner(3, "u3", 100, "Pair", List.of())))));
     ShowdownAssert.from(List.of(event))
         .pot(0).winners(1, 2, 3).oddChipTo(1);
   }
@@ -59,7 +59,7 @@ class ShowdownAssertTest {
     ShowdownResult event = new ShowdownResult(
         Instant.now(), 1L, "g", "t",
         List.of(new ShowdownResult.PotResult(0, 100,
-            List.of(new ShowdownResult.Winner(1, "u1", 100, "x")))));
+            List.of(new ShowdownResult.Winner(1, "u1", 100, "x", List.of())))));
     assertThatThrownBy(() ->
         ShowdownAssert.from(List.of(event)).pot(0).winner(2, "x"))
         .isInstanceOf(AssertionError.class);
