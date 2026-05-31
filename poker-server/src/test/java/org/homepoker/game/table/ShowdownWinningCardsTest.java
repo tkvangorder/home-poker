@@ -2,7 +2,6 @@ package org.homepoker.game.table;
 
 import org.homepoker.lib.poker.PokerUtilities;
 import org.homepoker.model.command.PlayerActionCommand;
-import org.homepoker.model.event.PokerEvent;
 import org.homepoker.model.event.table.ShowdownResult;
 import org.homepoker.model.game.HandPhase;
 import org.homepoker.model.game.PlayerAction;
