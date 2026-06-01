@@ -735,12 +735,13 @@ Hand reached showdown; winners determined and pots awarded.
 
 **Winner fields:**
 
-| Field             | Type   | Description                    |
-|-------------------|--------|--------------------------------|
-| `seatPosition`    | int    | Winning player's 1-indexed seat position |
-| `userId`          | String | Winning player's ID            |
-| `amount`          | int    | Chips awarded                  |
-| `handDescription` | String | Winning hand (e.g., "Full House, Aces over Kings") |
+| Field             | Type        | Description                    |
+|-------------------|-------------|--------------------------------|
+| `seatPosition`    | int         | Winning player's 1-indexed seat position |
+| `userId`          | String      | Winning player's ID            |
+| `amount`          | int         | Chips awarded                  |
+| `handDescription` | String      | Winning hand (e.g., "Full House, Aces over Kings") |
+| `winningCards`    | List<Card>  | The concrete cards (value + suit) forming the winner's best five-card hand, so clients can highlight them. Empty when the pot was won without a showdown (e.g., everyone else folded). |
 
 ---
 

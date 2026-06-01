@@ -63,7 +63,8 @@ public class BitwisePokerRanker implements ClassicPokerRanker {
         }
       }
     }
-    return result;
+    return result.withHandCards(
+        HandCardSelector.select(cards, result.getRank(), result.getCardValues()));
   }
 
   /**

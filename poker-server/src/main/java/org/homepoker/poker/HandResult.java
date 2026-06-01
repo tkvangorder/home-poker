@@ -1,5 +1,6 @@
 package org.homepoker.poker;
 
+import org.homepoker.model.poker.Card;
 import org.homepoker.model.poker.CardValue;
 import org.springframework.util.Assert;
 
@@ -19,13 +20,34 @@ public class HandResult implements Comparable<HandResult> {
   public static final HandResult LOWEST = new HandResult(HandRank.HIGH_CARD, Arrays.asList(CardValue.TWO, CardValue.THREE, CardValue.FOUR, CardValue.FIVE, CardValue.SEVEN));
   private final HandRank rank;
   private final List<CardValue> cardValues;
+  // Concrete cards that form this hand (value + suit). Descriptive payload only:
+  // intentionally NOT part of equals/hashCode/compareTo, which define hand STRENGTH
+  // as rank + cardValues. Empty when the result was produced without a card pool.
+  private final List<Card> handCards;
 
   public HandResult(HandRank rank, List<CardValue> cardValues) {
+    this(rank, cardValues, List.of());
+  }
+
+  public HandResult(HandRank rank, List<CardValue> cardValues, List<Card> handCards) {
     Assert.notNull(rank, "The hand rank cannot be null");
     Assert.isTrue(cardValues != null & cardValues.size() <= 5, "You must supply between 1 and 5 card ranks");
 
     this.rank = rank;
     this.cardValues = cardValues;
+    this.handCards = handCards == null ? List.of() : List.copyOf(handCards);
+  }
+
+  /**
+   * Returns a copy of this result with the concrete cards that form the hand attached.
+   * Rank and card values are unchanged, so hand strength (equals/compareTo) is unaffected.
+   */
+  public HandResult withHandCards(List<Card> handCards) {
+    return new HandResult(this.rank, this.cardValues, handCards);
+  }
+
+  public List<Card> getHandCards() {
+    return handCards;
   }
 
 

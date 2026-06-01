@@ -2,6 +2,7 @@ package org.homepoker.model.event.table;
 
 import org.homepoker.model.event.EventMarker;
 import org.homepoker.model.event.TableEvent;
+import org.homepoker.model.poker.Card;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,8 +31,12 @@ public record ShowdownResult(
    * @param userId The user ID of the winner
    * @param amount The chips won
    * @param handDescription A description of the winning hand (e.g., "Full House, Aces over Kings")
+   * @param winningCards The concrete cards (value + suit) that make up the winner's best hand,
+   *                     so clients can highlight them. Empty when the hand was won without a
+   *                     showdown (e.g., everyone else folded).
    */
-  public record Winner(int seatPosition, String userId, int amount, String handDescription) {
+  public record Winner(int seatPosition, String userId, int amount, String handDescription,
+                       List<Card> winningCards) {
   }
 
   @Override

@@ -92,6 +92,12 @@ Integration tests extend `BaseIntegrationTest` (TestContainers MongoDB). Prefer 
 
 **Admin debug-view exception.** A server-side debug flag (default **off**) may permit admin users — and only admin users — to receive all hole cards. When this flag is on, the server must emit a broadcast event warning **all connected clients** that admins can see all cards. The flag must not be togglable without that broadcast, and with the flag off an admin gets no more visibility than any other player.
 
+## Command & Event Spec
+
+`poker-server/src/main/resources/static/command-event-spec.md` is the canonical client-facing reference for every command and event (field names, types, and `eventType` values).
+
+**ALWAYS update `command-event-spec.md` in the same change whenever you add, remove, or modify a command or event.** This includes adding, renaming, or removing a field on any command, event, or their nested records (e.g., `ShowdownResult.Winner`). The spec and the classes under `model/command/` + `model/event/` must never drift. The `create-command` and `add-event-type` skills scaffold the code; this doc update is required on top of them.
+
 ## Skills
 
 Project-specific skills live in `.claude/skills/`. Prefer invoking them over re-reading the full design doc:
