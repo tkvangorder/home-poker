@@ -47,7 +47,7 @@ npm run build          # Production build to dist/poker-client-angular/browser
 | `src/app/error-handling/global-error-handler.ts` | Suppresses ValidationError, toasts SystemError |
 | `src/app/modal/modal.service.ts` | Dynamic component modal system |
 | `src/app/toaster/toaster.service.ts` | Toast notifications |
-| `proxy.conf.json` | Dev proxy: forwards `/auth`, `/users`, `/cash-games`, `/files`, `/admin`, `/swagger-ui`, `/v3`, `/ws` to `http://localhost:8080` |
+| `proxy.conf.json` | Dev proxy: forwards `/auth`, `/users`, `/cash-games`, `/files`, `/admin`, `/swagger-ui`, `/v3`, `/command-event-spec.md`, `/ws` to `http://localhost:8080` |
 
 ### Feature Structure
 ```

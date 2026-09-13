@@ -6,6 +6,8 @@ import org.homepoker.test.BaseIntegrationTest;
 import org.homepoker.test.TestDataHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
@@ -16,6 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  * that API paths are still protected, and that unknown paths are not swallowed
  * by the SPA fallback. A stub {@code static/index.html} lives on the test
  * classpath so this test does not depend on the real client build.
+ * <p>
+ * The route list exercised here must match both
+ * {@code poker-client-angular/src/app/app.routes.ts} and
+ * {@code SpaForwardingController}.
  */
 class SpaForwardingControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -39,18 +45,10 @@ class SpaForwardingControllerIntegrationTest extends BaseIntegrationTest {
         .value(body -> assertThat(body).contains("SPA-TEST-SHELL"));
   }
 
-  @Test
-  void homeRouteForwardsToIndexWithoutAuthentication() {
-    client.get().uri("/home")
-        .exchange()
-        .expectStatus().isOk()
-        .expectBody(String.class)
-        .value(body -> assertThat(body).contains("SPA-TEST-SHELL"));
-  }
-
-  @Test
-  void gameRouteForwardsToIndexWithoutAuthentication() {
-    client.get().uri("/game/abc-123")
+  @ParameterizedTest
+  @ValueSource(strings = {"/home", "/game/abc-123"})
+  void clientRouteForwardsToIndexWithoutAuthentication(String path) {
+    client.get().uri(path)
         .exchange()
         .expectStatus().isOk()
         .expectBody(String.class)

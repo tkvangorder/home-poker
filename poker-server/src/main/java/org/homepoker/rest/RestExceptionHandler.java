@@ -23,11 +23,14 @@ public class RestExceptionHandler {
     return Message.error(e.getMessage());
   }
 
+  /**
+   * Spring's own not-found for unmapped static resources; the app's ResourceNotFound handler above covers domain lookups.
+   */
   @ExceptionHandler(NoResourceFoundException.class)
   @ResponseBody
   @ResponseStatus(HttpStatus.NOT_FOUND)
   public Message handleException(NoResourceFoundException e) {
-    return Message.error(e.getMessage());
+    return Message.error("Not found");
   }
 
   @ExceptionHandler(IllegalArgumentException.class)

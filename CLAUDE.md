@@ -25,7 +25,7 @@ docker-compose up
 ## Testing
 
 ```bash
-# Run all tests
+# Run all Java tests (Jest runs under check/build, see npmTest below)
 ./gradlew clean test
 
 # Run tests for a specific module
