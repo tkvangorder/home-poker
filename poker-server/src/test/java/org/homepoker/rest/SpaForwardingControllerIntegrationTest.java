@@ -7,7 +7,6 @@ import org.homepoker.test.TestDataHelper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.test.web.servlet.client.RestTestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,19 +66,10 @@ class SpaForwardingControllerIntegrationTest extends BaseIntegrationTest {
 
   @Test
   void unknownPathIsNotSwallowedBySpaFallback() {
-    // The important assertion here is that an unmapped, authenticated GET is NOT swallowed by
-    // the SPA fallback (i.e. it must never come back 200 with the index.html shell). Spring MVC's
-    // static resource resolution raises NoResourceFoundException for "/no-such-route", which would
-    // normally surface as a 404 -- but RestExceptionHandler has a catch-all
-    // `@ExceptionHandler(Exception.class)` mapped to 500 INTERNAL_SERVER_ERROR (used to turn
-    // otherwise-unhandled exceptions into a JSON error body), and that catch-all has no more
-    // specific sibling for NoResourceFoundException, so it intercepts before Spring's default
-    // 404 handling applies. 500 is this app's genuine status for an unmapped GET today, so we
-    // assert that rather than loosening the check to merely "not 200".
     client.get().uri("/no-such-route")
         .headers(h -> h.setBearerAuth(adminToken()))
         .exchange()
-        .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        .expectStatus().isNotFound();
   }
 
   private String adminToken() {
