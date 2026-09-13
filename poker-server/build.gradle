@@ -21,3 +21,31 @@ dependencies {
     testImplementation "org.testcontainers:testcontainers-mongodb"
     testImplementation 'org.awaitility:awaitility'
 }
+
+// ---------------------------------------------------------------------------
+// Angular client packaging.
+//
+// The compiled client is copied into build/client-resources/static, a directory
+// that is deliberately NOT an output of processResources. Only bootJar and
+// bootRun depend on it, so `./gradlew :poker-server:test` never builds the
+// client or downloads Node.
+// ---------------------------------------------------------------------------
+def clientResources = layout.buildDirectory.dir('client-resources')
+
+tasks.register('copyClientAssets', Copy) {
+    description = 'Copies the compiled Angular client into the server static resources.'
+    group = 'build'
+    dependsOn ':poker-client-angular:npmBuild'
+    from(rootProject.file('poker-client-angular/dist/poker-client-angular/browser'))
+    into(clientResources.map { it.dir('static') })
+}
+
+tasks.named('bootJar') {
+    dependsOn tasks.named('copyClientAssets')
+    classpath(clientResources)
+}
+
+tasks.named('bootRun') {
+    dependsOn tasks.named('copyClientAssets')
+    classpath(clientResources)
+}
