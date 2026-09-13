@@ -103,8 +103,8 @@ for a possible future React client.
   paths still return 404 rather than the SPA shell. When a new client route is
   added, this controller must be updated.
 - **Security.** `WebSecurityConfiguration` adds `permitAll` for `/`,
-  `/index.html`, `/favicon.ico`, `/*.js`, `/*.css`, `/assets/**`, `/home`, and
-  `/game/**`. The client authenticates its own API calls with a bearer token,
+  `/index.html`, `/favicon.ico`, `/*.js`, `/*.css`, `/assets/**`, `/media/**`,
+  `/home`, and `/game/**`. The client authenticates its own API calls with a bearer token,
   so serving the shell unauthenticated is correct and exposes nothing.
 - **CORS** in `WebConfig` stays as-is. It is harmless same-origin and still
   needed for `ng serve` on port 4200.
@@ -117,8 +117,9 @@ for a possible future React client.
 - **Java integration test** (extends `BaseIntegrationTest`): with a stub
   `static/index.html` on the test classpath, assert that unauthenticated
   `GET /home` and `GET /game/abc` return the index content with 200; that
-  `GET /cash-games/xyz` without a token still returns 401; and that an unknown
-  path such as `GET /no-such-route` returns 404.
+  `GET /cash-games/xyz` without a token is still rejected (403, matching the
+  app's existing unauthenticated behavior); and that an authenticated
+  `GET /no-such-route` returns 404 rather than the SPA shell.
 - **Client Jest**: update `PokerRestClient` and `GameWebSocketService` specs
   for the URL changes and run `npm test`.
 - **Build**: `./gradlew clean build` produces a bootJar containing
