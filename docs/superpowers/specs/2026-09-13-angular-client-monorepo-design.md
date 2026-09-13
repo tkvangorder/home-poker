@@ -70,21 +70,15 @@ for a possible future React client.
   - `angular.json` `outputPath` changes to `dist/poker-client-angular`.
 - `poker-server/build.gradle`:
   - A `copyClientAssets` task (type `Copy`) that copies the output of
-    `:poker-client-angular:npmBuild` into `build/resources/main/static/`.
-  - `processResources` depends on `copyClientAssets`, so `bootJar` and
-    `bootRun` include the client.
-  - `test` and `compileJava` do not depend on the client. Running
-    `./gradlew :poker-server:test` does not download Node or build the client.
-    The `copyClientAssets` task only runs when `processResources` is requested.
-
-    Note: `test` depends on `processResources` in the default Java plugin. To
-    keep the client out of the test path, `copyClientAssets` is wired into
-    `bootJar` and `bootRun` (via their `classpath` input / an explicit
-    `dependsOn`) rather than into `processResources`. The implementation may
-    instead add a separate `processClientResources` task feeding a dedicated
-    source-set output directory that only `bootJar` and `bootRun` see. Either
-    approach satisfies the requirement: `:poker-server:test` never triggers
-    `npmBuild`.
+    `:poker-client-angular:npmBuild` into
+    `build/client-resources/static/`, a directory separate from
+    `build/resources/main` so it is not an output of `processResources`.
+  - `bootJar` and `bootRun` both `dependsOn copyClientAssets` and add
+    `build/client-resources` to their classpath, so the running app and the
+    packaged jar include the client at `static/`.
+  - `test`, `compileJava`, and `processResources` do not depend on the client.
+    Running `./gradlew :poker-server:test` never triggers `npmInstall` or
+    `npmBuild` and never downloads Node.
 
 ## Section 3: Client URL changes
 
