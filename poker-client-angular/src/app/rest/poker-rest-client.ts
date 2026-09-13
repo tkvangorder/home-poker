@@ -12,7 +12,9 @@ import {
   providedIn: 'root',
 })
 export class PokerRestClient {
-  baseUrl: string = '/api';
+  // Same-origin relative paths. In production the Spring server serves both the
+  // client and the API; under `ng serve` proxy.conf.json forwards these prefixes.
+  baseUrl: string = '';
   constructor(private httpClient: HttpClient) {}
 
   login(loginId: string, password: string) {

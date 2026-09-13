@@ -1,9 +1,11 @@
 {
-  "/api": {
-    "target": "http://localhost:8080",
-    "secure": false,
-    "pathRewrite": {
-      "^/api": ""
-    }
-  }
+  "/auth": { "target": "http://localhost:8080", "secure": false },
+  "/users": { "target": "http://localhost:8080", "secure": false },
+  "/cash-games": { "target": "http://localhost:8080", "secure": false },
+  "/files": { "target": "http://localhost:8080", "secure": false },
+  "/admin": { "target": "http://localhost:8080", "secure": false },
+  "/swagger-ui": { "target": "http://localhost:8080", "secure": false },
+  "/v3": { "target": "http://localhost:8080", "secure": false },
+  "/command-event-spec.md": { "target": "http://localhost:8080", "secure": false },
+  "/ws": { "target": "http://localhost:8080", "secure": false, "ws": true }
 }

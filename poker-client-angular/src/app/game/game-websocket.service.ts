@@ -16,12 +16,21 @@ export class GameWebSocketService {
   // send GameCommand and receive GameEvent as different shapes.
   private socket$: WebSocketSubject<any> | null = null;
   private connectionStatus$ = new Subject<ConnectionStatus>();
-  private wsBaseUrl = 'ws://localhost:8080/ws/games';
 
   constructor(private userService: UserService) {}
 
   getConnectionStatus(): Observable<ConnectionStatus> {
     return this.connectionStatus$.asObservable();
+  }
+
+  /**
+   * Builds the game WebSocket URL relative to the page origin. In production
+   * the Spring server serves both the client and the WebSocket endpoint; under
+   * `ng serve` the dev proxy forwards `/ws` to the server.
+   */
+  buildSocketUrl(gameId: string, token: string): string {
+    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${scheme}://${window.location.host}/ws/games/${gameId}?token=${token}`;
   }
 
   connect(gameId: string): Observable<GameEvent> {
@@ -34,7 +43,7 @@ export class GameWebSocketService {
     this.disconnect();
     this.connectionStatus$.next('connecting');
 
-    const url = `${this.wsBaseUrl}/${gameId}?token=${user.token}`;
+    const url = this.buildSocketUrl(gameId, user.token);
 
     this.socket$ = webSocket({
       url,
