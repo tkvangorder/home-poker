@@ -3,6 +3,7 @@ package org.homepoker.security;
 import org.homepoker.user.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -28,6 +29,8 @@ public class WebSecurityConfiguration {
         .authorizeHttpRequests(
             (requests) -> requests
                 .requestMatchers("/auth/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**", "/command-event-spec.md").permitAll()
+                // Angular client shell and static assets. The client authenticates its own API calls with a bearer token.
+                .requestMatchers(HttpMethod.GET, "/", "/index.html", "/favicon.ico", "/*.js", "/*.css", "/assets/**", "/media/**", "/home", "/game/**").permitAll()
                 .anyRequest().authenticated() // Everything else will require authentication
         )
         .sessionManagement((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

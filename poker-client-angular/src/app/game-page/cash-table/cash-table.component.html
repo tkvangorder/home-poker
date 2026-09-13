@@ -1,0 +1,44 @@
+<div id="main">
+    <div class="players">
+        <div class="player player-1 playing" id="player1">
+            <app-player></app-player>
+        </div>
+
+        <div class="player player-2 playing" id="player2">
+            <app-player></app-player>
+        </div>
+        <div class="player player-3 playing" id="player3">
+            <app-player></app-player>
+        </div>
+        <div class="player player-4 playing" id="player4">
+            <app-player></app-player>
+        </div>
+        <div class="player player-5 playing" id="player5">
+            <app-player></app-player>
+        </div>
+        <div class="player player-6 playing" id="player6">
+            <app-player></app-player>
+        </div>
+        <div class="player player-7 playing" id="player7">
+            <app-player></app-player>
+        </div>
+        <div class="player player-8 playing" id="player8">
+            <app-player></app-player>
+        </div>
+        <div class="player player-9 playing" id="player8">
+            <app-player></app-player>
+        </div>
+
+    </div>
+    <div class='square-box flex items-center justify-center'>
+        <div class="square-content grid grid-cols-5 gap-2">
+            <app-card cardSuit="DIAMONDS" cardValue="10" [isHidden]="false"></app-card>
+            <app-card cardSuit="SPADES" cardValue="2" [isHidden]="false"></app-card>
+            <app-card cardSuit="DIAMONDS" cardValue="QUEEN" [isHidden]="false"></app-card>
+            <app-card cardSuit="DIAMONDS" cardValue="KING" [isHidden]="false"></app-card>
+            <app-card cardSuit="DIAMONDS" cardValue="ACE" [isHidden]="false"></app-card>
+            <div class="col-span-5 flex justify-center table-text">hello there</div>
+        </div>
+    </div>
+
+</div>

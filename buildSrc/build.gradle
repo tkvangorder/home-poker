@@ -16,4 +16,5 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-gradle-plugin:4.0.5'
     implementation 'io.spring.dependency-management:io.spring.dependency-management.gradle.plugin:1.1.7'
+    implementation 'com.github.node-gradle:gradle-node-plugin:7.1.0'
 }

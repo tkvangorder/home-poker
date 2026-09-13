@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poker Table Design Playground</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1a1a1a;
+    --panel: #242424;
+    --border: #333;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --accent: #4a9eff;
+    --group-bg: #1e1e1e;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: 1fr auto;
+    height: 100vh;
+  }
+
+  /* Controls Panel */
+  .controls {
+    grid-row: 1 / 3;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px;
+  }
+
+  .controls h1 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+
+  .group {
+    background: var(--group-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+
+  .group-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+
+  .control {
+    margin-bottom: 10px;
+  }
+
+  .control:last-child { margin-bottom: 0; }
+
+  .control label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 4px;
+    color: var(--text);
+  }
+
+  .control label .val {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    min-width: 50px;
+    text-align: right;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #444;
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  input[type="color"] {
+    width: 32px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .color-row label {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  select {
+    width: 100%;
+    padding: 6px 8px;
+    background: #333;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  .presets {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .preset-btn {
+    padding: 7px 10px;
+    background: #333;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .preset-btn:hover {
+    background: #444;
+    border-color: var(--accent);
+  }
+
+  .preset-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .toggle-row label { margin-bottom: 0; font-size: 12px; }
+
+  .toggle {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle .slider {
+    position: absolute;
+    inset: 0;
+    background: #444;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .toggle .slider::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    left: 2px;
+    bottom: 2px;
+    background: #fff;
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+
+  .toggle input:checked + .slider { background: var(--accent); }
+  .toggle input:checked + .slider::before { transform: translateX(16px); }
+
+  /* Preview */
+  .preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #111;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .preview-bg {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-size: cover;
+    background-position: center;
+  }
+
+  /* Table */
+  .table-container {
+    position: relative;
+    width: 70%;
+    aspect-ratio: var(--table-aspect);
+  }
+
+  .table-felt {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--table-radius);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .table-rail {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--table-radius);
+    pointer-events: none;
+  }
+
+  .table-inner-line {
+    position: absolute;
+    inset: 12px;
+    border-radius: var(--table-radius);
+    pointer-events: none;
+  }
+
+  .community-cards {
+    display: flex;
+    gap: 6px;
+    z-index: 1;
+  }
+
+  .card-slot {
+    width: 48px;
+    height: 67px;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-slot .suit {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 22px;
+    opacity: 0.9;
+  }
+
+  .card-slot .rank {
+    position: absolute;
+    top: 4px;
+    left: 5px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .pot-display {
+    position: absolute;
+    bottom: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    z-index: 2;
+    padding: 3px 10px;
+    border-radius: 10px;
+  }
+
+  /* Player Seats */
+  .seat {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    z-index: 5;
+  }
+
+  .seat-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .seat-info {
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-width: 80px;
+  }
+
+  .seat-name {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .seat-stack {
+    font-size: 10px;
+    opacity: 0.7;
+  }
+
+  .seat-cards {
+    display: flex;
+    gap: 2px;
+    margin-top: 3px;
+  }
+
+  .hole-card {
+    width: 28px;
+    height: 20px;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hole-card .rank {
+    position: absolute;
+    top: 1px;
+    left: 2px;
+    font-size: 8px;
+    font-weight: 700;
+  }
+
+  .hole-card .mini-suit {
+    position: absolute;
+    bottom: 0;
+    right: 1px;
+    font-size: 8px;
+  }
+
+  .dealer-chip {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #fff;
+    color: #000;
+    font-size: 9px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  /* Prompt output */
+  .prompt-area {
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 12px 16px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .prompt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .prompt-header span {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+  }
+
+  .copy-btn {
+    padding: 4px 12px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .copy-btn:hover { filter: brightness(1.15); }
+
+  .prompt-text {
+    font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- Controls -->
+  <div class="controls">
+    <h1>Poker Table Playground</h1>
+
+    <div class="group">
+      <div class="group-title">Presets</div>
+      <div class="presets">
+        <button class="preset-btn active" onclick="applyPreset('classic')">Classic Green</button>
+        <button class="preset-btn" onclick="applyPreset('midnight')">Midnight Blue</button>
+        <button class="preset-btn" onclick="applyPreset('casino')">Casino Red</button>
+        <button class="preset-btn" onclick="applyPreset('forest')">Dark Forest</button>
+        <button class="preset-btn" onclick="applyPreset('royal')">Royal Purple</button>
+        <button class="preset-btn" onclick="applyPreset('minimal')">Minimal</button>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Table Shape</div>
+      <div class="control">
+        <label>Aspect Ratio <span class="val" id="v-aspect"></span></label>
+        <input type="range" min="1.5" max="3.5" step="0.1" id="c-aspect" oninput="update()">
+      </div>
+      <div class="control">
+        <label>Border Radius <span class="val" id="v-radius"></span></label>
+        <input type="range" min="20" max="200" step="5" id="c-radius" oninput="update()">
+      </div>
+      <div class="control">
+        <label>Table Size <span class="val" id="v-size"></span></label>
+        <input type="range" min="40" max="90" step="1" id="c-size" oninput="update()">
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Felt</div>
+      <div class="control color-row">
+        <label>Center Color</label>
+        <input type="color" id="c-felt-center" oninput="update()">
+      </div>
+      <div class="control color-row">
+        <label>Edge Color</label>
+        <input type="color" id="c-felt-edge" oninput="update()">
+      </div>
+      <div class="control">
+        <label>Felt Texture <span class="val" id="v-felt-texture"></span></label>
+        <select id="c-felt-texture" onchange="update()">
+          <option value="none">None</option>
+          <option value="subtle">Subtle Noise</option>
+          <option value="linen">Linen</option>
+          <option value="crosshatch">Crosshatch</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Rail &amp; Border</div>
+      <div class="control color-row">
+        <label>Rail Color</label>
+        <input type="color" id="c-rail-color" oninput="update()">
+      </div>
+      <div class="control">
+        <label>Rail Width <span class="val" id="v-rail-width"></span></label>
+        <input type="range" min="0" max="24" step="1" id="c-rail-width" oninput="update()">
+      </div>
+      <div class="control">
+        <label>Rail Style <span class="val" id="v-rail-style"></span></label>
+        <select id="c-rail-style" onchange="update()">
+          <option value="solid">Solid</option>
+          <option value="wood">Wood Grain</option>
+          <option value="leather">Leather</option>
+          <option value="metallic">Metallic</option>
+        </select>
+      </div>
+      <div class="control toggle-row">
+        <label>Inner Line</label>
+        <div class="toggle">
+          <input type="checkbox" id="c-inner-line" onchange="update()">
+          <span class="slider"></span>
+        </div>
+      </div>
+      <div class="control color-row" id="inner-line-color-row">
+        <label>Inner Line Color</label>
+        <input type="color" id="c-inner-line-color" value="#ffd700" oninput="update()">
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Shadow &amp; Depth</div>
+      <div class="control">
+        <label>Outer Shadow <span class="val" id="v-shadow"></span></label>
+        <input type="range" min="0" max="80" step="2" id="c-shadow" oninput="update()">
+      </div>
+      <div class="control">
+        <label>Inner Shadow <span class="val" id="v-inner-shadow"></span></label>
+        <input type="range" min="0" max="60" step="2" id="c-inner-shadow" oninput="update()">
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Background</div>
+      <div class="control color-row">
+        <label>Background Color</label>
+        <input type="color" id="c-bg-color" oninput="update()">
+      </div>
+      <div class="control">
+        <label>Background Style</label>
+        <select id="c-bg-style" onchange="update()">
+          <option value="solid">Solid</option>
+          <option value="vignette">Vignette</option>
+          <option value="gradient">Gradient</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Players</div>
+      <div class="control">
+        <label>Seat Count <span class="val" id="v-seats"></span></label>
+        <input type="range" min="2" max="9" step="1" id="c-seats" oninput="update()">
+      </div>
+      <div class="control color-row">
+        <label>Seat Background</label>
+        <input type="color" id="c-seat-bg" oninput="update()">
+      </div>
+      <div class="control">
+        <label>Seat Opacity <span class="val" id="v-seat-opacity"></span></label>
+        <input type="range" min="0.3" max="1" step="0.05" id="c-seat-opacity" oninput="update()">
+      </div>
+      <div class="control color-row">
+        <label>Avatar Color</label>
+        <input type="color" id="c-avatar-color" oninput="update()">
+      </div>
+      <div class="control">
+        <label>Seat Style</label>
+        <select id="c-seat-style" onchange="update()">
+          <option value="pill">Pill</option>
+          <option value="rounded">Rounded Rect</option>
+          <option value="card">Card</option>
+        </select>
+      </div>
+      <div class="control toggle-row">
+        <label>Show Hole Cards</label>
+        <div class="toggle">
+          <input type="checkbox" id="c-show-cards" onchange="update()" checked>
+          <span class="slider"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Cards</div>
+      <div class="control color-row">
+        <label>Card Face</label>
+        <input type="color" id="c-card-face" value="#ffffff" oninput="update()">
+      </div>
+      <div class="control color-row">
+        <label>Card Back</label>
+        <input type="color" id="c-card-back" value="#1a5276" oninput="update()">
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">Pot &amp; Info</div>
+      <div class="control toggle-row">
+        <label>Show Pot</label>
+        <div class="toggle">
+          <input type="checkbox" id="c-show-pot" onchange="update()" checked>
+          <span class="slider"></span>
+        </div>
+      </div>
+      <div class="control toggle-row">
+        <label>Show Dealer Button</label>
+        <div class="toggle">
+          <input type="checkbox" id="c-show-dealer" onchange="update()" checked>
+          <span class="slider"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview">
+    <div class="preview-bg" id="preview-bg">
+      <div class="table-container" id="table-container">
+        <div class="table-felt" id="table-felt">
+          <div class="table-rail" id="table-rail"></div>
+          <div class="table-inner-line" id="table-inner-line"></div>
+          <div class="community-cards" id="community-cards"></div>
+          <div class="pot-display" id="pot-display">Pot: $240</div>
+        </div>
+        <div id="seats-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt Output -->
+  <div class="prompt-area">
+    <div class="prompt-header">
+      <span>Generated Prompt</span>
+      <button class="copy-btn" onclick="copyPrompt()">Copy Prompt</button>
+    </div>
+    <div class="prompt-text" id="prompt-output"></div>
+  </div>
+</div>
+
+<script>
+const DEFAULTS = {
+  aspect: 2.5, radius: 150, size: 70,
+  feltCenter: '#05c26a', feltEdge: '#097927', feltTexture: 'none',
+  railColor: '#000000', railWidth: 12, railStyle: 'solid',
+  innerLine: false, innerLineColor: '#ffd700',
+  shadow: 40, innerShadow: 30,
+  bgColor: '#1a1a1a', bgStyle: 'solid',
+  seats: 9, seatBg: '#201812', seatOpacity: 0.85, avatarColor: '#5c4033', seatStyle: 'pill',
+  showCards: true, cardFace: '#ffffff', cardBack: '#1a5276',
+  showPot: true, showDealer: true,
+};
+
+const PRESETS = {
+  classic: { ...DEFAULTS },
+  midnight: {
+    ...DEFAULTS,
+    feltCenter: '#1a3a5c', feltEdge: '#0d1f33',
+    railColor: '#1a1a2e', railStyle: 'metallic', railWidth: 14,
+    innerLine: true, innerLineColor: '#4a9eff',
+    seatBg: '#141428', avatarColor: '#2a3a5c',
+    bgColor: '#0a0a14', bgStyle: 'vignette',
+    shadow: 60, cardBack: '#0d1f33',
+  },
+  casino: {
+    ...DEFAULTS,
+    feltCenter: '#8b1a1a', feltEdge: '#4a0e0e',
+    railColor: '#2a1a0a', railStyle: 'wood', railWidth: 16,
+    innerLine: true, innerLineColor: '#daa520',
+    seatBg: '#2a1a0a', avatarColor: '#6b3a2a',
+    bgColor: '#1a0a0a', bgStyle: 'vignette',
+    shadow: 50,
+  },
+  forest: {
+    ...DEFAULTS,
+    feltCenter: '#1a5c3a', feltEdge: '#0d3320',
+    railColor: '#1a1a0a', railStyle: 'wood', railWidth: 14,
+    innerLine: false,
+    seatBg: '#1a2a1a', avatarColor: '#3a5c3a',
+    bgColor: '#0a140a', bgStyle: 'vignette',
+    shadow: 45, cardBack: '#0d3320',
+  },
+  royal: {
+    ...DEFAULTS,
+    feltCenter: '#4a1a6b', feltEdge: '#2a0d40',
+    railColor: '#1a0a2a', railStyle: 'leather', railWidth: 14,
+    innerLine: true, innerLineColor: '#ffd700',
+    seatBg: '#1a0a2a', avatarColor: '#5c3a7c',
+    bgColor: '#0a0514', bgStyle: 'vignette',
+    shadow: 55, cardBack: '#2a0d40',
+  },
+  minimal: {
+    ...DEFAULTS,
+    feltCenter: '#2a2a2a', feltEdge: '#1a1a1a',
+    railColor: '#444444', railWidth: 2, railStyle: 'solid',
+    innerLine: false,
+    seatBg: '#333333', seatOpacity: 0.9, avatarColor: '#555555', seatStyle: 'card',
+    bgColor: '#111111', bgStyle: 'solid',
+    shadow: 10, innerShadow: 5, cardBack: '#444444',
+  },
+};
+
+const state = { ...DEFAULTS };
+
+const PLAYERS = [
+  { name: 'Tyler', stack: 1200, cards: [{r:'A',s:'s'},{r:'K',s:'s'}] },
+  { name: 'Alice', stack: 890, cards: [{r:'Q',s:'h'},{r:'J',s:'h'}] },
+  { name: 'Bob', stack: 1540, cards: null },
+  { name: 'Charlie', stack: 430, cards: null },
+  { name: 'Diana', stack: 2100, cards: [{r:'10',s:'d'},{r:'10',s:'c'}] },
+  { name: 'Eve', stack: 760, cards: null },
+  { name: 'Frank', stack: 1000, cards: null },
+  { name: 'Grace', stack: 550, cards: null },
+  { name: 'Hank', stack: 1350, cards: null },
+];
+
+const COMMUNITY = [
+  {r:'A',s:'h'}, {r:'K',s:'d'}, {r:'7',s:'c'}, {r:'2',s:'s'}, {r:'J',s:'d'}
+];
+
+const SUIT_SYMBOLS = { h:'♥', d:'♦', c:'♣', s:'♠' };
+const SUIT_COLORS = { h:'#e74c3c', d:'#3498db', c:'#2ecc71', s:'#f1f1f1' };
+
+// 9-max seat positions: [top%, left%, alignment]
+const SEAT_POSITIONS = [
+  [0, 50, 'center-top'],     // seat 1: top center
+  [0, 75, 'right-top'],      // seat 2: top right
+  [20, 100, 'right'],        // seat 3: right upper
+  [80, 100, 'right'],        // seat 4: right lower
+  [100, 70, 'center-bottom'],// seat 5: bottom right
+  [100, 30, 'center-bottom'],// seat 6: bottom left
+  [80, 0, 'left'],           // seat 7: left lower
+  [20, 0, 'left'],           // seat 8: left upper
+  [0, 25, 'center-top'],     // seat 9: top left
+];
+
+function el(id) { return document.getElementById(id); }
+function ctrl(id) { return document.getElementById('c-' + id); }
+
+function syncControls() {
+  ctrl('aspect').value = state.aspect;
+  ctrl('radius').value = state.radius;
+  ctrl('size').value = state.size;
+  ctrl('felt-center').value = state.feltCenter;
+  ctrl('felt-edge').value = state.feltEdge;
+  ctrl('felt-texture').value = state.feltTexture;
+  ctrl('rail-color').value = state.railColor;
+  ctrl('rail-width').value = state.railWidth;
+  ctrl('rail-style').value = state.railStyle;
+  ctrl('inner-line').checked = state.innerLine;
+  ctrl('inner-line-color').value = state.innerLineColor;
+  ctrl('shadow').value = state.shadow;
+  ctrl('inner-shadow').value = state.innerShadow;
+  ctrl('bg-color').value = state.bgColor;
+  ctrl('bg-style').value = state.bgStyle;
+  ctrl('seats').value = state.seats;
+  ctrl('seat-bg').value = state.seatBg;
+  ctrl('seat-opacity').value = state.seatOpacity;
+  ctrl('avatar-color').value = state.avatarColor;
+  ctrl('seat-style').value = state.seatStyle;
+  ctrl('show-cards').checked = state.showCards;
+  ctrl('card-face').value = state.cardFace;
+  ctrl('card-back').value = state.cardBack;
+  ctrl('show-pot').checked = state.showPot;
+  ctrl('show-dealer').checked = state.showDealer;
+}
+
+function readControls() {
+  state.aspect = parseFloat(ctrl('aspect').value);
+  state.radius = parseInt(ctrl('radius').value);
+  state.size = parseInt(ctrl('size').value);
+  state.feltCenter = ctrl('felt-center').value;
+  state.feltEdge = ctrl('felt-edge').value;
+  state.feltTexture = ctrl('felt-texture').value;
+  state.railColor = ctrl('rail-color').value;
+  state.railWidth = parseInt(ctrl('rail-width').value);
+  state.railStyle = ctrl('rail-style').value;
+  state.innerLine = ctrl('inner-line').checked;
+  state.innerLineColor = ctrl('inner-line-color').value;
+  state.shadow = parseInt(ctrl('shadow').value);
+  state.innerShadow = parseInt(ctrl('inner-shadow').value);
+  state.bgColor = ctrl('bg-color').value;
+  state.bgStyle = ctrl('bg-style').value;
+  state.seats = parseInt(ctrl('seats').value);
+  state.seatBg = ctrl('seat-bg').value;
+  state.seatOpacity = parseFloat(ctrl('seat-opacity').value);
+  state.avatarColor = ctrl('avatar-color').value;
+  state.seatStyle = ctrl('seat-style').value;
+  state.showCards = ctrl('show-cards').checked;
+  state.cardFace = ctrl('card-face').value;
+  state.cardBack = ctrl('card-back').value;
+  state.showPot = ctrl('show-pot').checked;
+  state.showDealer = ctrl('show-dealer').checked;
+}
+
+function update() {
+  readControls();
+  renderPreview();
+  updatePrompt();
+  updateValues();
+  updatePresetButtons();
+}
+
+function updateValues() {
+  el('v-aspect').textContent = state.aspect.toFixed(1) + ':1';
+  el('v-radius').textContent = state.radius + 'px';
+  el('v-size').textContent = state.size + '%';
+  el('v-rail-width').textContent = state.railWidth + 'px';
+  el('v-shadow').textContent = state.shadow + 'px';
+  el('v-inner-shadow').textContent = state.innerShadow + 'px';
+  el('v-seats').textContent = state.seats;
+  el('v-seat-opacity').textContent = Math.round(state.seatOpacity * 100) + '%';
+
+  // Toggle inner line color visibility
+  el('inner-line-color-row').style.display = state.innerLine ? 'flex' : 'none';
+}
+
+function getRailBackground() {
+  const c = state.railColor;
+  switch (state.railStyle) {
+    case 'wood':
+      return `repeating-linear-gradient(90deg, ${c} 0px, ${adjustColor(c, 15)} 3px, ${c} 6px, ${adjustColor(c, -10)} 9px)`;
+    case 'leather':
+      return `radial-gradient(ellipse at 30% 30%, ${adjustColor(c, 20)} 0%, ${c} 50%, ${adjustColor(c, -15)} 100%)`;
+    case 'metallic':
+      return `linear-gradient(135deg, ${adjustColor(c, 30)} 0%, ${c} 40%, ${adjustColor(c, 40)} 50%, ${c} 60%, ${adjustColor(c, -20)} 100%)`;
+    default:
+      return c;
+  }
+}
+
+function adjustColor(hex, amount) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amount));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0xff) + amount));
+  const b = Math.min(255, Math.max(0, (num & 0xff) + amount));
+  return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+}
+
+function hexToRgba(hex, alpha) {
+  const num = parseInt(hex.slice(1), 16);
+  return `rgba(${num >> 16}, ${(num >> 8) & 0xff}, ${num & 0xff}, ${alpha})`;
+}
+
+function getFeltTexture() {
+  switch (state.feltTexture) {
+    case 'subtle':
+      return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='4' height='4' fill='%23000' opacity='0.03'/%3E%3Crect width='1' height='1' fill='%23fff' opacity='0.02'/%3E%3C/svg%3E")`;
+    case 'linen':
+      return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cline x1='0' y1='0' x2='8' y2='0' stroke='%23000' stroke-width='0.3' opacity='0.08'/%3E%3Cline x1='0' y1='4' x2='8' y2='4' stroke='%23000' stroke-width='0.3' opacity='0.08'/%3E%3C/svg%3E")`;
+    case 'crosshatch':
+      return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cline x1='0' y1='0' x2='8' y2='8' stroke='%23000' stroke-width='0.3' opacity='0.06'/%3E%3Cline x1='8' y1='0' x2='0' y2='8' stroke='%23000' stroke-width='0.3' opacity='0.06'/%3E%3C/svg%3E")`;
+    default:
+      return 'none';
+  }
+}
+
+function renderPreview() {
+  // Background
+  const bg = el('preview-bg');
+  if (state.bgStyle === 'vignette') {
+    bg.style.background = `radial-gradient(ellipse at center, ${adjustColor(state.bgColor, 10)} 0%, ${state.bgColor} 70%, ${adjustColor(state.bgColor, -15)} 100%)`;
+  } else if (state.bgStyle === 'gradient') {
+    bg.style.background = `linear-gradient(180deg, ${adjustColor(state.bgColor, 15)} 0%, ${state.bgColor} 100%)`;
+  } else {
+    bg.style.background = state.bgColor;
+  }
+
+  // Table container
+  const tc = el('table-container');
+  tc.style.setProperty('--table-aspect', state.aspect + '/1');
+  tc.style.setProperty('--table-radius', state.radius + 'px');
+  tc.style.width = state.size + '%';
+
+  // Felt
+  const felt = el('table-felt');
+  const texture = getFeltTexture();
+  if (texture !== 'none') {
+    felt.style.background = `${texture}, radial-gradient(ellipse at center, ${state.feltCenter} 0%, ${state.feltEdge} 100%)`;
+  } else {
+    felt.style.background = `radial-gradient(ellipse at center, ${state.feltCenter} 0%, ${state.feltEdge} 100%)`;
+  }
+  felt.style.borderRadius = state.radius + 'px';
+
+  const shadows = [];
+  if (state.innerShadow > 0) shadows.push(`inset 0 0 ${state.innerShadow}px rgba(0,0,0,0.3)`);
+  if (state.shadow > 0) shadows.push(`0 0 ${state.shadow}px rgba(0,0,0,0.4)`);
+  felt.style.boxShadow = shadows.join(', ') || 'none';
+
+  // Rail
+  const rail = el('table-rail');
+  if (state.railWidth > 0) {
+    rail.style.display = 'block';
+    rail.style.border = `${state.railWidth}px solid transparent`;
+    rail.style.borderImage = 'none';
+    rail.style.background = getRailBackground();
+    rail.style.backgroundClip = 'border-box';
+    rail.style.borderRadius = state.radius + 'px';
+    rail.style.mask = `linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)`;
+    rail.style.maskComposite = 'exclude';
+    rail.style.WebkitMask = `linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)`;
+    rail.style.WebkitMaskComposite = 'xor';
+    rail.style.padding = state.railWidth + 'px';
+  } else {
+    rail.style.display = 'none';
+  }
+
+  // Inner line
+  const innerLine = el('table-inner-line');
+  if (state.innerLine) {
+    innerLine.style.display = 'block';
+    innerLine.style.border = `1.5px solid ${hexToRgba(state.innerLineColor, 0.5)}`;
+    innerLine.style.borderRadius = (state.radius - 12) + 'px';
+    innerLine.style.boxShadow = `0 0 8px ${hexToRgba(state.innerLineColor, 0.15)}`;
+  } else {
+    innerLine.style.display = 'none';
+  }
+
+  // Community cards
+  renderCommunityCards();
+
+  // Pot
+  const pot = el('pot-display');
+  pot.style.display = state.showPot ? 'block' : 'none';
+  pot.style.color = '#fff';
+  pot.style.background = 'rgba(0,0,0,0.4)';
+  pot.style.textShadow = '0 1px 3px rgba(0,0,0,0.5)';
+
+  // Seats
+  renderSeats();
+}
+
+function renderCommunityCards() {
+  const container = el('community-cards');
+  container.innerHTML = '';
+  COMMUNITY.forEach(card => {
+    const slot = document.createElement('div');
+    slot.className = 'card-slot';
+    slot.style.background = state.cardFace;
+    slot.style.border = '1px solid rgba(0,0,0,0.2)';
+    slot.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
+
+    const isRed = card.s === 'h' || card.s === 'd';
+    const color = isRed ? '#e74c3c' : '#333';
+
+    slot.innerHTML = `
+      <span class="rank" style="color:${color}">${card.r}</span>
+      <span class="suit" style="color:${SUIT_COLORS[card.s]}">${SUIT_SYMBOLS[card.s]}</span>
+    `;
+    container.appendChild(slot);
+  });
+}
+
+function renderSeats() {
+  const container = el('seats-container');
+  container.innerHTML = '';
+
+  const seatRadius = {
+    pill: '150px',
+    rounded: '10px',
+    card: '6px',
+  }[state.seatStyle];
+
+  for (let i = 0; i < state.seats; i++) {
+    const pos = SEAT_POSITIONS[i];
+    const player = PLAYERS[i];
+    const seat = document.createElement('div');
+    seat.className = 'seat';
+
+    // Position
+    const isTop = pos[0] <= 0;
+    const isBottom = pos[0] >= 100;
+    const isLeft = pos[1] <= 0;
+    const isRight = pos[1] >= 100;
+
+    let transform = '';
+    if (isTop) {
+      seat.style.top = '0';
+      seat.style.left = pos[1] + '%';
+      transform = `translateX(-50%) translateY(-90%)`;
+      seat.style.flexDirection = 'column';
+      seat.style.alignItems = 'center';
+    } else if (isBottom) {
+      seat.style.bottom = '0';
+      seat.style.left = pos[1] + '%';
+      transform = `translateX(-50%) translateY(90%)`;
+      seat.style.flexDirection = 'column-reverse';
+      seat.style.alignItems = 'center';
+    } else if (isRight) {
+      seat.style.top = pos[0] + '%';
+      seat.style.right = '0';
+      transform = `translateX(90%) translateY(-50%)`;
+      seat.style.flexDirection = 'row';
+    } else if (isLeft) {
+      seat.style.top = pos[0] + '%';
+      seat.style.left = '0';
+      transform = `translateX(-90%) translateY(-50%)`;
+      seat.style.flexDirection = 'row-reverse';
+    } else {
+      seat.style.top = pos[0] + '%';
+      seat.style.left = pos[1] + '%';
+      transform = `translate(-50%, -50%)`;
+    }
+    seat.style.transform = transform;
+
+    // Avatar
+    const avatar = document.createElement('div');
+    avatar.className = 'seat-avatar';
+    avatar.style.background = state.avatarColor;
+    avatar.style.color = 'rgba(255,255,255,0.7)';
+    avatar.textContent = player.name[0];
+    seat.appendChild(avatar);
+
+    // Info panel
+    const info = document.createElement('div');
+    info.className = 'seat-info';
+    info.style.background = hexToRgba(state.seatBg, state.seatOpacity);
+    info.style.border = '1px solid rgba(255,255,255,0.1)';
+    info.style.borderRadius = seatRadius;
+    info.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+    info.style.color = '#fff';
+
+    let html = `<div class="seat-name">${player.name}</div>
+                <div class="seat-stack">$${player.stack}</div>`;
+
+    if (state.showCards) {
+      html += '<div class="seat-cards">';
+      if (player.cards) {
+        player.cards.forEach(c => {
+          const isRed = c.s === 'h' || c.s === 'd';
+          html += `<div class="hole-card" style="background:${state.cardFace};border:1px solid rgba(0,0,0,0.15)">
+            <span class="rank" style="color:${isRed ? '#e74c3c' : '#333'}">${c.r}</span>
+            <span class="mini-suit" style="color:${SUIT_COLORS[c.s]}">${SUIT_SYMBOLS[c.s]}</span>
+          </div>`;
+        });
+      } else {
+        html += `<div class="hole-card" style="background:${state.cardBack}"></div>`;
+        html += `<div class="hole-card" style="background:${state.cardBack}"></div>`;
+      }
+      html += '</div>';
+    }
+
+    info.innerHTML = html;
+    seat.appendChild(info);
+
+    // Dealer button
+    if (state.showDealer && i === 0) {
+      const dealer = document.createElement('div');
+      dealer.className = 'dealer-chip';
+      dealer.textContent = 'D';
+      dealer.style.position = 'absolute';
+      dealer.style.bottom = '-8px';
+      dealer.style.right = '-8px';
+      seat.appendChild(dealer);
+    }
+
+    container.appendChild(seat);
+  }
+}
+
+function updatePrompt() {
+  const parts = [];
+  const diff = (key, label, unit = '') => {
+    if (state[key] !== DEFAULTS[key]) {
+      const v = typeof state[key] === 'number'
+        ? (Number.isInteger(state[key]) ? state[key] : state[key].toFixed(1))
+        : state[key];
+      parts.push(`${label}: ${v}${unit}`);
+    }
+  };
+
+  // Describe the table design in natural language
+  const lines = [];
+  lines.push('Update the poker table component with the following design:');
+
+  // Table shape
+  const shapeChanges = [];
+  if (state.aspect !== DEFAULTS.aspect) shapeChanges.push(`aspect ratio of ${state.aspect.toFixed(1)}:1`);
+  if (state.radius !== DEFAULTS.radius) shapeChanges.push(`border-radius of ${state.radius}px`);
+  if (state.size !== DEFAULTS.size) shapeChanges.push(`table width of ${state.size}%`);
+  if (shapeChanges.length) lines.push(`\nTable shape: ${shapeChanges.join(', ')}.`);
+
+  // Felt
+  const feltChanges = [];
+  if (state.feltCenter !== DEFAULTS.feltCenter || state.feltEdge !== DEFAULTS.feltEdge) {
+    feltChanges.push(`radial gradient from ${state.feltCenter} (center) to ${state.feltEdge} (edges)`);
+  }
+  if (state.feltTexture !== DEFAULTS.feltTexture) feltChanges.push(`${state.feltTexture} texture overlay`);
+  if (feltChanges.length) lines.push(`\nFelt: ${feltChanges.join(' with ')}.`);
+
+  // Rail
+  const railChanges = [];
+  if (state.railWidth !== DEFAULTS.railWidth) railChanges.push(`${state.railWidth}px wide`);
+  if (state.railColor !== DEFAULTS.railColor) railChanges.push(`color ${state.railColor}`);
+  if (state.railStyle !== DEFAULTS.railStyle) railChanges.push(`${state.railStyle} style`);
+  if (railChanges.length) lines.push(`\nRail: ${railChanges.join(', ')}.`);
+
+  if (state.innerLine && !DEFAULTS.innerLine) {
+    lines.push(`\nAdd an inner accent line in ${state.innerLineColor} with a subtle glow.`);
+  }
+
+  // Shadows
+  const shadowChanges = [];
+  if (state.shadow !== DEFAULTS.shadow) shadowChanges.push(`outer shadow blur of ${state.shadow}px`);
+  if (state.innerShadow !== DEFAULTS.innerShadow) shadowChanges.push(`inner shadow blur of ${state.innerShadow}px`);
+  if (shadowChanges.length) lines.push(`\nShadow: ${shadowChanges.join(', ')}.`);
+
+  // Background
+  if (state.bgColor !== DEFAULTS.bgColor || state.bgStyle !== DEFAULTS.bgStyle) {
+    lines.push(`\nPage background: ${state.bgColor}${state.bgStyle !== 'solid' ? ` with ${state.bgStyle} effect` : ''}.`);
+  }
+
+  // Seats
+  const seatChanges = [];
+  if (state.seats !== DEFAULTS.seats) seatChanges.push(`${state.seats} seats`);
+  if (state.seatBg !== DEFAULTS.seatBg) seatChanges.push(`seat background ${state.seatBg}`);
+  if (state.seatOpacity !== DEFAULTS.seatOpacity) seatChanges.push(`${Math.round(state.seatOpacity * 100)}% opacity`);
+  if (state.avatarColor !== DEFAULTS.avatarColor) seatChanges.push(`avatar color ${state.avatarColor}`);
+  if (state.seatStyle !== DEFAULTS.seatStyle) seatChanges.push(`${state.seatStyle} shape`);
+  if (seatChanges.length) lines.push(`\nPlayer seats: ${seatChanges.join(', ')}.`);
+
+  // Cards
+  const cardChanges = [];
+  if (state.cardFace !== DEFAULTS.cardFace) cardChanges.push(`card face color ${state.cardFace}`);
+  if (state.cardBack !== DEFAULTS.cardBack) cardChanges.push(`card back color ${state.cardBack}`);
+  if (cardChanges.length) lines.push(`\nCards: ${cardChanges.join(', ')}.`);
+
+  if (!state.showCards && DEFAULTS.showCards) lines.push('\nHide hole cards from the player seat display.');
+  if (!state.showPot && DEFAULTS.showPot) lines.push('\nHide the pot display.');
+  if (!state.showDealer && DEFAULTS.showDealer) lines.push('\nHide the dealer button.');
+
+  // If nothing changed
+  if (lines.length === 1) {
+    lines.push('\n(Using the default Classic Green design — adjust controls to generate a prompt.)');
+  }
+
+  // Add CSS values as reference
+  const hasNonDefault = lines.length > 1;
+  if (hasNonDefault) {
+    lines.push('\n--- CSS Reference ---');
+    lines.push(`Table felt: background: radial-gradient(ellipse at center, ${state.feltCenter} 0%, ${state.feltEdge} 100%);`);
+    lines.push(`Border-radius: ${state.radius}px;`);
+    if (state.railWidth > 0) lines.push(`Rail: ${state.railWidth}px ${state.railColor} (${state.railStyle});`);
+    const shadows = [];
+    if (state.innerShadow > 0) shadows.push(`inset 0 0 ${state.innerShadow}px rgba(0,0,0,0.3)`);
+    if (state.shadow > 0) shadows.push(`0 0 ${state.shadow}px rgba(0,0,0,0.4)`);
+    if (shadows.length) lines.push(`Box-shadow: ${shadows.join(', ')};`);
+    lines.push(`Player seat bg: ${hexToRgba(state.seatBg, state.seatOpacity)};`);
+  }
+
+  el('prompt-output').textContent = lines.join('\n');
+}
+
+function copyPrompt() {
+  const text = el('prompt-output').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Prompt', 1500);
+  });
+}
+
+function applyPreset(name) {
+  Object.assign(state, PRESETS[name]);
+  syncControls();
+  update();
+}
+
+function updatePresetButtons() {
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    const preset = btn.getAttribute('onclick').match(/'(\w+)'/)[1];
+    const p = PRESETS[preset];
+    const match = Object.keys(p).every(k => {
+      if (typeof state[k] === 'number') return Math.abs(state[k] - p[k]) < 0.01;
+      return state[k] === p[k];
+    });
+    btn.classList.toggle('active', match);
+  });
+}
+
+// Init
+syncControls();
+update();
+</script>
+</body>
+</html>

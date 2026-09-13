@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phaser Table Playground</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #1a1a1a;
+    --panel: #242424;
+    --border: #333;
+    --text: #e0e0e0;
+    --text-dim: #888;
+    --accent: #4a9eff;
+    --group-bg: #1e1e1e;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    grid-template-rows: 1fr auto;
+    height: 100vh;
+  }
+  .controls {
+    grid-row: 1 / 3;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 12px;
+  }
+  .controls h1 {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+  .controls.hidden {
+    width: 24px;
+    padding: 8px 4px;
+    overflow: hidden;
+  }
+  .controls.hidden > :not(.panel-toggle) { display: none; }
+  .panel-toggle {
+    position: absolute;
+    top: 10px; right: 8px;
+    background: #2a2a2a;
+    color: #aaa;
+    border: 1px solid #444;
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 11px;
+    cursor: pointer;
+    z-index: 10;
+  }
+  .controls.hidden .panel-toggle {
+    right: 4px;
+  }
+  .layout {
+    position: relative;
+  }
+  .layout:has(.controls.hidden) {
+    grid-template-columns: 24px 1fr;
+  }
+  .group {
+    background: var(--group-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+  .group-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 8px;
+  }
+  .group.collapsed .group-body { display: none; }
+  .control { margin-bottom: 8px; }
+  .control:last-child { margin-bottom: 0; }
+  .control label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: #aaa; margin-bottom: 3px;
+  }
+  .control label .val { color: var(--accent); font-family: monospace; }
+  .control input[type="range"] { width: 100%; }
+  .control input[type="color"] { width: 100%; height: 22px; border: none; padding: 0; background: transparent; }
+  .control select, .control input[type="number"] {
+    width: 100%; background: #2a2a2a; color: #fff; border: 1px solid #444;
+    border-radius: 3px; padding: 3px 6px; font-size: 11px;
+  }
+  .stage {
+    background: #0f0f0f;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  #game-canvas {
+    width: 100%;
+    aspect-ratio: 2.4 / 1;
+    background: #0a0a0a;
+  }
+  .readout {
+    grid-column: 2;
+    background: #1a1a1a;
+    border-top: 1px solid var(--border);
+    padding: 8px 16px;
+    font-family: monospace;
+    font-size: 10px;
+    color: #8fbc8f;
+    max-height: 110px;
+    overflow: auto;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .readout pre { flex: 1; white-space: pre-wrap; word-break: break-all; }
+  .readout button {
+    background: #2a2a2a; color: #fff; border: 1px solid #444;
+    border-radius: 3px; padding: 3px 8px; font-size: 11px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="controls">
+    <h1>Phaser Table Playground</h1>
+    <button class="panel-toggle" id="panel-toggle" aria-label="Toggle panel">◀</button>
+    <div class="group" data-group="felt">
+      <div class="group-title">▾ Felt</div>
+      <div class="group-body">
+        <div class="control">
+          <label>Base color <span class="val" data-val="felt.baseColor"></span></label>
+          <input type="color" data-path="felt.baseColor">
+        </div>
+        <div class="control">
+          <label>Center highlight <span class="val" data-val="felt.centerHighlight"></span></label>
+          <input type="color" data-path="felt.centerHighlight">
+        </div>
+        <div class="control">
+          <label>Center alpha <span class="val" data-val="felt.centerAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="felt.centerAlpha">
+        </div>
+        <div class="control">
+          <label>Center radius <span class="val" data-val="felt.centerRadius"></span></label>
+          <input type="range" min="0.1" max="1" step="0.05" data-path="felt.centerRadius">
+        </div>
+        <div class="control">
+          <label>Rail color <span class="val" data-val="felt.railColor"></span></label>
+          <input type="color" data-path="felt.railColor">
+        </div>
+        <div class="control">
+          <label>Rail inner color <span class="val" data-val="felt.railInnerColor"></span></label>
+          <input type="color" data-path="felt.railInnerColor">
+        </div>
+        <div class="control">
+          <label>Rail width <span class="val" data-val="felt.railWidth"></span></label>
+          <input type="range" min="0" max="40" step="1" data-path="felt.railWidth">
+        </div>
+        <div class="control">
+          <label>Inner line color <span class="val" data-val="felt.innerLineColor"></span></label>
+          <input type="color" data-path="felt.innerLineColor">
+        </div>
+        <div class="control">
+          <label>Inner line alpha <span class="val" data-val="felt.innerLineAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="felt.innerLineAlpha">
+        </div>
+        <div class="control">
+          <label>Shadow alpha <span class="val" data-val="felt.shadowAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="felt.shadowAlpha">
+        </div>
+      </div>
+    </div>
+    <div class="group" data-group="seats">
+      <div class="group-title">▾ Seats</div>
+      <div class="group-body">
+        <div class="control">
+          <label>Pod bg <span class="val" data-val="seats.podBg"></span></label>
+          <input type="color" data-path="seats.podBg">
+        </div>
+        <div class="control">
+          <label>Pod bg alpha <span class="val" data-val="seats.podBgAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="seats.podBgAlpha">
+        </div>
+        <div class="control">
+          <label>Border idle <span class="val" data-val="seats.podBorderIdle"></span></label>
+          <input type="color" data-path="seats.podBorderIdle">
+        </div>
+        <div class="control">
+          <label>Border idle alpha <span class="val" data-val="seats.podBorderIdleAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="seats.podBorderIdleAlpha">
+        </div>
+        <div class="control">
+          <label>Border active <span class="val" data-val="seats.podBorderActive"></span></label>
+          <input type="color" data-path="seats.podBorderActive">
+        </div>
+        <div class="control">
+          <label>Active glow intensity <span class="val" data-val="seats.activeGlowIntensity"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="seats.activeGlowIntensity">
+        </div>
+        <div class="control">
+          <label>Pod radius <span class="val" data-val="seats.podRadius"></span></label>
+          <input type="range" min="0" max="30" step="1" data-path="seats.podRadius">
+        </div>
+        <div class="control">
+          <label>Pod pad X <span class="val" data-val="seats.podPadX"></span></label>
+          <input type="range" min="0" max="30" step="1" data-path="seats.podPadX">
+        </div>
+        <div class="control">
+          <label>Pod pad Y <span class="val" data-val="seats.podPadY"></span></label>
+          <input type="range" min="0" max="20" step="1" data-path="seats.podPadY">
+        </div>
+        <div class="control">
+          <label>Avatar size <span class="val" data-val="seats.avatarSize"></span></label>
+          <input type="range" min="16" max="64" step="1" data-path="seats.avatarSize">
+        </div>
+        <div class="control">
+          <label>Avatar ring width <span class="val" data-val="seats.avatarRingWidth"></span></label>
+          <input type="range" min="0" max="6" step="0.5" data-path="seats.avatarRingWidth">
+        </div>
+        <div class="control">
+          <label>Avatar ring color <span class="val" data-val="seats.avatarRingColor"></span></label>
+          <input type="color" data-path="seats.avatarRingColor">
+        </div>
+        <div class="control">
+          <label>Avatar ring alpha <span class="val" data-val="seats.avatarRingAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="seats.avatarRingAlpha">
+        </div>
+        <div class="control">
+          <label>Name size <span class="val" data-val="seats.nameSize"></span></label>
+          <input type="range" min="8" max="18" step="1" data-path="seats.nameSize">
+        </div>
+        <div class="control">
+          <label>Stack size <span class="val" data-val="seats.stackSize"></span></label>
+          <input type="range" min="8" max="18" step="1" data-path="seats.stackSize">
+        </div>
+        <div class="control">
+          <label>Name color <span class="val" data-val="seats.nameColor"></span></label>
+          <input type="color" data-path="seats.nameColor">
+        </div>
+        <div class="control">
+          <label>Show empty seats</label>
+          <input type="checkbox" data-path="seats.showEmpty">
+        </div>
+        <div class="control">
+          <label>Empty color <span class="val" data-val="seats.emptyColor"></span></label>
+          <input type="color" data-path="seats.emptyColor">
+        </div>
+        <div class="control">
+          <label>Empty alpha <span class="val" data-val="seats.emptyAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="seats.emptyAlpha">
+        </div>
+        <div class="control">
+          <label>Empty size <span class="val" data-val="seats.emptySize"></span></label>
+          <input type="range" min="12" max="60" step="1" data-path="seats.emptySize">
+        </div>
+        <div class="control">
+          <label>Timer height <span class="val" data-val="seats.timerHeight"></span></label>
+          <input type="range" min="1" max="10" step="1" data-path="seats.timerHeight">
+        </div>
+        <div class="control">
+          <label>Timer color <span class="val" data-val="seats.timerColor"></span></label>
+          <input type="color" data-path="seats.timerColor">
+        </div>
+        <div class="control">
+          <label>Timer track color <span class="val" data-val="seats.timerTrackColor"></span></label>
+          <input type="color" data-path="seats.timerTrackColor">
+        </div>
+        <div class="control">
+          <label>Timer track alpha <span class="val" data-val="seats.timerTrackAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="seats.timerTrackAlpha">
+        </div>
+        <div class="control">
+          <label>Timer inset X <span class="val" data-val="seats.timerInsetX"></span></label>
+          <input type="range" min="0" max="20" step="1" data-path="seats.timerInsetX">
+        </div>
+        <div class="control">
+          <label>Timer gap <span class="val" data-val="seats.timerGap"></span></label>
+          <input type="range" min="0" max="16" step="1" data-path="seats.timerGap">
+        </div>
+      </div>
+    </div>
+    <div class="group" data-group="cards">
+      <div class="group-title">▾ Cards</div>
+      <div class="group-body">
+        <div class="control">
+          <label>Face color <span class="val" data-val="cards.faceColor"></span></label>
+          <input type="color" data-path="cards.faceColor">
+        </div>
+        <div class="control">
+          <label>Border color <span class="val" data-val="cards.borderColor"></span></label>
+          <input type="color" data-path="cards.borderColor">
+        </div>
+        <div class="control">
+          <label>Border alpha <span class="val" data-val="cards.borderAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.02" data-path="cards.borderAlpha">
+        </div>
+        <div class="control">
+          <label>Corner radius <span class="val" data-val="cards.cornerRadius"></span></label>
+          <input type="range" min="0" max="20" step="1" data-path="cards.cornerRadius">
+        </div>
+        <div class="control">
+          <label>Rank font</label>
+          <select data-path="cards.rankFont">
+            <option value="Georgia, serif">Georgia (serif)</option>
+            <option value="'Times New Roman', serif">Times</option>
+            <option value="system-ui, sans-serif">System sans</option>
+            <option value="'Courier New', monospace">Courier</option>
+          </select>
+        </div>
+        <div class="control">
+          <label>Rank size <span class="val" data-val="cards.rankSize"></span></label>
+          <input type="range" min="8" max="36" step="1" data-path="cards.rankSize">
+        </div>
+        <div class="control">
+          <label>Suit size <span class="val" data-val="cards.suitSize"></span></label>
+          <input type="range" min="8" max="48" step="1" data-path="cards.suitSize">
+        </div>
+        <div class="control">
+          <label>Community width <span class="val" data-val="cards.communityWidth"></span></label>
+          <input type="range" min="40" max="120" step="1" data-path="cards.communityWidth">
+        </div>
+        <div class="control">
+          <label>Hole width <span class="val" data-val="cards.holeWidth"></span></label>
+          <input type="range" min="20" max="80" step="1" data-path="cards.holeWidth">
+        </div>
+        <div class="control">
+          <label>Back color 1 <span class="val" data-val="cards.backColor1"></span></label>
+          <input type="color" data-path="cards.backColor1">
+        </div>
+        <div class="control">
+          <label>Back color 2 <span class="val" data-val="cards.backColor2"></span></label>
+          <input type="color" data-path="cards.backColor2">
+        </div>
+        <div class="control">
+          <label>Shadow alpha <span class="val" data-val="cards.shadowAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="cards.shadowAlpha">
+        </div>
+      </div>
+    </div>
+    <div class="group" data-group="chips">
+      <div class="group-title">▾ Chips / Pot</div>
+      <div class="group-body">
+        <div class="control">
+          <label>Pot pill bg alpha <span class="val" data-val="pot.pillBgAlpha"></span></label>
+          <input type="range" min="0" max="1" step="0.05" data-path="pot.pillBgAlpha">
+        </div>
+        <div class="control">
+          <label>Pot accent <span class="val" data-val="pot.accentColor"></span></label>
+          <input type="color" data-path="pot.accentColor">
+        </div>
+        <div class="control">
+          <label>Pot label size <span class="val" data-val="pot.labelSize"></span></label>
+          <input type="range" min="6" max="16" step="1" data-path="pot.labelSize">
+        </div>
+        <div class="control">
+          <label>Pot amount size <span class="val" data-val="pot.amountSize"></span></label>
+          <input type="range" min="10" max="26" step="1" data-path="pot.amountSize">
+        </div>
+        <div class="control">
+          <label>Pot chip size <span class="val" data-val="pot.chipSize"></span></label>
+          <input type="range" min="8" max="36" step="1" data-path="pot.chipSize">
+        </div>
+        <div class="control">
+          <label>Bet color 1 <span class="val" data-val="bets.color1"></span></label>
+          <input type="color" data-path="bets.color1">
+        </div>
+        <div class="control">
+          <label>Bet color 2 <span class="val" data-val="bets.color2"></span></label>
+          <input type="color" data-path="bets.color2">
+        </div>
+        <div class="control">
+          <label>Bet text color <span class="val" data-val="bets.textColor"></span></label>
+          <input type="color" data-path="bets.textColor">
+        </div>
+        <div class="control">
+          <label>Bet font size <span class="val" data-val="bets.fontSize"></span></label>
+          <input type="range" min="8" max="16" step="1" data-path="bets.fontSize">
+        </div>
+      </div>
+    </div>
+    <div class="group" data-group="typography">
+      <div class="group-title">▾ Typography</div>
+      <div class="group-body">
+        <div class="control">
+          <label>UI font</label>
+          <select data-path="typography.uiFont">
+            <option value="system-ui, sans-serif">System</option>
+            <option value="-apple-system, BlinkMacSystemFont, sans-serif">Apple</option>
+            <option value="'Inter', sans-serif">Inter</option>
+            <option value="'Helvetica Neue', sans-serif">Helvetica</option>
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="Georgia, serif">Georgia</option>
+          </select>
+        </div>
+        <div class="control">
+          <label>Scale <span class="val" data-val="typography.scale"></span></label>
+          <input type="range" min="0.7" max="1.5" step="0.05" data-path="typography.scale">
+        </div>
+      </div>
+    </div>
+    <div class="group" data-group="state">
+      <div class="group-title">▾ Mock state</div>
+      <div class="group-body">
+        <div class="control">
+          <label>Seat count <span class="val" data-val="state.seatCount"></span></label>
+          <input type="range" min="1" max="9" step="1" data-path="state.seatCount">
+        </div>
+        <div class="control">
+          <label>Active seat # <span class="val" data-val="state.activeSeat"></span></label>
+          <input type="range" min="0" max="9" step="1" data-path="state.activeSeat">
+        </div>
+        <div class="control">
+          <label>Dealer seat # <span class="val" data-val="state.dealerSeat"></span></label>
+          <input type="range" min="0" max="9" step="1" data-path="state.dealerSeat">
+        </div>
+        <div class="control">
+          <label>Street</label>
+          <select data-path="state.street">
+            <option value="preflop">Preflop</option>
+            <option value="flop">Flop</option>
+            <option value="turn">Turn</option>
+            <option value="river">River</option>
+            <option value="showdown">Showdown</option>
+          </select>
+        </div>
+        <div class="control">
+          <label>Pot amount (cents) <span class="val" data-val="state.potAmount"></span></label>
+          <input type="range" min="0" max="100000" step="50" data-path="state.potAmount">
+        </div>
+        <div class="control">
+          <label>Showdown seat # <span class="val" data-val="state.showdownSeat"></span></label>
+          <input type="range" min="0" max="9" step="1" data-path="state.showdownSeat">
+        </div>
+        <div class="control">
+          <label>Action time remaining <span class="val" data-val="state.actionTimeRemaining"></span></label>
+          <input type="range" min="0" max="1" step="0.02" data-path="state.actionTimeRemaining">
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="stage">
+    <div id="game-canvas"></div>
+  </div>
+  <div class="readout">
+    <pre id="config-json">// config will render here</pre>
+    <button id="copy-btn">Copy</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+<script>
+  // ===== Config =====
+  const config = {
+    felt: {
+      baseColor: '#145a30',
+      centerHighlight: '#1a6b3c',
+      centerAlpha: 0.9,
+      centerRadius: 0.4,        // as fraction of felt rx
+      railColor: '#3a2a14',
+      railInnerColor: '#1c1008',
+      railWidth: 14,
+      innerLineColor: '#daa520',
+      innerLineAlpha: 0.25,
+      shadowAlpha: 0.5,
+    },
+    state: {
+      seatCount: 6,            // number of occupied seats, 1..9
+      activeSeat: 3,           // 1..9, or 0 for none
+      dealerSeat: 1,
+      street: 'flop',          // preflop | flop | turn | river | showdown
+      potAmount: 1200,         // in cents
+      showdownSeat: 0,         // 0 = none, else seat # that reveals hole cards
+      seatBets: [0, 500, 0, 1000, 0, 2000, 0, 0, 0], // 9 seats, cents
+      actionTimeRemaining: 0.6, // 0..1, drives the active pod's timer bar
+    },
+    cards: {
+      faceColor: '#ffffff',
+      borderColor: '#000000',
+      borderAlpha: 0.12,
+      cornerRadius: 5,
+      rankFont: 'Georgia, serif',
+      rankSize: 22,
+      suitSize: 32,
+      communityWidth: 72,
+      holeWidth: 44,
+      backColor1: '#1a5c8a',
+      backColor2: '#0e3d5e',
+      shadowAlpha: 0.4,
+    },
+    pot: {
+      pillBgAlpha: 0.5,
+      accentColor: '#f5d678',
+      labelSize: 9,
+      amountSize: 15,
+      chipSize: 18,
+    },
+    bets: {
+      color1: '#f5d678',
+      color2: '#d4a843',
+      textColor: '#1a0a00',
+      fontSize: 10,
+      padX: 8,
+      padY: 2,
+    },
+    typography: {
+      uiFont: 'system-ui, sans-serif',
+      scale: 1.0,  // global multiplier applied to all font sizes
+    },
+    seats: {
+      podBg: '#0f0a05',
+      podBgAlpha: 0.8,
+      podBorderIdle: '#ffffff',
+      podBorderIdleAlpha: 0.08,
+      podBorderActive: '#f5d678',
+      activeGlowIntensity: 0.25,
+      podRadius: 12,
+      podPadX: 10,
+      podPadY: 6,
+      avatarSize: 36,
+      avatarRingWidth: 2,
+      avatarRingColor: '#daa520',
+      avatarRingAlpha: 0.3,
+      dealerBadgeSize: 16,
+      nameSize: 11,
+      stackSize: 10,
+      nameColor: '#ffffff',
+      stackColor: '#ffffff8c',
+      showEmpty: true,
+      emptyColor: '#ffffff',
+      emptyAlpha: 0.18,
+      emptySize: 28,
+      timerHeight: 3,
+      timerColor: '#f5d678',
+      timerTrackColor: '#000000',
+      timerTrackAlpha: 0.4,
+      timerInsetX: 6,
+      timerGap: 4,
+    },
+  };
+
+  // ===== Layout helpers =====
+  function layout(width, height) {
+    const cx = width / 2;
+    const cy = height / 2;
+    // Felt takes ~60% of canvas width, leaving vertical room for top/bottom pods
+    const rx = width * 0.30;
+    const ry = rx / 2.4;  // 2.4 : 1 aspect
+    return { cx, cy, rx, ry };
+  }
+
+  // ===== Scene =====
+  class TableScene extends Phaser.Scene {
+    constructor() { super('TableScene'); }
+
+    preload() {
+      this.load.crossOrigin = 'anonymous';
+      for (let i = 0; i < AVATAR_URLS.length; i++) {
+        this.load.image('avatar-' + i, AVATAR_URLS[i]);
+      }
+      this.load.on('loaderror', (file) => {
+        console.warn('Avatar failed to load:', file.key);
+      });
+    }
+
+    create() {
+      this.feltImage = null;
+      this.drawAll();
+      this.scale.on('resize', () => this.drawAll());
+    }
+
+    drawAll() {
+      this.drawFelt();
+      this.drawSeats();
+      this.drawCommunityCards();
+      this.drawPot();
+      this.drawBetChips();
+      this.drawDealerButton();
+    }
+
+    drawFelt() {
+      const { width, height } = this.scale;
+      const { cx, cy, rx, ry } = layout(width, height);
+      const f = config.felt;
+
+      // Build an offscreen canvas 2D surface for the gradient
+      const pad = f.railWidth + 10;
+      const w = Math.round(rx * 2 + pad * 2);
+      const h = Math.round(ry * 2 + pad * 2);
+      const off = document.createElement('canvas');
+      off.width = w; off.height = h;
+      const ctx = off.getContext('2d');
+
+      // Drop shadow (soft outer glow)
+      ctx.save();
+      ctx.shadowColor = `rgba(0,0,0,${f.shadowAlpha})`;
+      ctx.shadowBlur = 40;
+      ctx.shadowOffsetY = 8;
+      ctx.fillStyle = f.baseColor;
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h / 2, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Felt gradient
+      const grad = ctx.createRadialGradient(
+        w / 2 - rx * 0.1, h / 2 - ry * 0.1, 0,
+        w / 2, h / 2, Math.max(rx, ry)
+      );
+      grad.addColorStop(0, hexWithAlpha(f.centerHighlight, f.centerAlpha));
+      grad.addColorStop(f.centerRadius, f.baseColor);
+      grad.addColorStop(1, darken(f.baseColor, 0.4));
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h / 2, rx, ry, 0, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+
+      // Rail ring
+      ctx.save();
+      ctx.lineWidth = f.railWidth;
+      ctx.strokeStyle = f.railColor;
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h / 2, rx + f.railWidth / 2, ry + f.railWidth / 2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Rail inner dark border
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = f.railInnerColor;
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h / 2, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Gold inner line
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = hexWithAlpha(f.innerLineColor, f.innerLineAlpha);
+      ctx.beginPath();
+      ctx.ellipse(w / 2, h / 2, rx - 10, ry - 10, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Upload as a Phaser texture
+      if (this.textures.exists('felt')) this.textures.remove('felt');
+      this.textures.addCanvas('felt', off);
+
+      if (this.feltImage) this.feltImage.destroy();
+      this.feltImage = this.add.image(cx, cy, 'felt').setDepth(0);
+    }
+
+    drawCommunityCards() {
+      const { width, height } = this.scale;
+      const { cx, cy } = layout(width, height);
+      const c = config.cards;
+      const s = config.state;
+      const cardCount = {
+        preflop: 0, flop: 3, turn: 4, river: 5, showdown: 5,
+      }[s.street] || 0;
+
+      if (this.communityContainer) this.communityContainer.destroy();
+      this.communityContainer = this.add.container(cx, cy - c.communityWidth * 0.15).setDepth(2);
+
+      const rankLabels = ['A', 'K', 'Q', 'J', '10'];
+      const suits = ['heart', 'spade', 'diamond', 'club', 'spade'];
+      const w = c.communityWidth;
+      const h = Math.round(w * 1.4);
+      const gap = 8;
+      const totalW = 5 * w + 4 * gap;
+      const startX = -totalW / 2 + w / 2;
+
+      for (let i = 0; i < 5; i++) {
+        const x = startX + i * (w + gap);
+        if (i < cardCount) {
+          const card = drawCardFace(this, x, 0, w, h, rankLabels[i], suits[i]);
+          this.communityContainer.add(card);
+        } else {
+          const placeholder = this.add.graphics();
+          placeholder.lineStyle(1.5, 0xffffff, 0.12);
+          placeholder.strokeRoundedRect(x - w / 2, -h / 2, w, h, c.cornerRadius);
+          this.communityContainer.add(placeholder);
+        }
+      }
+    }
+
+    drawSeats() {
+      const { width, height } = this.scale;
+      const { cx, cy, rx, ry } = layout(width, height);
+      const seatRx = rx * 1.22;
+      const seatRy = ry * 1.35;
+      const s = config.seats;
+      const state = config.state;
+      const positions = getSeatPositions(cx, cy, seatRx, seatRy);
+
+      if (this.seatContainers) this.seatContainers.forEach(c => c.destroy());
+      this.seatContainers = [];
+
+      for (let i = 0; i < MAX_SEATS; i++) {
+        const pos = positions[i];
+
+        // Empty-slot marker for unoccupied seats
+        if (i >= state.seatCount) {
+          if (!s.showEmpty) continue;
+          const emptyContainer = this.add.container(pos.x, pos.y).setDepth(5);
+          const color = parseInt(s.emptyColor.replace('#', ''), 16);
+          const r = s.emptySize / 2;
+          const ring = this.add.graphics();
+          ring.lineStyle(1.5, color, s.emptyAlpha);
+          ring.strokeCircle(0, 0, r);
+          const plus = this.add.text(0, 0, '+', {
+            fontFamily: uiFont(),
+            fontSize: scaled(Math.round(s.emptySize * 0.6)) + 'px',
+            color: s.emptyColor, fontStyle: 'bold',
+          }).setOrigin(0.5).setAlpha(s.emptyAlpha);
+          emptyContainer.add([ring, plus]);
+          this.seatContainers.push(emptyContainer);
+          continue;
+        }
+
+        const player = MOCK_PLAYERS[i];
+        const container = this.add.container(pos.x, pos.y).setDepth(5);
+        const isActive = (i + 1) === state.activeSeat;
+
+        // Measure text first so pod can size around it
+        const name = this.add.text(0, 0, player.name, {
+          fontFamily: uiFont(), fontSize: scaled(s.nameSize) + 'px',
+          color: s.nameColor, fontStyle: 'bold',
+        }).setOrigin(0, 0.5);
+        const stack = this.add.text(0, 0, '$' + (player.chips / 100).toFixed(2), {
+          fontFamily: uiFont(), fontSize: scaled(s.stackSize) + 'px',
+          color: s.stackColor,
+        }).setOrigin(0, 0.5);
+        const textW = Math.max(name.width, stack.width);
+
+        // Hole card sizing (cards are rendered INSIDE the pod, after the text)
+        const holeW = config.cards.holeWidth;
+        const holeH = Math.round(holeW * 1.4);
+        const holeGap = 3;
+        const holeAreaW = holeW * 2 + holeGap + s.podPadX;
+
+        const podW = s.avatarSize + s.podPadX + textW + s.podPadX + holeAreaW + s.podPadX;
+        const podH = Math.max(
+          s.avatarSize + s.podPadY * 2,
+          s.nameSize + s.stackSize + 10,
+          holeH + s.podPadY * 2
+        );
+
+        // Glow (behind pod) for active seat
+        if (isActive) {
+          const glow = this.add.graphics();
+          const glowPad = 8;
+          for (let g = 0; g < 4; g++) {
+            const a = s.activeGlowIntensity * (1 - g / 4) * 0.5;
+            glow.fillStyle(parseInt(s.podBorderActive.replace('#', ''), 16), a);
+            glow.fillRoundedRect(
+              -podW / 2 - glowPad * (g + 1),
+              -podH / 2 - glowPad * (g + 1),
+              podW + glowPad * 2 * (g + 1),
+              podH + glowPad * 2 * (g + 1),
+              s.podRadius + glowPad * (g + 1)
+            );
+          }
+          container.add(glow);
+        }
+
+        // Background
+        const bg = this.add.graphics();
+        bg.fillStyle(parseInt(s.podBg.replace('#', ''), 16), s.podBgAlpha);
+        bg.fillRoundedRect(-podW / 2, -podH / 2, podW, podH, s.podRadius);
+        const borderColor = isActive
+          ? parseInt(s.podBorderActive.replace('#', ''), 16)
+          : parseInt(s.podBorderIdle.replace('#', ''), 16);
+        const borderAlpha = isActive ? 1 : s.podBorderIdleAlpha;
+        bg.lineStyle(1, borderColor, borderAlpha);
+        bg.strokeRoundedRect(-podW / 2, -podH / 2, podW, podH, s.podRadius);
+
+        // Avatar image (with initial-letter fallback)
+        const avX = -podW / 2 + s.podPadY + s.avatarSize / 2;
+        const avKey = 'avatar-' + i;
+        const avatarNodes = [];
+        if (this.textures.exists(avKey)) {
+          const img = this.add.image(avX, 0, avKey);
+          const scale = s.avatarSize / img.width;
+          img.setScale(scale);
+          avatarNodes.push(img);
+        } else {
+          const av = this.add.graphics();
+          av.fillStyle(0x5a4428, 1);
+          av.fillCircle(avX, 0, s.avatarSize / 2);
+          const initial = this.add.text(avX, 0, player.name[0], {
+            fontFamily: uiFont(), fontSize: scaled(Math.round(s.avatarSize * 0.4)) + 'px',
+            color: '#ffffff', fontStyle: 'bold',
+          }).setOrigin(0.5);
+          avatarNodes.push(av, initial);
+        }
+        const ring = this.add.graphics();
+        ring.lineStyle(
+          s.avatarRingWidth,
+          parseInt(s.avatarRingColor.replace('#', ''), 16),
+          s.avatarRingAlpha
+        );
+        ring.strokeCircle(avX, 0, s.avatarSize / 2);
+        avatarNodes.push(ring);
+
+        // Position name & stack
+        const textX = avX + s.avatarSize / 2 + s.podPadX;
+        name.setPosition(textX, -s.stackSize / 2 - 1);
+        stack.setPosition(textX, s.nameSize / 2 + 1);
+
+        // Hole cards INSIDE the pod, right of the name/stack
+        const isShowdownReveal = (i + 1) === state.showdownSeat;
+        const holeRank = ['A', 'K'][i % 2] || 'A';
+        const holeSuits = [['heart', 'spade'], ['diamond', 'club']][i % 2];
+        const holeAreaStartX = textX + textW + s.podPadX;
+        const holeCenterX1 = holeAreaStartX + holeW / 2;
+        const holeCenterX2 = holeCenterX1 + holeW + holeGap;
+        const holeCenterY = 0; // vertically centered within the pod
+
+        const cardFor = (cx2, idx) => isShowdownReveal
+          ? drawCardFace(this, cx2, holeCenterY, holeW, holeH, holeRank, holeSuits[idx])
+          : drawCardBack(this, cx2, holeCenterY, holeW, holeH);
+
+        const card1 = cardFor(holeCenterX1, 0);
+        const card2 = cardFor(holeCenterX2, 1);
+
+        container.add([bg, ...avatarNodes, name, stack, card1, card2]);
+
+        // Countdown timer bar for the active seat
+        if (isActive) {
+          const frac = Math.max(0, Math.min(1, state.actionTimeRemaining));
+          const barH = s.timerHeight;
+          const barFullW = podW - s.timerInsetX * 2;
+          const barY = podH / 2 + s.timerGap + barH / 2;
+          const timer = this.add.graphics();
+          // Track
+          timer.fillStyle(parseInt(s.timerTrackColor.replace('#', ''), 16), s.timerTrackAlpha);
+          timer.fillRoundedRect(-barFullW / 2, barY - barH / 2, barFullW, barH, barH / 2);
+          // Progress
+          if (frac > 0) {
+            const barW = barFullW * frac;
+            timer.fillStyle(parseInt(s.timerColor.replace('#', ''), 16), 1);
+            timer.fillRoundedRect(-barFullW / 2, barY - barH / 2, barW, barH, barH / 2);
+          }
+          container.add(timer);
+        }
+
+        this.seatContainers.push(container);
+      }
+    }
+
+    drawBetChips() {
+      const { width, height } = this.scale;
+      const { cx, cy, rx, ry } = layout(width, height);
+      const seatRx = rx * 1.22;
+      const seatRy = ry * 1.35;
+      const state = config.state;
+      const b = config.bets;
+
+      if (this.betChips) this.betChips.forEach(c => c.destroy());
+      this.betChips = [];
+
+      if (state.seatCount <= 0) return;
+      const positions = getSeatPositions(cx, cy, seatRx, seatRy);
+
+      for (let i = 0; i < state.seatCount; i++) {
+        const amount = state.seatBets[i] || 0;
+        if (amount <= 0) continue;
+        const pos = positions[i];
+        // Offset bet chip toward the table center from the pod
+        const dx = cx - pos.x;
+        const dy = cy - pos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const t = 0.25;
+        const bx = pos.x + (dx / dist) * dist * t;
+        const by = pos.y + (dy / dist) * dist * t;
+
+        const container = this.add.container(bx, by).setDepth(4);
+        const text = '$' + (amount / 100).toFixed(2);
+        const txt = this.add.text(0, 0, text, {
+          fontFamily: uiFont(), fontSize: scaled(b.fontSize) + 'px',
+          color: b.textColor, fontStyle: 'bold',
+        }).setOrigin(0.5);
+        const w = txt.width + b.padX * 2;
+        const h = txt.height + b.padY * 2;
+
+        const bg = this.add.graphics();
+        bg.fillStyle(parseInt(b.color1.replace('#', ''), 16), 1);
+        bg.fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+        bg.lineStyle(1, parseInt(b.color2.replace('#', ''), 16), 1);
+        bg.strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+
+        container.add([bg, txt]);
+        this.betChips.push(container);
+      }
+    }
+
+    drawDealerButton() {
+      const { width, height } = this.scale;
+      const { cx, cy, rx, ry } = layout(width, height);
+      const seatRx = rx * 1.22;
+      const seatRy = ry * 1.35;
+      const state = config.state;
+
+      if (this.dealerButton) this.dealerButton.destroy();
+      if (state.dealerSeat < 1 || state.dealerSeat > state.seatCount) return;
+
+      const positions = getSeatPositions(cx, cy, seatRx, seatRy);
+      const seatPos = positions[state.dealerSeat - 1];
+      const dx = cx - seatPos.x;
+      const dy = cy - seatPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist === 0) return;
+      const t = 0.3;
+      const bx = seatPos.x + dx * t;
+      const by = seatPos.y + dy * t;
+
+      const btn = this.add.container(bx, by).setDepth(4);
+      const size = 14;
+      const g = this.add.graphics();
+      g.fillStyle(0xffffff, 1);
+      g.fillCircle(0, 0, size);
+      g.lineStyle(1, 0x000000, 0.15);
+      g.strokeCircle(0, 0, size);
+      const txt = this.add.text(0, 0, 'D', {
+        fontFamily: uiFont(), fontSize: scaled(12) + 'px',
+        color: '#000000', fontStyle: 'bold',
+      }).setOrigin(0.5);
+      btn.add([g, txt]);
+      this.dealerButton = btn;
+    }
+
+    drawPot() {
+      const { width, height } = this.scale;
+      const { cx, cy } = layout(width, height);
+      const p = config.pot;
+      const c = config.cards;
+      const s = config.state;
+
+      if (this.potContainer) this.potContainer.destroy();
+      if (s.potAmount <= 0) return;
+
+      const y = cy + c.communityWidth * 0.85;
+      this.potContainer = this.add.container(cx, y).setDepth(2);
+
+      const chipSize = p.chipSize;
+      const pad = 10;
+      const labelText = 'POT';
+      const amountText = '$' + (s.potAmount / 100).toFixed(2);
+      const label = this.add.text(0, 0, labelText, {
+        fontFamily: uiFont(), fontSize: scaled(p.labelSize) + 'px',
+        color: 'rgba(255,255,255,0.5)', fontStyle: 'bold',
+      }).setOrigin(0, 0.5);
+      const amount = this.add.text(0, 0, amountText, {
+        fontFamily: uiFont(), fontSize: scaled(p.amountSize) + 'px',
+        color: p.accentColor, fontStyle: 'bold',
+      }).setOrigin(0, 0.5);
+
+      const textW = Math.max(label.width, amount.width);
+      const pillW = chipSize + pad + textW + pad * 2;
+      const pillH = Math.max(chipSize + 8, p.amountSize + p.labelSize + 4);
+
+      const bg = this.add.graphics();
+      bg.fillStyle(0x000000, p.pillBgAlpha);
+      bg.fillRoundedRect(-pillW / 2, -pillH / 2, pillW, pillH, pillH / 2);
+      bg.lineStyle(1, parseInt(p.accentColor.replace('#', ''), 16), 0.25);
+      bg.strokeRoundedRect(-pillW / 2, -pillH / 2, pillW, pillH, pillH / 2);
+
+      const chip = this.add.graphics();
+      const chipX = -pillW / 2 + pad + chipSize / 2;
+      chip.fillStyle(parseInt(p.accentColor.replace('#', ''), 16), 1);
+      chip.fillCircle(chipX, 0, chipSize / 2);
+      chip.lineStyle(2, 0xc49a38, 1);
+      chip.strokeCircle(chipX, 0, chipSize / 2);
+
+      label.setPosition(chipX + chipSize / 2 + pad, -p.amountSize / 2 + 1);
+      amount.setPosition(chipX + chipSize / 2 + pad, p.labelSize / 2 + 2);
+
+      this.potContainer.add([bg, chip, label, amount]);
+    }
+  }
+
+  // ===== Seat layout =====
+  // Always lay out 9 seat slots evenly around the ellipse, starting at 90° (bottom).
+  // seatCount controls how many are occupied; empty slots render nothing.
+  const MAX_SEATS = 9;
+  function getSeatPositions(cx, cy, rx, ry) {
+    const positions = [];
+    const startDeg = 90;
+    const stepDeg = 360 / MAX_SEATS;
+    for (let i = 0; i < MAX_SEATS; i++) {
+      const deg = startDeg + i * stepDeg;
+      const rad = (deg * Math.PI) / 180;
+      positions.push({ x: cx + rx * Math.cos(rad), y: cy + ry * Math.sin(rad) });
+    }
+    return positions;
+  }
+
+  // ===== Mock data =====
+  const MOCK_PLAYERS = [
+    { name: 'You',    chips: 24000 },
+    { name: 'Sam',    chips: 18000 },
+    { name: 'Ari',    chips: 30000 },
+    { name: 'Jay',    chips: 22000 },
+    { name: 'Kim',    chips: 42000 },
+    { name: 'Lee',    chips: 51000 },
+    { name: 'Max',    chips: 19000 },
+    { name: 'Nia',    chips: 27000 },
+    { name: 'Pat',    chips: 12000 },
+  ];
+
+  // Inline SVG data URIs — offline-safe colored avatar circles with initials.
+  // Used as placeholder avatars until production wires real images in.
+  function avatarDataUri(letter, bg) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><circle cx="64" cy="64" r="64" fill="${bg}"/><text x="64" y="64" font-family="Arial, sans-serif" font-size="64" font-weight="bold" fill="#ffffff" text-anchor="middle" dominant-baseline="central">${letter}</text></svg>`;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+  }
+  const AVATAR_URLS = [
+    avatarDataUri('Y', '#c94f4f'),
+    avatarDataUri('S', '#3b7dd8'),
+    avatarDataUri('A', '#6aa84f'),
+    avatarDataUri('J', '#a64ea6'),
+    avatarDataUri('K', '#d88c2e'),
+    avatarDataUri('L', '#2b9c9c'),
+    avatarDataUri('M', '#8e44ad'),
+    avatarDataUri('N', '#cf6b2e'),
+    avatarDataUri('P', '#4a9eff'),
+  ];
+
+  // ===== Card drawing helpers =====
+  const SUIT_SYMBOLS = { heart: '♥', diamond: '♦', club: '♣', spade: '♠' };
+  const SUIT_COLORS = { heart: '#dc2626', diamond: '#2563eb', club: '#15803d', spade: '#1e293b' };
+
+  function drawCardFace(scene, x, y, w, h, rank, suit) {
+    const c = config.cards;
+    const container = scene.add.container(x, y);
+    // Shadow
+    const shadow = scene.add.graphics();
+    shadow.fillStyle(0x000000, c.shadowAlpha);
+    shadow.fillRoundedRect(-w / 2 + 1, -h / 2 + 3, w, h, c.cornerRadius);
+    // Face
+    const bg = scene.add.graphics();
+    bg.fillStyle(parseInt(c.faceColor.replace('#', ''), 16), 1);
+    bg.fillRoundedRect(-w / 2, -h / 2, w, h, c.cornerRadius);
+    bg.lineStyle(1, parseInt(c.borderColor.replace('#', ''), 16), c.borderAlpha);
+    bg.strokeRoundedRect(-w / 2, -h / 2, w, h, c.cornerRadius);
+    // Rank
+    const rankTxt = scene.add.text(0, -h * 0.12, rank, {
+      fontFamily: c.rankFont, fontSize: c.rankSize + 'px',
+      color: SUIT_COLORS[suit], fontStyle: 'bold',
+    }).setOrigin(0.5);
+    // Suit
+    const suitTxt = scene.add.text(0, h * 0.18, SUIT_SYMBOLS[suit], {
+      fontFamily: c.rankFont, fontSize: c.suitSize + 'px',
+      color: SUIT_COLORS[suit],
+    }).setOrigin(0.5);
+    container.add([shadow, bg, rankTxt, suitTxt]);
+    return container;
+  }
+
+  function drawCardBack(scene, x, y, w, h) {
+    const c = config.cards;
+    const container = scene.add.container(x, y);
+    const shadow = scene.add.graphics();
+    shadow.fillStyle(0x000000, c.shadowAlpha);
+    shadow.fillRoundedRect(-w / 2 + 1, -h / 2 + 3, w, h, c.cornerRadius);
+    const bg = scene.add.graphics();
+    bg.fillStyle(parseInt(c.backColor1.replace('#', ''), 16), 1);
+    bg.fillRoundedRect(-w / 2, -h / 2, w, h, c.cornerRadius);
+    // Subtle inner border for detail
+    bg.lineStyle(1.5, parseInt(c.backColor2.replace('#', ''), 16), 0.7);
+    bg.strokeRoundedRect(-w / 2 + 3, -h / 2 + 3, w - 6, h - 6, Math.max(1, c.cornerRadius - 2));
+    container.add([shadow, bg]);
+    return container;
+  }
+
+  // ===== Color helpers =====
+  function hexWithAlpha(hex, a) {
+    const { r, g, b } = hexToRgb(hex);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  function hexToRgb(hex) {
+    const h = hex.replace('#', '');
+    return {
+      r: parseInt(h.substring(0, 2), 16),
+      g: parseInt(h.substring(2, 4), 16),
+      b: parseInt(h.substring(4, 6), 16),
+    };
+  }
+  function darken(hex, amount) {
+    const { r, g, b } = hexToRgb(hex);
+    const m = 1 - amount;
+    return `rgb(${Math.round(r * m)},${Math.round(g * m)},${Math.round(b * m)})`;
+  }
+
+  // ===== Typography helpers =====
+  function uiFont() { return config.typography.uiFont; }
+  function scaled(px) { return Math.round(px * config.typography.scale); }
+
+  // ===== Boot =====
+  const canvasEl = document.getElementById('game-canvas');
+  function getCanvasSize() {
+    const rect = canvasEl.getBoundingClientRect();
+    return { width: Math.round(rect.width), height: Math.round(rect.height) };
+  }
+  const size = getCanvasSize();
+  const game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: canvasEl,
+    transparent: true,
+    width: size.width,
+    height: size.height,
+    scale: { mode: Phaser.Scale.RESIZE },
+    scene: [TableScene],
+    banner: false,
+    audio: { noAudio: true },
+  });
+
+  // ===== Config path helpers =====
+  function getByPath(obj, path) {
+    return path.split('.').reduce((o, k) => (o ? o[k] : undefined), obj);
+  }
+  function setByPath(obj, path, value) {
+    const keys = path.split('.');
+    let o = obj;
+    for (let i = 0; i < keys.length - 1; i++) o = o[keys[i]];
+    o[keys[keys.length - 1]] = value;
+  }
+
+  // ===== Bind controls to config =====
+  function bindControls() {
+    document.querySelectorAll('[data-path]').forEach(input => {
+      const path = input.dataset.path;
+      const current = getByPath(config, path);
+      if (input.type === 'range' || input.type === 'number') {
+        input.value = current;
+      } else if (input.type === 'color') {
+        input.value = current;
+      } else if (input.tagName === 'SELECT') {
+        input.value = current;
+      } else if (input.type === 'checkbox') {
+        input.checked = !!current;
+      } else {
+        input.value = current;
+      }
+      input.addEventListener('input', () => {
+        let v = input.value;
+        if (input.type === 'range' || input.type === 'number') v = parseFloat(v);
+        if (input.type === 'checkbox') v = input.checked;
+        setByPath(config, path, v);
+        rerender();
+      });
+    });
+    document.querySelectorAll('[data-val]').forEach(span => {
+      // updated by rerender()
+    });
+    // Group collapse toggles
+    document.querySelectorAll('.group-title').forEach(t => {
+      t.addEventListener('click', () => {
+        const g = t.closest('.group');
+        g.classList.toggle('collapsed');
+        t.textContent = (g.classList.contains('collapsed') ? '▸ ' : '▾ ') + t.textContent.slice(2);
+      });
+    });
+  }
+
+  function updateValueReadouts() {
+    document.querySelectorAll('[data-val]').forEach(span => {
+      const v = getByPath(config, span.dataset.val);
+      span.textContent = typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : v;
+    });
+  }
+
+  // ===== Rerender helper =====
+  function rerender() {
+    const scene = game.scene.getScene('TableScene');
+    if (scene && scene.drawAll) scene.drawAll();
+    updateValueReadouts();
+    document.getElementById('config-json').textContent = JSON.stringify(config, null, 2);
+  }
+
+  // ===== Copy button =====
+  document.getElementById('copy-btn').addEventListener('click', () => {
+    navigator.clipboard.writeText(JSON.stringify(config, null, 2));
+  });
+
+  bindControls();
+  rerender();
+
+  const panel = document.querySelector('.controls');
+  const toggle = document.getElementById('panel-toggle');
+  toggle.addEventListener('click', () => {
+    panel.classList.toggle('hidden');
+    toggle.textContent = panel.classList.contains('hidden') ? '▶' : '◀';
+    // Let the grid settle, then tell Phaser to resize
+    requestAnimationFrame(() => {
+      const s = getCanvasSize();
+      game.scale.resize(s.width, s.height);
+      rerender();
+    });
+  });
+</script>
+</body>
+</html>

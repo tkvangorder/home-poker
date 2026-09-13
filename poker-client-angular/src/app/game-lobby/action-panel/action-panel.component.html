@@ -1,0 +1,80 @@
+<div class="bg-base-200 rounded-lg p-3 flex flex-col gap-3"
+     [class.opacity-40]="!isMyTurn"
+     [class.pointer-events-none]="!isMyTurn">
+
+  <!-- Sizing row: presets + numeric input + slider + step unit toggle -->
+  <div class="flex items-center gap-2 flex-wrap">
+    <div class="join">
+      <button class="btn btn-xs join-item" [disabled]="!isMyTurn" (click)="setMin()">Min</button>
+      <button class="btn btn-xs join-item" [disabled]="!isMyTurn" (click)="setHalfPot()">½ Pot</button>
+      <button class="btn btn-xs join-item" [disabled]="!isMyTurn" (click)="setFullPot()">Pot</button>
+      <button class="btn btn-xs join-item" [disabled]="!isMyTurn" (click)="setMax()">Max</button>
+    </div>
+
+    <div class="join">
+      <button
+        type="button"
+        class="btn btn-xs join-item"
+        [disabled]="!isMyTurn || betAmount <= minBet"
+        (click)="bumpBet(-1)"
+        title="Decrease bet by 1 BB">−</button>
+      <input
+        type="number"
+        class="input input-bordered input-xs w-24 text-right font-mono join-item"
+        [min]="minBet"
+        [max]="maxBet"
+        [step]="step"
+        [(ngModel)]="betAmount"
+        [disabled]="!isMyTurn"
+      />
+      <button
+        type="button"
+        class="btn btn-xs join-item"
+        [disabled]="!isMyTurn || betAmount >= maxBet"
+        (click)="bumpBet(1)"
+        title="Increase bet by 1 BB">+</button>
+    </div>
+
+    <input
+      type="range"
+      class="range range-primary range-xs flex-1 min-w-[120px]"
+      [min]="minBet"
+      [max]="maxBet"
+      [step]="step"
+      [(ngModel)]="betAmount"
+      [disabled]="!isMyTurn"
+    />
+
+    <button
+      type="button"
+      class="btn btn-xs btn-outline w-12"
+      [disabled]="!isMyTurn"
+      (click)="toggleStepUnit()"
+      [title]="'Slider step: ' + (stepUnit === 'BB' ? 'big blind' : 'small blind') + '. Click to switch.'">
+      {{ stepUnit }}
+    </button>
+  </div>
+
+  <!-- Action row: 3 equal-width buttons -->
+  <div class="grid grid-cols-3 gap-2">
+    <button class="btn btn-error" [disabled]="!isMyTurn" (click)="fold()">
+      Fold
+    </button>
+
+    <button class="btn btn-primary" [disabled]="!isMyTurn" (click)="checkOrCall()">
+      @if (hasBetToCall) {
+        Call {{ formatCents(effectiveCallAmount) }}
+      } @else {
+        Check
+      }
+    </button>
+
+    <button class="btn btn-success" [disabled]="!isMyTurn || !canSubmitBet" (click)="submitBet()">
+      @if (hasOpenBet) {
+        Raise To {{ formatCents(betAmount) }}
+      } @else {
+        Bet {{ formatCents(betAmount) }}
+      }
+    </button>
+  </div>
+</div>

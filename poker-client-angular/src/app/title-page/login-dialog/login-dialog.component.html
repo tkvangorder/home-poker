@@ -1,0 +1,35 @@
+<app-modal [options]="modalOptions" >
+  <form class="content" id="modal-form" [formGroup]="loginForm" (ngSubmit)="userLogin()">
+    <div class="space-y-4">
+      <div class="form-field">
+        <label class="label" for="username">
+          <span class="label-text">Username</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="username"
+          formControlName="username"
+          type="text"
+          placeholder="Username"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="password">
+          <span class="label-text">Password</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="password"
+          formControlName="password"
+          type="password"
+          placeholder="Password"
+        />
+      </div>
+      @if(error) {
+        <p class="bg-error pl-4 py-2 text-error-content rounded-md text-sm">
+          {{ error }}
+        </p>
+      }
+    </div>
+  </form>
+</app-modal>

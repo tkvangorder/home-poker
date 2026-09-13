@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class RestExceptionHandler {
@@ -20,6 +21,16 @@ public class RestExceptionHandler {
   @ResponseStatus(HttpStatus.NOT_FOUND)
   public Message handleException(ResourceNotFound e) {
     return Message.error(e.getMessage());
+  }
+
+  /**
+   * Spring's own not-found for unmapped static resources; the app's ResourceNotFound handler above covers domain lookups.
+   */
+  @ExceptionHandler(NoResourceFoundException.class)
+  @ResponseBody
+  @ResponseStatus(HttpStatus.NOT_FOUND)
+  public Message handleException(NoResourceFoundException e) {
+    return Message.error("Not found");
   }
 
   @ExceptionHandler(IllegalArgumentException.class)

@@ -1,0 +1,28 @@
+<div class="justify-center top-0 left-0 items-center fixed flex bg-base-300/80 backdrop-blur-sm w-full h-full z-50">
+  <div class="px-10 pt-8 pb-8 justify-center rounded-xl shadow-2xl items-center bg-base-100 max-w-md w-full mx-4">
+    <h1 class="modal-title mb-6 text-2xl font-bold text-center">{{ options.title }}</h1>
+    <div class="divider my-0 mb-4"></div>
+    <ng-content select=".content"></ng-content>
+    <div class="divider my-0 mt-4 mb-4"></div>
+    <div class="actions flex items-center justify-center gap-3">
+      @for (button of options.buttons; track button.label) {
+        @if (button.type === 'submit') {
+          <button class="btn btn-primary" type="submit" form="modal-form">{{ button.label }}</button>
+        } @else if (button.type === 'other') {
+          <button class="btn" type="button">
+            {{ button.label }}
+          </button>
+        } @else {
+          <button class="btn btn-secondary" type="button" (click)="closeDialog()">
+            {{ button.label }}
+          </button>
+        }
+      } @empty {
+        <button class="btn btn-secondary" type="button" (click)="closeDialog()">
+          Cancel
+        </button>
+        <button class="btn btn-primary" type="submit" form="modal-form">Ok</button>
+      }
+    </div>
+  </div>
+</div>

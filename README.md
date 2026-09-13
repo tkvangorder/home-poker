@@ -2,8 +2,8 @@
 
 This is a sandbox environment for experimenting with Spring to implement a poker server for use as a "remote" home game.
 There are surprisingly few choices out there to simulate a private home game. This project is an attempt to scratch that
-itch while giving us an excuse to study WebSockets, Loom, and structured concurrency. The plan is to implement a server
-first and then build (or recruit someone to build) a client using something like React or Angular?
+itch while giving us an excuse to study WebSockets, Loom, and structured concurrency. The server lives in `poker-server`
+and an Angular client lives in `poker-client-angular`; a production build packages both into one jar.
 
 ## Dev Setup
 
@@ -21,9 +21,13 @@ project provides a docker-compose file for starting up a mongo server within a d
 
 1. Ensure docker or podman are installed and running on your machine
 2. Start the Mongo database (from the root directory of the poker-server) via `docker-compose up`
-3. Build and run the server (from the root directory of the server) via `./gradlew clean spring-boot:run`
+3. Build and run the server (from the root directory) via `./gradlew :poker-server:bootRun`. The first run downloads Node and builds the Angular client; open `http://localhost:8080/` for the UI.
 4. Register an admin user using the rest endpoint `http://localhost:8080/auth/register`. The app uses a primitive
    configuration in `src/main/resources/application.yml` to denote which IDs are admins.
+
+## Angular client
+
+`poker-client-angular` is the browser UI. For a fast dev loop run `npm start` inside that directory while the server runs; the Angular dev server on `http://localhost:4200` proxies API and WebSocket calls to `:8080`. See `poker-client-angular/README.md`.
 
 ## REST Clients!
 
@@ -34,7 +38,9 @@ register users and manage games. The server publishes swagger documentation for 
 ## WebSocket Client interactions
 
 The actual poker game interactions (e.g., joining a game, placing bets, etc.) are designed to be done via a
-WebSocket client. The WebSocket endpoint is `ws://localhost:8080/ws`. You will need to include a valid JWT token in the
-initial connection request in order to authenticate with the server and receive game updates. 
+WebSocket client. The client builds the WebSocket URL from the page origin (`ws://` or `wss://` plus the page host) at
+path `/ws/games/{gameId}?token={jwt}`; when running the jar locally that is `ws://localhost:8080/ws/games/{gameId}`. You
+will need to include a valid JWT token in the initial connection request in order to authenticate with the server and
+receive game updates. 
 
-See [/docs/command-evnt-spec.md](docs/command-event-spec.md) for details on the command and event specifications for client-server interactions.
+See [command-event-spec.md](poker-server/src/main/resources/static/command-event-spec.md) for details on the command and event specifications for client-server interactions.

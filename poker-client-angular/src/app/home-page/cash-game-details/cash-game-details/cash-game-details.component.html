@@ -1,0 +1,77 @@
+@if (selectedGame$ | async; as game) {
+<div class="card bg-base-100 shadow-lg rounded-xl overflow-hidden">
+  <!-- Header with status -->
+  <div class="bg-base-300/50 px-6 py-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-bold">{{ game.name }}</h2>
+      <span class="badge {{ statusBadgeClass(game.status) }}">
+        {{ statusLabel(game.status) }}
+      </span>
+    </div>
+    <p class="text-sm text-base-content/50 mt-1">
+      Hosted by {{ game.owner.alias || game.owner.name }}
+      &middot; {{ game.startTime | date:'EEE, MMM d \u2022 h:mm a' }}
+    </p>
+  </div>
+
+  <div class="px-6 py-4">
+    <!-- Stats row -->
+    <div class="grid grid-cols-3 gap-3 mb-4">
+      <div class="bg-base-200 rounded-lg p-3 text-center">
+        <div class="text-lg font-bold">{{ formatBlinds(game) }}</div>
+        <div class="text-xs text-base-content/50 uppercase tracking-wide mt-0.5">Blinds</div>
+      </div>
+      <div class="bg-base-200 rounded-lg p-3 text-center">
+        <div class="text-lg font-bold">{{ formatBuyIn(game) }}</div>
+        <div class="text-xs text-base-content/50 uppercase tracking-wide mt-0.5">Buy-in</div>
+      </div>
+      <div class="bg-base-200 rounded-lg p-3 text-center">
+        <div class="text-lg font-bold">{{ game.players.length || 0 }}</div>
+        <div class="text-xs text-base-content/50 uppercase tracking-wide mt-0.5">Players</div>
+      </div>
+    </div>
+
+    <!-- Players list -->
+    @if (game.players.length) {
+    <div class="mb-4">
+      <h3 class="text-xs font-semibold text-base-content/50 uppercase tracking-widest mb-2">Players</h3>
+      <div class="flex flex-wrap gap-2">
+        @for (player of game.players; track player.user?.id) {
+        <div class="flex items-center gap-2 bg-base-200 rounded-full pl-1 pr-3 py-1">
+          <div class="avatar placeholder">
+            <div class="bg-neutral text-neutral-content rounded-full w-6 h-6">
+              <span class="text-xs">{{ playerInitials(player) }}</span>
+            </div>
+          </div>
+          <span class="text-sm">{{ player.user.alias || player.user.name }}</span>
+        </div>
+        }
+      </div>
+    </div>
+    }
+
+    <!-- Actions -->
+    <div class="flex items-center gap-3 pt-2">
+      <button class="btn btn-primary flex-1" type="button" [disabled]="game.status === 'COMPLETED'"
+        (click)="joinGame(game)">
+        Join Game
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd"
+            d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+            clip-rule="evenodd" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+} @else {
+<div class="card bg-base-100 shadow-lg rounded-xl p-10 text-center">
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto mb-3 text-base-content/20" fill="none"
+    viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+  </svg>
+  <p class="text-sm text-base-content/40">Select a game to view details</p>
+</div>
+}

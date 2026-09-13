@@ -44,3 +44,9 @@ coverage
 
 # Git worktrees
 .worktrees/
+
+# Angular client (poker-client-angular)
+poker-client-angular/dist/
+poker-client-angular/.angular/
+poker-client-angular/coverage/
+poker-client-angular/node/

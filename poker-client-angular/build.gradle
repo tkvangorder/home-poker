@@ -1,0 +1,50 @@
+plugins {
+    id 'base'
+    id 'com.github.node-gradle.node'
+}
+
+node {
+    download = true
+    version = '24.13.1'
+    npmInstallCommand = 'ci'
+}
+
+def clientInputs = [
+    'angular.json', 'package.json', 'package-lock.json',
+    'tsconfig.json', 'tsconfig.app.json', 'tsconfig.spec.json',
+    'tailwind.config.js', 'jest.config.ts', 'setup-jest.ts'
+]
+
+// Compiles the Angular application. Output is consumed by :poker-server:copyClientAssets.
+tasks.register('npmBuild', com.github.gradle.node.npm.task.NpmTask) {
+    description = 'Builds the Angular client (ng build).'
+    group = 'build'
+    dependsOn tasks.named('npmInstall')
+    args = ['run', 'build']
+    inputs.dir('src')
+    inputs.files(clientInputs)
+    outputs.dir(layout.projectDirectory.dir('dist/poker-client-angular'))
+}
+
+// Runs the Jest suite. Attached to `check` so `./gradlew build` runs it alongside the Java tests.
+tasks.register('npmTest', com.github.gradle.node.npm.task.NpmTask) {
+    description = 'Runs the Angular client unit tests (jest).'
+    group = 'verification'
+    dependsOn tasks.named('npmInstall')
+    args = ['test']
+    inputs.dir('src')
+    inputs.files(clientInputs)
+    outputs.dir(layout.projectDirectory.dir('coverage'))
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('npmTest')
+}
+
+tasks.named('assemble') {
+    dependsOn tasks.named('npmBuild')
+}
+
+tasks.named('clean') {
+    delete layout.projectDirectory.dir('dist')
+}
