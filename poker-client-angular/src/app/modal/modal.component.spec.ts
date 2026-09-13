@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ModalComponent } from './modal.component';
+import { ModalComponent, ModalOptions } from './modal.component';
 
 describe('ModalComponent', () => {
   let component: ModalComponent;
@@ -11,9 +11,10 @@ describe('ModalComponent', () => {
       imports: [ModalComponent]
     })
     .compileComponents();
-    
+
     fixture = TestBed.createComponent(ModalComponent);
     component = fixture.componentInstance;
+    component.options = new ModalOptions('modal-1', 'Confirm Action', []);
     fixture.detectChanges();
   });
 

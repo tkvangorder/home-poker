@@ -4,6 +4,7 @@ import { Subject } from 'rxjs';
 import { GameStateService } from './game-state.service';
 import { GameWebSocketService, ConnectionStatus } from './game-websocket.service';
 import { ToasterService } from '../toaster/toaster.service';
+import { CardSuit, CardValue } from '../poker/poker-models';
 import {
   AdminViewingReplayEvent,
   BlindPostedEvent,
@@ -368,7 +369,16 @@ describe('GameStateService', () => {
             potIndex: 0,
             potAmount: 50,
             winners: [
-              { seatPosition: 3, userId: 'user-3', amount: 50, handDescription: 'Pair of Aces' },
+              {
+                seatPosition: 3,
+                userId: 'user-3',
+                amount: 50,
+                handDescription: 'Pair of Aces',
+                winningCards: [
+                  { value: CardValue.ACE, suit: CardSuit.SPADE },
+                  { value: CardValue.ACE, suit: CardSuit.HEART },
+                ],
+              },
             ],
           },
         ],

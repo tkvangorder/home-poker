@@ -31,6 +31,7 @@ function tableState(overrides: Partial<TableState>): TableState {
     callAmount: 0,
     currentBet: 50,
     minimumRaise: 50,
+    actionSeq: 0,
     ...overrides,
   };
 }
