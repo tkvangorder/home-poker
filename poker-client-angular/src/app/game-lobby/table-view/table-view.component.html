@@ -1,0 +1,18 @@
+<div class="game-background w-full h-full rounded-lg relative overflow-hidden">
+  @if (tableState) {
+    <app-phaser-table
+      [tableState]="tableState"
+      [players]="players"
+      [currentUserId]="currentUserId"
+    />
+  }
+
+  @if (showOverlay) {
+    <div class="absolute inset-0 bg-black/60 flex items-center justify-center z-50 rounded-lg">
+      <div class="text-center">
+        <span class="loading loading-dots loading-lg text-warning mb-2"></span>
+        <p class="text-2xl font-bold text-white">{{ overlayText }}</p>
+      </div>
+    </div>
+  }
+</div>

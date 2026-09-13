@@ -1,0 +1,247 @@
+<div class="flex flex-col h-full">
+
+  <!-- Header -->
+  <div class="bg-base-200 rounded-lg p-4 m-4 mb-0 flex flex-wrap justify-between items-center gap-3">
+    <div class="flex items-center gap-3">
+      <h1 class="text-xl font-bold">Game Lobby</h1>
+      @if (gameStatus$ | async; as status) {
+        <span class="badge {{ getStatusBadgeClass(status) }}">{{ status }}</span>
+      }
+      @if (connectionStatus$ | async; as connStatus) {
+        <span class="badge badge-sm {{ getConnectionBadgeClass(connStatus) }}">{{ connStatus }}</span>
+      }
+    </div>
+
+    <div class="flex items-center gap-2">
+      @if (isAdmin) {
+        @if ((gameStatus$ | async) === 'SEATING') {
+          <button class="btn btn-success btn-sm" (click)="sendGameCommand('start-game')">Start Game</button>
+        }
+        @if ((gameStatus$ | async) === 'ACTIVE') {
+          <button class="btn btn-warning btn-sm" (click)="sendGameCommand('pause-game')">Pause</button>
+          <button class="btn btn-error btn-sm" (click)="sendGameCommand('end-game')">End Game</button>
+        }
+        @if ((gameStatus$ | async) === 'PAUSED') {
+          <button class="btn btn-success btn-sm" (click)="sendGameCommand('resume-game')">Resume</button>
+          <button class="btn btn-error btn-sm" (click)="sendGameCommand('end-game')">End Game</button>
+        }
+      }
+      <button class="btn btn-ghost btn-sm" (click)="leaveGame()">Leave Game</button>
+    </div>
+  </div>
+
+  <!-- Main content area — use a local variable for the resolved status (may be null) -->
+
+  <!-- ==================== PRE-GAME MODE (null, SCHEDULED, SEATING) ==================== -->
+  @if (isPreGame(gameStatus$ | async)) {
+    <div class="flex flex-col lg:flex-row gap-4 flex-1 min-h-0 p-4">
+      <!-- Leaderboard (2/3 width on desktop) -->
+      <div class="lg:w-2/3 card-surface flex flex-col">
+        @if (players$ | async; as players) {
+          <app-leaderboard-panel
+            [players]="getPlayersArray(players)"
+            [currentUserId]="currentUserId"
+            [showBuyIn]="(gameStatus$ | async) !== 'SCHEDULED'"
+            [maxBuyIn]="maxBuyIn"
+            (buyIn)="buyIn($event)"
+          />
+        }
+      </div>
+
+      <!-- Messages (1/3 width on desktop) -->
+      <div class="lg:w-1/3 card-surface flex flex-col">
+        @if (messages$ | async; as messages) {
+          <app-messages-panel [messages]="messages" />
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ==================== ACTIVE GAME MODE (ACTIVE, BALANCING, PAUSED) ==================== -->
+  @else if (isActiveGame(gameStatus$ | async)) {
+
+    <!-- Desktop layout (lg+): sidebar + table -->
+    <div class="hidden lg:flex flex-1 min-h-0 gap-4 p-4">
+      <!-- Sidebar -->
+      <div class="w-80 flex-shrink-0 flex flex-col gap-4">
+        <!-- Sidebar tabs -->
+        <div role="tablist" class="tabs tabs-boxed">
+          <button role="tab" class="tab" [class.tab-active]="activeTab === 'leaderboard'"
+                  (click)="setActiveTab('leaderboard')">Leaderboard</button>
+          <button role="tab" class="tab" [class.tab-active]="activeTab === 'messages'"
+                  (click)="setActiveTab('messages')">Messages</button>
+        </div>
+
+        <!-- Sidebar content -->
+        <div class="card-surface flex-1 flex flex-col min-h-0">
+          @if (activeTab === 'leaderboard') {
+            @if (players$ | async; as players) {
+              <app-leaderboard-panel
+                [players]="getPlayersArray(players)"
+                [currentUserId]="currentUserId"
+                [showBuyIn]="true"
+                [maxBuyIn]="maxBuyIn"
+                (buyIn)="buyIn($event)"
+              />
+            }
+          } @else {
+            @if (messages$ | async; as messages) {
+              <app-messages-panel [messages]="messages" />
+            }
+          }
+        </div>
+      </div>
+
+      <!-- Table view -->
+      <div class="flex-1 flex flex-col min-h-0">
+        <!-- Table tabs (xl+ only, for multi-table observation) -->
+        @if (tables$ | async; as tables) {
+          @if (getTablesArray(tables).length > 1) {
+            <div class="hidden xl:flex mb-2">
+              <div role="tablist" class="tabs tabs-boxed">
+                @for (table of getTablesArray(tables); track table.tableId) {
+                  <button role="tab" class="tab"
+                          [class.tab-active]="(selectedTableId ?? (myTableId$ | async)) === table.tableId"
+                          (click)="selectTable(table.tableId)">
+                    Table {{ table.tableId }}
+                    @if ((myTableId$ | async) === table.tableId) {
+                      <span class="badge badge-xs badge-primary ml-1">You</span>
+                    }
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        }
+
+        <div class="flex-1 rounded-lg overflow-hidden">
+          @if (myTableState$ | async; as tableState) {
+            <app-table-view
+              [tableState]="tableState"
+              [players]="getPlayersArray(players$ | async)"
+              [gameStatus]="(gameStatus$ | async)"
+              [currentUserId]="currentUserId"
+            />
+          } @else {
+            <div class="flex items-center justify-center h-full card-surface">
+              <div class="text-center text-base-content/50">
+                <span class="loading loading-ring loading-lg mb-2"></span>
+                <p>Waiting for table assignment...</p>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Action panel -->
+        @if (myTableState$ | async; as tableState) {
+          <div class="mt-2">
+            <app-action-panel
+              [tableState]="tableState"
+              [playerChipCount]="(myChipCount$ | async) ?? 0"
+              [seatPosition]="(mySeatPosition$ | async) ?? null"
+              (playerAction)="sendPlayerAction($event, tableState.tableId)"
+            />
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Mobile layout (< lg): full-screen table with bottom nav -->
+    <div class="flex lg:hidden flex-1 flex-col min-h-0">
+      <!-- Mobile content area -->
+      <div class="flex-1 min-h-0 p-2">
+        @if (activeTab === 'table') {
+          @if (myTableState$ | async; as tableState) {
+            <app-table-view
+              [tableState]="tableState"
+              [players]="getPlayersArray(players$ | async)"
+              [gameStatus]="(gameStatus$ | async)"
+              [currentUserId]="currentUserId"
+            />
+          } @else {
+            <div class="flex items-center justify-center h-full card-surface rounded-lg">
+              <div class="text-center text-base-content/50">
+                <span class="loading loading-ring loading-lg mb-2"></span>
+                <p>Waiting for table assignment...</p>
+              </div>
+            </div>
+          }
+        } @else if (activeTab === 'leaderboard') {
+          <div class="card-surface h-full flex flex-col">
+            @if (players$ | async; as players) {
+              <app-leaderboard-panel
+                [players]="getPlayersArray(players)"
+                [currentUserId]="currentUserId"
+                [showBuyIn]="true"
+                [maxBuyIn]="maxBuyIn"
+                (buyIn)="buyIn($event)"
+              />
+            }
+          </div>
+        } @else {
+          <div class="card-surface h-full flex flex-col">
+            @if (messages$ | async; as messages) {
+              <app-messages-panel [messages]="messages" />
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Mobile action panel -->
+      @if (activeTab === 'table') {
+        @if (myTableState$ | async; as tableState) {
+          <div class="px-2 pb-1">
+            <app-action-panel
+              [tableState]="tableState"
+              [playerChipCount]="(myChipCount$ | async) ?? 0"
+              [seatPosition]="(mySeatPosition$ | async) ?? null"
+              (playerAction)="sendPlayerAction($event, tableState.tableId)"
+            />
+          </div>
+        }
+      }
+
+      <!-- Bottom navigation -->
+      <div class="btm-nav btm-nav-sm">
+        <button [class.active]="activeTab === 'table'" (click)="setActiveTab('table')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <span class="btm-nav-label">Table</span>
+        </button>
+        <button [class.active]="activeTab === 'leaderboard'" (click)="setActiveTab('leaderboard')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span class="btm-nav-label">Leaderboard</span>
+        </button>
+        <button [class.active]="activeTab === 'messages'" (click)="setActiveTab('messages')">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+          <span class="btm-nav-label">Messages</span>
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- ==================== COMPLETED MODE ==================== -->
+  @else if ((gameStatus$ | async) === 'COMPLETED') {
+    <div class="flex-1 p-4">
+      <div class="card-surface max-w-3xl mx-auto">
+        <div class="text-center mb-4">
+          <h2 class="text-2xl font-bold">Game Complete</h2>
+          <p class="text-base-content/60">Final Standings</p>
+        </div>
+        @if (players$ | async; as players) {
+          <app-leaderboard-panel
+            [players]="getPlayersArray(players)"
+            [currentUserId]="currentUserId"
+            [showBuyIn]="false"
+          />
+        }
+      </div>
+    </div>
+  }
+
+</div>

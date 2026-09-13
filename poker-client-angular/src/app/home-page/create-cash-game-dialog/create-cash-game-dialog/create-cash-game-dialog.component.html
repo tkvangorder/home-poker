@@ -1,0 +1,102 @@
+<app-modal title="Create Cash Game" id="create-cash-game" [options]="modalOptions">
+
+  <form class="content" id="modal-form" [formGroup]="gameConfigurationForm" (submit)="createGame()">
+    <div class="space-y-4">
+      <div class="form-field">
+        <label class="label" for="name">
+          <span class="label-text">Name</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="name"
+          formControlName="name"
+          type="text"
+          placeholder="Name"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="gameType">
+          <span class="label-text">Game Type</span>
+        </label>
+        <select
+          class="select select-bordered w-full"
+          id="gameType"
+          formControlName="gameType"
+        >
+          <option selected value="Texas Hold'em">Texas Hold'em</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label class="label" for="startDate">
+          <span class="label-text">Start Date</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="startDate"
+          formControlName="startDate"
+          type="date"
+          [min]="today"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="startTime">
+          <span class="label-text">Start Time</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="startTime"
+          formControlName="startTime"
+          type="time"
+          [min]="now"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="maxBuyIn">
+          <span class="label-text">Max Buy-In (Dollars)</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="maxBuyIn"
+          formControlName="maxBuyIn"
+          type="number"
+          inputmode="decimal"
+          (blur)="formatCurrency($event)"
+          placeholder="Max Buy-In"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="smallBlind">
+          <span class="label-text">Small Blind (Dollars)</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="smallBlind"
+          formControlName="smallBlind"
+          type="number"
+          inputmode="decimal"
+          (blur)="formatCurrency($event)"
+          placeholder=".25"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="bigBlind">
+          <span class="label-text">Big Blind (Dollars)</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="bigBlind"
+          formControlName="bigBlind"
+          type="number"
+          inputmode="decimal"
+          (blur)="formatCurrency($event)"
+          placeholder=".50"
+        />
+      </div>
+      @if(error) {
+        <p class="bg-error pl-4 py-2 text-error-content rounded-md text-sm">
+          {{ error }}
+        </p>
+      }
+    </div>
+  </form>
+</app-modal>

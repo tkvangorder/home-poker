@@ -1,0 +1,121 @@
+<div class="navbar bg-base-200 border-b border-base-300">
+  <!-- Left: Logo + App name -->
+  <div class="flex-1">
+    <a class="flex items-center gap-2.5 px-2 group" routerLink="/home">
+      <!-- Poker chip SVG logo -->
+      <div class="relative w-9 h-9 flex-shrink-0">
+        <svg viewBox="0 0 40 40" class="w-full h-full" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="19" stroke="currentColor" stroke-width="2" class="text-primary"/>
+          <circle cx="20" cy="20" r="14" stroke="currentColor" stroke-width="1.5" class="text-primary/60"/>
+          <!-- Chip edge notches -->
+          <rect x="19" y="1" width="2" height="5" rx="1" fill="currentColor" class="text-primary"/>
+          <rect x="19" y="34" width="2" height="5" rx="1" fill="currentColor" class="text-primary"/>
+          <rect x="1" y="19" width="5" height="2" rx="1" fill="currentColor" class="text-primary"/>
+          <rect x="34" y="19" width="5" height="2" rx="1" fill="currentColor" class="text-primary"/>
+          <rect x="7.1" y="5.7" width="2" height="5" rx="1" fill="currentColor" class="text-primary" transform="rotate(-45 8.1 8.2)"/>
+          <rect x="30.5" y="29.1" width="2" height="5" rx="1" fill="currentColor" class="text-primary" transform="rotate(-45 31.5 31.6)"/>
+          <rect x="29.1" y="5.7" width="2" height="5" rx="1" fill="currentColor" class="text-primary" transform="rotate(45 30.1 8.2)"/>
+          <rect x="5.7" y="29.1" width="2" height="5" rx="1" fill="currentColor" class="text-primary" transform="rotate(45 6.7 31.6)"/>
+          <!-- Spade suit in center -->
+          <path d="M20 12c-3.5 3-7 5.5-7 9a5 5 0 004.5 5c1.5 0 2.2-.8 2.5-1.5v3.5h0v0h0 0 0 0v0h0V24.5c.3.7 1 1.5 2.5 1.5a5 5 0 004.5-5c0-3.5-3.5-6-7-9z"
+                fill="currentColor" class="text-primary"/>
+        </svg>
+      </div>
+      <!-- Brand text -->
+      <div class="hidden sm:flex flex-col leading-none">
+        <span class="text-base tracking-tight">
+          <span class="font-light">CHICO</span>
+          <span class="font-extrabold text-primary ml-0.5">DEGENS</span>
+        </span>
+        <span class="text-[9px] uppercase tracking-[0.25em] text-base-content/40 mt-0.5">Poker Club</span>
+      </div>
+    </a>
+  </div>
+
+  <div class="flex-none flex items-center gap-1">
+    <!-- Theme picker -->
+    <details class="dropdown dropdown-end" #themeDropDown>
+      <summary tabIndex="0" role="button" class="btn btn-ghost btn-sm btn-circle" title="Change theme">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/>
+        </svg>
+      </summary>
+      <ul tabindex="0" class="dropdown-content z-[1] mt-3 p-2 shadow-lg bg-base-200 border border-base-300 rounded-box w-44 max-h-72 overflow-y-auto">
+        <li class="menu-title text-xs text-base-content/40 uppercase tracking-wider px-2 pt-1 pb-2">Theme</li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('coffee')" aria-label="coffee" value="coffee"/></li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('forest')" aria-label="forest" value="forest"/></li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('night')" aria-label="night" value="night"/></li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('dim')" aria-label="dim" value="dim"/></li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('halloween')" aria-label="halloween" value="halloween"/></li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('cupcake')" aria-label="cupcake" value="cupcake"/></li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('emerald')" aria-label="emerald" value="emerald"/></li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('fantasy')" aria-label="fantasy" value="fantasy"/></li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('wireframe')" aria-label="wireframe" value="wireframe"/></li>
+        <li><input type="radio" name="theme-dropdown" class="theme-controller btn btn-sm btn-block btn-ghost justify-start" (click)="selectTheme('winter')" aria-label="winter" value="winter"/></li>
+      </ul>
+    </details>
+
+    <!-- Profile dropdown -->
+    <details class="dropdown dropdown-end" #profileDropDown>
+      <summary tabIndex="0" role="button" class="btn btn-ghost btn-sm gap-2 pl-2 pr-1 rounded-full">
+        <span class="text-sm font-medium hidden sm:inline">{{ (userGreetings() | async) }}</span>
+        <div class="avatar">
+          <div class="w-8 rounded-full ring-2 ring-base-300">
+            <img alt="Profile avatar" src="../../assets/nod2.gif">
+          </div>
+        </div>
+      </summary>
+      <ul
+        tabIndex="0"
+        class="dropdown-content z-[1] mt-3 p-2 shadow-lg menu menu-sm bg-base-200 border border-base-300 rounded-box w-56"
+      >
+        @if (isAdmin$ | async) {
+          <li class="disabled">
+            <span class="flex items-center gap-2 text-xs opacity-60">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+              </svg>
+              Admin
+            </span>
+          </li>
+          <div class="divider my-0.5"></div>
+        }
+        <li>
+          <a (click)="closeProfileDropdown()" class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+            </svg>
+            Profile
+          </a>
+        </li>
+        <li>
+          <a (click)="closeProfileDropdown()" class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+            </svg>
+            Settings
+          </a>
+        </li>
+        <div class="divider my-0.5"></div>
+        <li>
+          <a (click)="openAbout()" class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+            </svg>
+            About
+          </a>
+        </li>
+        <li>
+          <a (click)="logout()" class="flex items-center gap-2 text-error">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-60" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/>
+            </svg>
+            Logout
+          </a>
+        </li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<app-toast-display></app-toast-display>

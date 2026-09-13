@@ -1,0 +1,26 @@
+<div class="flex flex-col h-full">
+  <h2 class="text-lg font-semibold mb-3 text-base-content/70 uppercase tracking-wider">Messages</h2>
+  <div class="overflow-y-auto flex-1 flex flex-col">
+    @for (msg of messages; track $index) {
+      @if (isShowdown(msg)) {
+        <div class="showdown-row py-1 px-2 text-sm border-b border-base-200 border-l-4 border-l-accent bg-accent/10">
+          <span class="text-base-content/50 text-xs">{{ msg.timestamp | date:'h:mm:ss a' }}</span>
+          <span class="ml-2 font-bold text-accent">WINNER:</span>
+          <span class="ml-1">{{ msg.message }}</span>
+        </div>
+      } @else if (isAction(msg)) {
+        <div class="action-row py-1 px-2 text-sm border-b border-base-200 text-base-content/70">
+          <span class="text-base-content/50 text-xs">{{ msg.timestamp | date:'h:mm:ss a' }}</span>
+          <span class="ml-2">{{ msg.message }}</span>
+        </div>
+      } @else {
+        <div class="py-1 px-2 text-sm border-b border-base-200" [ngClass]="getMessageClass(msg)">
+          <span class="text-base-content/50 text-xs">{{ msg.timestamp | date:'h:mm:ss a' }}</span>
+          <span class="ml-2">{{ msg.message }}</span>
+        </div>
+      }
+    } @empty {
+      <div class="text-center text-base-content/50 py-8">No messages yet</div>
+    }
+  </div>
+</div>

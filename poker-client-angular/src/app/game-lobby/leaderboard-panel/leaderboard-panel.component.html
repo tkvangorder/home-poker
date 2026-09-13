@@ -1,0 +1,56 @@
+<div class="flex flex-col h-full">
+  <h2 class="text-lg font-semibold mb-3 text-base-content/70 uppercase tracking-wider">Leaderboard</h2>
+
+  @if (showBuyIn && isRegistered) {
+      <div class="mb-4">
+        <label class="label pb-1">
+          <span class="label-text">Buy-in amount (USD)</span>
+          @if (maxBuyIn > 0) {
+            <span class="label-text-alt">Remaining: {{ formatChips(remainingBuyIn) }}</span>
+          }
+        </label>
+        <div class="flex gap-2">
+          <div class="join flex-1">
+            <span class="join-item flex items-center px-3 bg-base-300 text-base-content/70 font-medium">$</span>
+            <input type="number" class="input input-bordered input-sm join-item flex-1"
+                   placeholder="0" [(ngModel)]="buyInAmount" min="0" [max]="remainingBuyInDollars || null" step="1">
+          </div>
+          @if (remainingBuyIn > 0) {
+            <button class="btn btn-outline btn-sm" (click)="setMaxBuyIn()">Max</button>
+          }
+          <button class="btn btn-primary btn-sm" [disabled]="!isBuyInValid" (click)="onBuyIn()">Buy In</button>
+        </div>
+      </div>
+  }
+
+  <div class="overflow-y-auto flex-1">
+    <table class="table table-sm w-full">
+      <thead>
+        <tr class="bg-base-300 text-base-content/70 uppercase text-xs">
+          <th>#</th>
+          <th>Player</th>
+          <th>Chips</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (player of players; track player.userId; let i = $index) {
+          <tr class="hover"
+              [ngClass]="{'bg-primary bg-opacity-10 font-semibold': player.userId === currentUserId}">
+            <td>{{ i + 1 }}</td>
+            <td>
+              {{ player.userId }}
+              @if (player.userId === currentUserId) {
+                <span class="badge badge-xs badge-primary ml-1">You</span>
+              }
+            </td>
+            <td>{{ formatChips(player.chipCount) }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="3" class="text-center text-base-content/50 py-4">Waiting for players...</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>

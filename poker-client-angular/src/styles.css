@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .card-surface {
+    @apply bg-base-200 rounded-xl shadow-md p-4;
+  }
+  .form-field {
+    @apply form-control w-full;
+  }
+  .form-field .label {
+    @apply pb-1;
+  }
+  .form-field .label-text {
+    @apply font-semibold text-base-content/70;
+  }
+  .form-field input,
+  .form-field select {
+    @apply w-full;
+  }
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+}

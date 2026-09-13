@@ -1,0 +1,99 @@
+<app-modal title="Register User" id="register-user" [options]="modalOptions">
+
+  <form class="content" id="modal-form" [formGroup]="registerForm" (submit)="registerUser()">
+    <div class="space-y-4">
+      <h3 class="text-sm font-semibold uppercase tracking-wider text-base-content/50">Credentials</h3>
+      <div class="form-field">
+        <label class="label" for="username">
+          <span class="label-text">Username</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="username"
+          formControlName="username"
+          type="text"
+          placeholder="Username"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="password">
+          <span class="label-text">Password</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="password"
+          formControlName="password"
+          type="password"
+          placeholder="Password"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="confirmPassword">
+          <span class="label-text">Confirm Password</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="confirmPassword"
+          formControlName="confirmPassword"
+          type="password"
+          placeholder="Confirm Password"
+        />
+      </div>
+
+      <h3 class="text-sm font-semibold uppercase tracking-wider text-base-content/50 pt-2">Personal Info</h3>
+      <div class="form-field">
+        <label class="label" for="name">
+          <span class="label-text">Name</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="name"
+          formControlName="name"
+          type="text"
+          placeholder="John Doe"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="email">
+          <span class="label-text">Email</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="email"
+          formControlName="email"
+          type="email"
+          placeholder="Email"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="phone">
+          <span class="label-text">Phone</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="phone"
+          formControlName="phone"
+          type="phone"
+          placeholder="(xxx) xxx-xxxx"
+        />
+      </div>
+      <div class="form-field">
+        <label class="label" for="passcode">
+          <span class="label-text">Passcode</span>
+        </label>
+        <input
+          class="input input-bordered w-full"
+          id="passcode"
+          formControlName="passcode"
+          type="password"
+          placeholder="Passcode"
+        />
+      </div>
+      @if(error) {
+        <p class="bg-error pl-4 py-2 text-error-content rounded-md text-sm">
+          {{ error }}
+        </p>
+      }
+    </div>
+  </form>
+</app-modal>
