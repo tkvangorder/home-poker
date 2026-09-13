@@ -4,4 +4,4 @@ plugins {
 }
 
 rootProject.name = "home-poker"
-include("poker-common", "poker-server")
+include("poker-common", "poker-server", "poker-client-angular")
