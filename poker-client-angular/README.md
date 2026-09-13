@@ -1,27 +1,22 @@
-# AngularPokerClient
+# poker-client-angular
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 17.3.2.
+Angular 21 browser client for the home-poker server. This module is part of the `home-poker` Gradle build; at deployment time the compiled client is packaged into the server jar and served from the same origin as the REST and WebSocket endpoints.
 
-## Development server
+## Development
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+Run the server from the repo root (`./gradlew :poker-server:bootRun`, MongoDB required), then:
 
-## Code scaffolding
+```bash
+cd poker-client-angular
+npm install        # first time only; Gradle uses `npm ci` with its own Node, but local dev can use your own Node 24
+npm start          # http://localhost:4200 — proxy.conf.json forwards API and WebSocket traffic to :8080
+npm test           # Jest
+```
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+## Production build
 
-## Build
+```bash
+./gradlew build    # from the repo root; runs ng build + jest and packages the client into poker-server's bootJar
+```
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
-
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+The client output lands in `dist/poker-client-angular/browser/` and is copied to `poker-server/build/client-resources/static/`.

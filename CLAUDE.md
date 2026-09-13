@@ -9,11 +9,14 @@ A Spring Boot 4-based poker server simulating a private home poker game. Java 25
 ## Build & Run
 
 ```bash
-# Build all modules
+# Build all modules (Java + Angular client; downloads Node 24 on first run)
 ./gradlew clean build
 
-# Run the server (requires MongoDB)
+# Run the server with the compiled client served from http://localhost:8080 (requires MongoDB)
 ./gradlew :poker-server:bootRun
+
+# Client dev loop: run the server as above, then in a second terminal
+cd poker-client-angular && npm start        # http://localhost:4200, proxies API + WebSocket to :8080
 
 # Start MongoDB via Docker Compose
 docker-compose up
@@ -28,6 +31,8 @@ docker-compose up
 # Run tests for a specific module
 ./gradlew :poker-server:test
 ./gradlew :poker-common:test
+./gradlew :poker-client-angular:npmTest     # Angular unit tests (Jest) through Gradle
+cd poker-client-angular && npm test         # same tests, direct
 
 # Run a specific test class
 ./gradlew :poker-server:test --tests "org.homepoker.poker.ClassicPokerRankerTest"
@@ -56,6 +61,11 @@ Integration tests use TestContainers (automatic MongoDB container) via `BaseInte
 - `websocket/` — WebSocket handler for real-time game updates
 - `user/` — User management with MongoDB (`UserManager`, `UserRepository`)
 - `threading/` — `VirtualThreadManager` wrapping Java 21 virtual threads and single-thread debug mode
+
+**poker-client-angular** — Angular 21 browser client. See `poker-client-angular/CLAUDE.md` for client conventions.
+- Built by Gradle via the node plugin; `:poker-server:bootJar` and `bootRun` copy its `dist/.../browser` output into `static/`.
+- `:poker-server:test` never builds the client.
+- Client routes (`/home`, `/game/:id`) are forwarded to `index.html` by `SpaForwardingController`. Add new client routes there too.
 
 ## Key Architecture Patterns
 

@@ -1,15 +1,22 @@
 # Angular Poker Client - CLAUDE.md
 
+This module is `poker-client-angular` inside the `home-poker` Gradle build. Root-level guidance in `../CLAUDE.md` applies too.
+
 ## Project Overview
 Angular 21 standalone-component poker game client. Connects to a REST + WebSocket backend at `http://localhost:8080`.
 
 ## Commands
 ```bash
-npm start              # Dev server (ng serve)
+# All commands run from poker-client-angular/
+npm start              # Dev server on :4200 (ng serve, proxies API + WS to :8080)
 npm test               # Run tests (jest --verbose)
 npm run test:watch     # Watch mode
 npm run test:coverage  # Coverage report
-npm run build          # Production build
+npm run build          # Production build to dist/poker-client-angular/browser
+
+# From the repo root, through Gradle (downloads its own Node 24):
+./gradlew :poker-client-angular:npmBuild
+./gradlew :poker-client-angular:npmTest
 ```
 
 ## Architecture
@@ -31,7 +38,7 @@ npm run build          # Production build
 |------|---------|
 | `src/app/app.config.ts` | App providers (HTTP, router, error handler) |
 | `src/app/app.routes.ts` | Routes — `''` (title page), `/home`, `/game/:gameId` |
-| `src/app/rest/poker-rest-client.ts` | REST API client, base URL `http://localhost:8080` |
+| `src/app/rest/poker-rest-client.ts` | REST API client, same-origin relative paths (no prefix) |
 | `src/app/rest/rest.interceptor.ts` | Adds Bearer token; maps 4xx→ValidationError, 5xx→SystemError |
 | `src/app/user/user-service.ts` | Auth state via BehaviorSubject; persists to `localStorage['currentUser']` |
 | `src/app/game/cash-game.service.ts` | Cash game CRUD |
@@ -40,7 +47,7 @@ npm run build          # Production build
 | `src/app/error-handling/global-error-handler.ts` | Suppresses ValidationError, toasts SystemError |
 | `src/app/modal/modal.service.ts` | Dynamic component modal system |
 | `src/app/toaster/toaster.service.ts` | Toast notifications |
-| `proxy.conf.json` | Dev proxy: `/api` → `http://localhost:8080` (strips `/api` prefix) |
+| `proxy.conf.json` | Dev proxy: forwards `/auth`, `/users`, `/cash-games`, `/files`, `/admin`, `/swagger-ui`, `/v3`, `/ws` to `http://localhost:8080` |
 
 ### Feature Structure
 ```
@@ -90,13 +97,14 @@ src/app/
 - `ValidationError` — 4xx HTTP responses; suppressed from user display.
 - `SystemError` — 5xx HTTP responses; shown as toast.
 
-## Backend API (localhost:8080)
+## Backend API
+The server lives in `../poker-server`. In production it serves this client from the same origin, so all client URLs are relative.
 - OpenAPI spec: http://localhost:8080/v3/api-docs
 - Swagger UI: http://localhost:8080/swagger-ui/index.html
 
 ### WebSocket (game play)
-- Command/event spec: http://localhost:8080/command-event-spec.md
-- Connect: `ws://localhost:8080/ws/games/{gameId}?token={jwtToken}`
+- Command/event spec: `../poker-server/src/main/resources/static/command-event-spec.md`
+- Connect: `${ws|wss}://${location.host}/ws/games/{gameId}?token={jwtToken}` (built by `GameWebSocketService.buildSocketUrl`)
 - Client: `src/app/game/game-websocket.service.ts`
 - Types: `src/app/game/game-commands.ts`, `src/app/game/game-events.ts`
 
