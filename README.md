@@ -38,7 +38,9 @@ register users and manage games. The server publishes swagger documentation for 
 ## WebSocket Client interactions
 
 The actual poker game interactions (e.g., joining a game, placing bets, etc.) are designed to be done via a
-WebSocket client. The WebSocket endpoint is `ws://localhost:8080/ws`. You will need to include a valid JWT token in the
-initial connection request in order to authenticate with the server and receive game updates. 
+WebSocket client. The client builds the WebSocket URL from the page origin (`ws://` or `wss://` plus the page host) at
+path `/ws/games/{gameId}?token={jwt}`; when running the jar locally that is `ws://localhost:8080/ws/games/{gameId}`. You
+will need to include a valid JWT token in the initial connection request in order to authenticate with the server and
+receive game updates. 
 
 See [command-event-spec.md](poker-server/src/main/resources/static/command-event-spec.md) for details on the command and event specifications for client-server interactions.

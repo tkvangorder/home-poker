@@ -65,7 +65,7 @@ Integration tests use TestContainers (automatic MongoDB container) via `BaseInte
 **poker-client-angular** — Angular 21 browser client. See `poker-client-angular/CLAUDE.md` for client conventions.
 - Built by Gradle via the node plugin; `:poker-server:bootJar` and `bootRun` copy its `dist/.../browser` output into `static/`.
 - `:poker-server:test` never builds the client.
-- Client routes (`/home`, `/game/:id`) are forwarded to `index.html` by `SpaForwardingController`. Add new client routes there too.
+- Client routes (`/home`, `/game/:gameId`) are forwarded to `index.html` by `SpaForwardingController`. Add new client routes there too.
 
 ## Key Architecture Patterns
 

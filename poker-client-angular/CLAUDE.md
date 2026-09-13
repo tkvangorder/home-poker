@@ -3,7 +3,7 @@
 This module is `poker-client-angular` inside the `home-poker` Gradle build. Root-level guidance in `../CLAUDE.md` applies too.
 
 ## Project Overview
-Angular 21 standalone-component poker game client. Connects to a REST + WebSocket backend at `http://localhost:8080`.
+Angular 21 standalone-component poker game client. Talks to the poker-server backend over same-origin relative URLs: in production it is served by the server jar, and in development the `ng serve` proxy forwards API and WebSocket traffic to `localhost:8080`.
 
 ## Commands
 ```bash
