@@ -60,8 +60,7 @@ src/app/
 │   ├── leaderboard-panel/
 │   ├── messages-panel/
 │   └── table-view/
-├── game-page/           # Legacy SVG table view — not routed, unused
-├── poker/               # Card models (poker-models.ts); card/ is the SVG card used only by game-page
+├── poker/               # Card models (poker-models.ts)
 ├── user/                # User models & service
 ├── game/                # Game models, REST service, WS service, events/commands
 ├── rest/                # HTTP client & interceptor
@@ -107,4 +106,4 @@ The server lives in `../poker-server`. In production it serves this client from 
 
 ## Design notes
 - Lasting client design decisions (Phaser/Angular bridge, action feedback, showdown sequence, same-origin build) are in `../design-decisions.md`.
-- `PLAN.md`, `GAME-LOBBY-REDESIGN.md`, and `phaser-table-playground.html` (a no-build page for tuning the table's visuals) are working notes, not shipped artifacts.
+- `GAME-LOBBY-REDESIGN.md` and `phaser-table-playground.html` (a no-build page for tuning the table's visuals) are working notes, not shipped artifacts.
