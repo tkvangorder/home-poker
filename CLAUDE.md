@@ -83,6 +83,10 @@ Integration tests use TestContainers (automatic MongoDB container) via `BaseInte
 
 ** See `cash-game-state-management.md` for details on the game and table state and game flow. **
 
+## Design Decisions
+
+`design-decisions.md` records the why behind shipped features: event sequence numbers, presence and disconnect eviction, the event store and admin replay, showdown winning cards, deterministic decks, the combined build, and the Phaser table. Read the relevant section before changing one of those areas, and update it when a design decision changes.
+
 ## Configuration
 
 - `poker-server/src/main/resources/application.yml` — Production config (logging, JWT expiration, admin users, registration passcode)
@@ -106,13 +110,14 @@ Integration tests extend `BaseIntegrationTest` (TestContainers MongoDB). Prefer 
 
 `poker-server/src/main/resources/static/command-event-spec.md` is the canonical client-facing reference for every command and event (field names, types, and `eventType` values).
 
-**ALWAYS update `command-event-spec.md` in the same change whenever you add, remove, or modify a command or event.** This includes adding, renaming, or removing a field on any command, event, or their nested records (e.g., `ShowdownResult.Winner`). The spec and the classes under `model/command/` + `model/event/` must never drift. The `create-command` and `add-event-type` skills scaffold the code; this doc update is required on top of them.
+**ALWAYS update `command-event-spec.md` in the same change whenever you add, remove, or modify a command or event.** This includes adding, renaming, or removing a field on any command, event, or their nested records (e.g., `ShowdownResult.Winner`). The spec and the classes under `model/command/` + `model/event/` must never drift. The `create-command` and `add-event-type` skills include this step.
 
 ## Skills
 
-Project-specific skills live in `.claude/skills/`. Prefer invoking them over re-reading the full design doc:
-- `game-state` — game-level state machine work (GameStatus, table balancing, pause)
-- `table-state` — table-level hand progression (HandPhase, betting rounds, side pots)
+Project-specific skills live in `.claude/skills/`:
 - `create-command` — scaffold a new command end-to-end
-- `add-event-type` — scaffold a new event end-to-end
-- `test-game-scenario` — write a deterministic game-loop test
+- `add-event-type` — scaffold a new event end-to-end (includes the hole-card privacy check)
+- `test-game-scenario` — write a deterministic game-loop test using the in-memory fixtures
+- `phaser-dev` — general Phaser 3 reference for the client's table renderer
+
+For game/table state machine work, read `cash-game-state-management.md` and the code directly (`GameManager`, `TexasHoldemTableManager`).

@@ -31,7 +31,7 @@ npm run build          # Production build to dist/poker-client-angular/browser
 ### Don't
 - Don't introduce NgModules, NgRx, or other state libraries.
 - Don't use constructor injection — use `inject()`.
-- Don't remove the `phaser` dependency — the production table renderer is `game-lobby/phaser-table/`. The legacy `game-lobby/css-poker-table/` is parked on disk as a short-term rollback and scheduled for deletion in a follow-up.
+- Don't remove the `phaser` dependency — the table renderer is `game-lobby/phaser-table/`.
 
 ### Key Files
 | File | Purpose |
@@ -56,7 +56,6 @@ src/app/
 ├── home-page/           # Game lobby list, create game
 ├── game-lobby/          # Active-game view (WebSocket-connected)
 │   ├── phaser-table/    # Active table renderer (Phaser)
-│   ├── css-poker-table/ # Legacy CSS renderer (parked, pending deletion)
 │   ├── action-panel/
 │   ├── leaderboard-panel/
 │   ├── messages-panel/
@@ -109,4 +108,4 @@ The server lives in `../poker-server`. In production it serves this client from 
 - Types: `src/app/game/game-commands.ts`, `src/app/game/game-events.ts`
 
 ## Root-level scratch files
-`PLAN.md`, `GAME-LOBBY-REDESIGN.md`, `poker-table-playground.html`, an are working notes / design experiments, not shipped artifacts.
+`PLAN.md`, `GAME-LOBBY-REDESIGN.md`, `poker-table-playground.html`, and `phaser-table-playground.html` are working notes / design experiments, not shipped artifacts.

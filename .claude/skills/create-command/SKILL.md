@@ -1,10 +1,9 @@
+---
+name: create-command
+description: Use when adding or changing a client→server game command (game-level or table-level). Covers the command record, handler routing in GameManager/TableManager, serialization test, command-event-spec.md update, and delegates any new events to add-event-type.
+---
+
 # Create-Command Skill
-
-## Description
-
-Scaffolds a new game command: the command record, handler wiring, associated events, serialization test, and spec documentation. Asks clarifying questions to determine the command scope and then generates all code following project conventions.
-
-## Instructions
 
 You are creating a new command for the home poker server. Follow this workflow step by step.
 
@@ -14,7 +13,7 @@ Ask the user the following questions (use AskUserQuestion or conversational clar
 
 1. **Command name** — What should the command be called? (e.g., `KickPlayer`, `SetBlinds`, `MuckCards`). Use PascalCase.
 2. **Command scope** — Where should the command be handled?
-   - **Game-level**: Handled in `GameManager.applyCommand()`. For commands that affect game-wide state (player registration, game lifecycle, etc.).
+   - **Game-level**: Handled in `GameManager.applyCommand()` (or `CashGameManager.applyGameSpecificCommand()` for cash-only). For commands that affect game-wide state (player registration, game lifecycle, etc.).
    - **Table-level (common)**: Handled in `TableManager.applyCommand()`. For commands shared across all table/game types.
    - **Table-level (game-specific)**: Handled in a specific `TableManager` subclass (e.g., `TexasHoldemTableManager.applySubcommand()`). For commands tied to a particular game variant.
 3. **Command fields** — What data does the command carry beyond `gameId` and `user`? (e.g., `int amount`, `PlayerAction action`). For table-level commands, `tableId` is included automatically.
@@ -31,9 +30,8 @@ Before writing any code, read these files to understand current patterns:
 | `poker-common/src/main/java/org/homepoker/model/command/TableCommand.java` | Table command sub-interface (adds `tableId()`) |
 | `poker-common/src/main/java/org/homepoker/model/command/EndGame.java` | Example game-level command record |
 | `poker-common/src/main/java/org/homepoker/model/command/PlayerActionCommand.java` | Example table-level command record |
-| `poker-common/src/main/java/org/homepoker/model/event/game/GameMessage.java` | Example game event record |
-| `poker-common/src/main/java/org/homepoker/model/event/table/PlayerActed.java` | Example table event record |
 | `poker-server/src/main/java/org/homepoker/game/GameManager.java` | Game-level command routing (`applyCommand()` switch) |
+| `poker-server/src/main/java/org/homepoker/game/cash/CashGameManager.java` | Cash-only routing (`applyGameSpecificCommand()`) |
 | `poker-server/src/main/java/org/homepoker/game/table/TableManager.java` | Common table command routing (`applyCommand()` switch) |
 | `poker-server/src/main/java/org/homepoker/game/table/TexasHoldemTableManager.java` | Game-specific table command routing (`applySubcommand()` switch) |
 | `poker-common/src/test/java/org/homepoker/model/command/CommandSerializationTest.java` | Serialization test pattern |
@@ -70,99 +68,36 @@ public record CommandName(String gameId, String tableId, User user /*, additiona
 Key conventions:
 - Always annotate with `@GameCommandMarker` — enables automatic Jackson polymorphic registration
 - The `user` field gets `@JsonIgnore` via the `GameCommand` interface default — it is injected server-side, NOT serialized
-- The `commandId` is derived automatically from the class name via camelToKebabCase (e.g., `KickPlayer` -> `kick-player`)
+- The `commandId` is derived automatically from the class name via camelToKabobCase (e.g., `KickPlayer` -> `kick-player`)
 - Use Java record — no builders, no extra methods needed
 
 ### Step 4: Create Event Records (if any)
 
-Create new Java records in `poker-common/src/main/java/org/homepoker/model/event/`.
-
-Place game events in the `game/` subdirectory. Place table events in the `table/` subdirectory. Place user events in the `user/` subdirectory.
-
-**For game events:**
-
-```java
-package org.homepoker.model.event.game;
-
-import java.time.Instant;
-import org.homepoker.model.event.EventMarker;
-import org.homepoker.model.event.GameEvent;
-
-@EventMarker
-public record EventName(Instant timestamp, String gameId /*, additional fields */) implements GameEvent {
-}
-```
-
-**For table events:**
-
-```java
-package org.homepoker.model.event.table;
-
-import java.time.Instant;
-import org.homepoker.model.event.EventMarker;
-import org.homepoker.model.event.TableEvent;
-
-@EventMarker
-public record EventName(Instant timestamp, String gameId, String tableId /*, additional fields */) implements TableEvent {
-}
-```
-
-Key conventions:
-- Always annotate with `@EventMarker`
-- Always include `Instant timestamp` as the first field
-- The `eventType` is derived automatically from the class name via camelToKebabCase
+For each new event, follow the `add-event-type` skill. It covers the record shape (`timestamp`, `sequenceNumber`, `withSequenceNumber`), the serialization test, the spec entry, and the mandatory hole-card privacy check.
 
 ### Step 5: Wire the Command Handler
 
-Based on the command scope, add a case to the appropriate switch statement and create the handler method.
+`GameManager.applyCommand()` routes every `TableCommand` to the matching `TableManager` by `tableId`. Everything else goes through its own switch. Add a case in the right place:
 
-**Game-level** — In `GameManager.applyCommand()`:
-
-```java
-case CommandName c -> handleCommandName(c, game, gameContext);
-```
-
-Handler method pattern:
-
-```java
-private void handleCommandName(CommandName command, T game, GameContext gameContext) {
-    // 1. Validate the command is allowed in the current game state
-    // 2. Validate permissions if admin-only (use securityUtilities)
-    // 3. Mutate game state
-    // 4. Queue events: gameContext.queueEvent(new SomeEvent(Instant.now(), ...))
-    // 5. Throw ValidationException for invalid commands
-}
-```
-
-**Table-level (common)** — In `TableManager.applyCommand()`:
+| Scope | Switch to extend | Handler signature |
+|---|---|---|
+| Game-level (all game types) | `GameManager.applyCommand()` | `private void kickPlayer(KickPlayer c, T game, GameContext gameContext)` |
+| Game-level (cash only) | `CashGameManager.applyGameSpecificCommand()` | `private void kickPlayer(KickPlayer c, CashGame game, GameContext gameContext)` |
+| Table-level (common) | `TableManager.applyCommand()` | Uses the manager's own `table` field |
+| Table-level (Hold'em) | `TexasHoldemTableManager.applySubcommand()` | `private void applyX(X c, Game<T> game, GameContext gameContext)` |
 
 ```java
-case CommandName c -> handleCommandName(c, game, table, gameContext);
+case KickPlayer c -> kickPlayer(c, game, gameContext);
 ```
 
-Handler method pattern:
+Each handler:
+1. Validates that the command is allowed in the current `GameStatus` / `HandPhase`
+2. Checks admin permission if required (`securityUtilities()`)
+3. Mutates state (single game-loop thread, so no locking)
+4. Queues events: `gameContext.queueEvent(new SomeEvent(Instant.now(), 0, ...))`
+5. Throws `ValidationException` for invalid input. The tick loop turns it into a `UserMessage` to the sender.
 
-```java
-private void handleCommandName(CommandName command, Game<T> game, Table table, GameContext gameContext) {
-    // Handle common table command logic
-}
-```
-
-**Table-level (game-specific)** — In the appropriate subclass (e.g., `TexasHoldemTableManager.applySubcommand()`):
-
-```java
-case CommandName c -> handleCommandName(c, game, table, gameContext);
-```
-
-Handler method pattern:
-
-```java
-private void handleCommandName(CommandName command, Game<T> game, Table table, GameContext gameContext) {
-    // Handle game-specific table command logic
-}
-```
-
-### Step 6: Add Serialization Test
+### Step 6: Add Serialization Test and a Behavior Test
 
 Add a test case to `CommandSerializationTest.java` to verify the command serializes/deserializes correctly through Jackson's polymorphic type handling.
 
@@ -172,6 +107,8 @@ The test should:
 3. Verify the `commandId` discriminator is present and correct
 4. Deserialize back and verify the type
 5. Confirm `user` field is excluded from JSON (`@JsonIgnore`)
+
+Also add a game-loop test for the handler (valid and rejected cases) using the `test-game-scenario` skill.
 
 ### Step 7: Update the Command/Event Spec
 
@@ -193,17 +130,17 @@ Run the build to ensure everything compiles and tests pass:
 ### Patterns Summary
 
 - **Commands**: `@GameCommandMarker` record. Implements `GameCommand` (game-level) or `TableCommand` (table-level). Fields: `gameId`, `user`, optional `tableId`, plus command-specific fields.
-- **Events**: `@EventMarker` record. Implements `GameEvent` or `TableEvent`. Fields: `timestamp`, `gameId`, optional `tableId`, plus event-specific fields.
+- **Events**: see `add-event-type`.
 - **Validation**: Throw `ValidationException` with a descriptive message. The game loop catches it and emits a `UserMessage` to the command's user.
 - **State mutation**: All on single game loop thread. No synchronization needed inside handlers.
-- **Event queueing**: `gameContext.queueEvent(new SomeEvent(Instant.now(), ...))`.
+- **Event queueing**: `gameContext.queueEvent(new SomeEvent(Instant.now(), 0, ...))`. The `0` is the sequence number, stamped later at fan-out.
 - **No REST endpoints**: Game-time commands are submitted via WebSocket. Only pre-game operations (signup, registration, game management) use REST controllers.
 - **Spec update**: Always update `poker-server/src/main/resources/static/command-event-spec.md` when adding commands or events.
 
 ### Checklist
 
 1. [ ] Command record created with `@GameCommandMarker`
-2. [ ] Event record(s) created with `@EventMarker` (if applicable)
+2. [ ] Event record(s) created via `add-event-type` (if applicable)
 3. [ ] Switch case added in the appropriate routing method
 4. [ ] Handler method implemented with validation and event queueing
 5. [ ] Serialization test added

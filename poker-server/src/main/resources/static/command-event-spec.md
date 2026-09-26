@@ -109,7 +109,7 @@ ws.send(JSON.stringify({
 |-------|-------------|
 | **Handshake** | JWT validated, user resolved, gameId extracted. Connection rejected if any step fails. |
 | **Connected** | Client receives game events and sends commands as JSON text messages. |
-| **Disconnected** | Server cleans up the game listener. The player remains in the game but stops receiving events. |
+| **Disconnected** | Server cleans up the game listener. The player remains in the game but stops receiving events. If they don't reconnect within the disconnect grace period (120 seconds) while the game is `ACTIVE` or `BALANCING`, the server removes them from the game (see `PlayerDisconnected`). |
 
 ---
 
@@ -208,7 +208,7 @@ Player buys chips into the game.
 
 #### LeaveGame
 
-Player leaves the game. If a hand is in progress, the leave takes effect after the current hand. The player record is kept in the game with status OUT for auditing (buy-in history, chip counts). A player who has left may rejoin later via `JoinGame`. Triggered when a user disconnects from WebSocket or sends this command explicitly.
+Player leaves the game. If a hand is in progress, the leave takes effect after the current hand. The player record is kept in the game with status OUT for auditing (buy-in history, chip counts). A player who has left may rejoin later via `JoinGame`. Sent explicitly by the client. The server applies the same removal on its own when a disconnected player's grace period expires (see `PlayerDisconnected`).
 
 | Field    | Type   | Description       |
 |----------|--------|-------------------|
@@ -447,7 +447,11 @@ Emitted on the 1→0 transition of the per-user listener ref count. If the same 
 **eventType:** `player-disconnected`
 
 **Notes:**
-- The existing action-timeout path (`PlayerTimedOut`) continues to be the only thing that acts on an absent player's turn. A disconnect alone does not auto-fold or auto-leave.
+- While a player is disconnected, the action-timeout path (`PlayerTimedOut`) is what acts on their turn. A disconnect does not immediately fold them or remove them from the game.
+- **Grace-period eviction:** if the player hasn't reconnected within the disconnect grace period (120 seconds), the server removes them from the game using the same logic as `LeaveGame`. This only happens while the game is `ACTIVE` or `BALANCING`.
+  - A player in a hand stays seated until the hand ends and is then marked `OUT`. A player not in a hand is unseated immediately.
+  - There is no dedicated eviction event. Clients see a `GameMessage` (e.g. "Alice was removed after the disconnect grace period expired.") plus the usual seat/player updates.
+  - Reconnecting within the window (`PlayerReconnected`) cancels the eviction. The window restarts when the game starts or resumes, and after a server restart.
 - Clients may delay surfacing this in the UI to debounce flaky connections; the event itself fires immediately.
 
 ---
