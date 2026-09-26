@@ -25,19 +25,19 @@ npm run build          # Production build to dist/poker-client-angular/browser
 - **Standalone components** — No NgModules. Every component declares its own `imports` array.
 - **Functional providers** — Guards use `CanActivateFn`, interceptors use `HttpInterceptorFn`.
 - **RxJS / BehaviorSubject** — Primary async pattern; no NgRx or other state library.
-- **`inject()`** — Preferred DI pattern over constructor injection.
-- **`providedIn: 'root'`** — All services are root singletons.
+- **`inject()`** — Preferred DI pattern. Some older services (`GameStateService`, `GameWebSocketService`, `CashGameService`, `PokerRestClient`) still use constructor injection; convert them when you touch them.
+- **`providedIn: 'root'`** — Injectable services are root singletons. Exception: `PhaserBridgeService` is a plain class, created per `PhaserTableComponent`.
 
 ### Don't
 - Don't introduce NgModules, NgRx, or other state libraries.
-- Don't use constructor injection — use `inject()`.
+- Don't add new constructor injection — use `inject()`.
 - Don't remove the `phaser` dependency — the table renderer is `game-lobby/phaser-table/`.
 
 ### Key Files
 | File | Purpose |
 |------|---------|
 | `src/app/app.config.ts` | App providers (HTTP, router, error handler) |
-| `src/app/app.routes.ts` | Routes — `''` (title page), `/home`, `/game/:gameId` |
+| `src/app/app.routes.ts` | Routes — `''` (title page), `/home`, `/game/:gameId`. A new route must also be added to `SpaForwardingController` and the `WebSecurityConfiguration` permit list on the server |
 | `src/app/rest/poker-rest-client.ts` | REST API client, same-origin relative paths (no prefix) |
 | `src/app/rest/rest.interceptor.ts` | Adds Bearer token; maps 4xx→ValidationError, 5xx→SystemError |
 | `src/app/user/user-service.ts` | Auth state via BehaviorSubject; persists to `localStorage['currentUser']` |
@@ -54,16 +54,14 @@ npm run build          # Production build to dist/poker-client-angular/browser
 src/app/
 ├── title-page/          # Login / register (entry point)
 ├── home-page/           # Game lobby list, create game
-├── game-lobby/          # Active-game view (WebSocket-connected)
-│   ├── phaser-table/    # Active table renderer (Phaser)
+├── game-lobby/          # Active-game view at /game/:gameId (WebSocket-connected)
+│   ├── phaser-table/    # Table renderer (Phaser); pure helpers in utils/ are unit-tested
 │   ├── action-panel/
 │   ├── leaderboard-panel/
 │   ├── messages-panel/
 │   └── table-view/
-├── game-page/
-│   ├── cash-table/      # Table visualization (SVG)
-│   └── player/          # Player seat component
-├── poker/card/          # Card rendering (SVG)
+├── game-page/           # Legacy SVG table view — not routed, unused
+├── poker/               # Card models (poker-models.ts); card/ is the SVG card used only by game-page
 ├── user/                # User models & service
 ├── game/                # Game models, REST service, WS service, events/commands
 ├── rest/                # HTTP client & interceptor
@@ -76,7 +74,7 @@ src/app/
 
 ## Styling
 - **Tailwind CSS v3 + DaisyUI v4** — Utility-first with component presets.
-- Enabled themes: coffee, forest, night, halloween, cupcake, emerald, fantasy, wireframe, winter (see `tailwind.config.js`).
+- Enabled themes: coffee, forest, night, dim, halloween, cupcake, emerald, fantasy, wireframe, winter (see `tailwind.config.js`).
 - Global styles: `src/styles.css`.
 
 ## Auth
@@ -107,5 +105,6 @@ The server lives in `../poker-server`. In production it serves this client from 
 - Client: `src/app/game/game-websocket.service.ts`
 - Types: `src/app/game/game-commands.ts`, `src/app/game/game-events.ts`
 
-## Root-level scratch files
-`PLAN.md`, `GAME-LOBBY-REDESIGN.md`, and `phaser-table-playground.html` are working notes / design experiments, not shipped artifacts.
+## Design notes
+- Lasting client design decisions (Phaser/Angular bridge, action feedback, showdown sequence, same-origin build) are in `../design-decisions.md`.
+- `PLAN.md`, `GAME-LOBBY-REDESIGN.md`, and `phaser-table-playground.html` (a no-build page for tuning the table's visuals) are working notes, not shipped artifacts.
