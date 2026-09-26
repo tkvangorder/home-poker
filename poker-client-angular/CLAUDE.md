@@ -108,4 +108,4 @@ The server lives in `../poker-server`. In production it serves this client from 
 - Types: `src/app/game/game-commands.ts`, `src/app/game/game-events.ts`
 
 ## Root-level scratch files
-`PLAN.md`, `GAME-LOBBY-REDESIGN.md`, `poker-table-playground.html`, and `phaser-table-playground.html` are working notes / design experiments, not shipped artifacts.
+`PLAN.md`, `GAME-LOBBY-REDESIGN.md`, and `phaser-table-playground.html` are working notes / design experiments, not shipped artifacts.
