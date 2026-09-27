@@ -1,70 +1,77 @@
+---
+name: test-game-scenario
+description: Use when writing or fixing a test that exercises game-loop behavior (command handling, game/table state transitions, event emission, multi-hand or split-pot scenarios, bug reproductions). Drives the loop synchronously with the in-memory test fixtures; no sleeps, no Spring, no Mongo.
+---
+
 # Test-Game-Scenario Skill
 
-## Description
+Game-loop tests are deterministic: `processGameTick()` drains queued commands and runs one transition pass on the calling thread. Submit commands, tick, then assert on state and captured events.
 
-Scaffolds a deterministic game-loop test. Tests in this project do not need threads, sleeps, or awaits — `application-test.yml` sets `threadModel: SINGLE_THREAD` and `gameLoopIntervalMilliseconds: 0`, so commands submitted to a `GameManager` are processed synchronously on the test thread.
+## Step 1: Clarify the scenario
 
-Use this skill whenever the user asks for a test that exercises game-loop behavior: command handling, state transitions, event emission, multi-hand scenarios, or bug reproductions.
+1. **What's under test?** A command, a state transition, a hand scenario, or a bug repro?
+2. **Starting state** — empty game, mid-hand, heads-up, or a stacked deck for a showdown?
+3. **What to assert** — emitted events, game/table/seat state, or both?
 
-## Instructions
+## Step 2: Pick the harness
 
-### Step 1: Clarify the scenario
+All harness code lives in `poker-server/src/test/java/org/homepoker/test/`.
 
-Ask (conversationally — don't over-formalize):
-1. **What's under test?** A command (`JoinGame`, `PlayerActionCommand`, etc.), a state transition (`SEATING → ACTIVE`), or a multi-step scenario (e.g. "3 players, one goes all-in pre-flop")?
-2. **Level** — `GameManager` (game-level) or a specific `TableManager` (table/hand-level)?
-3. **Starting state** — fresh game, mid-hand, paused, etc.?
-4. **What to assert** — emitted events, seat/table state, or both?
-
-### Step 2: Read these first
-
-| File | Purpose |
+| Need | Use |
 |---|---|
-| `poker-server/src/test/resources/application-test.yml` | Confirms single-thread + zero interval |
-| `poker-server/src/test/java/org/homepoker/BaseIntegrationTest.java` | Base class for tests that need Mongo (TestContainers) |
-| An existing nearby test | Mirror its style — imports, helpers, assertion library |
+| Most game-loop tests | `GameManagerTestFixture` — in-memory `CashGameManager`, no Spring/DB, captures every event |
+| Specific hole cards/board, side pots, split pots | `SplitPotScenarioFixture.builder().stacks(...).deck(DeckBuilder.holdem(n)...).build()` |
+| Showdown assertions | `ShowdownAssert` |
+| Test users | `TestDataHelper.user(...)`, `TestDataHelper.adminUser()`, `fixture.users().alice()` |
+| Real repositories / Spring context | Extend `BaseIntegrationTest` (TestContainers Mongo). Rarely needed for loop logic. |
 
-### Step 3: Pick the base class
+`GameManagerTestFixture` starting points:
+- `emptyGame()` — SEATING, no tables or players (connection/join flows)
+- `singleTableMidHand()` — 5 players, PRE_FLOP_BETTING, action on UTG
+- `singleTableSmallBlindPlayerStackBelowBlind(stack, sb)` — heads-up, SB all-in on the blind
+- `twoTablesWithHandPlayed()` — two 5-player tables, one hand completed on each
 
-- **Pure game-loop logic (no persistence)** — plain JUnit test; build a `GameManager` directly and pump commands.
-- **Needs repositories / Spring context** — extend `BaseIntegrationTest`.
+If none of these fits, add a new static factory to the fixture instead of hand-building a manager inside the test.
 
-### Step 4: Scenario pattern
+Read one existing test before writing yours:
+- `poker-server/src/test/java/org/homepoker/game/DisconnectGraceEvictionTest.java` — fixture-driven game-level flows
+- `poker-server/src/test/java/org/homepoker/game/table/SplitPotScenariosTest.java` — stacked-deck hand scenarios
 
-Typical shape:
+## Step 3: Scenario pattern
 
 ```java
 @Test
-void playerJoiningMidHandDoesNotReceiveCards() {
-    // given
-    var game = newCashGame(/* 3 seated players */);
-    advanceToHandPhase(game, HandPhase.FLOP);
+void foldingLastOpponentAwardsPotToBigBlind() {
+  GameManagerTestFixture fixture = GameManagerTestFixture.singleTableMidHand();
+  Table table = fixture.manager().getGame().tables().get(fixture.tableId());
 
-    // when
-    game.submit(new JoinGame(gameId, latecomer));
-    game.tick();
+  // when: everyone before the big blind folds
+  while (table.actionPosition() != null && table.handPhase() == HandPhase.PRE_FLOP_BETTING) {
+    Seat seat = fixture.seatAt(table.actionPosition());
+    fixture.submitCommand(new PlayerActionCommand(
+        fixture.gameId(), fixture.tableId(), seat.player().user(), new PlayerAction.Fold()));
+    fixture.tick();
+  }
 
-    // then
-    assertThat(game.seatFor(latecomer).status()).isEqualTo(JOINED_WAITING);
-    assertThat(events(game)).extracting(Event::type)
-        .doesNotContain(HOLE_CARDS_DEALT);
+  // then
+  assertThat(fixture.savedEvents()).hasAtLeastOneElementOfType(HandComplete.class);
 }
 ```
 
-Key rules:
-- **No `Thread.sleep`, no `Awaitility`, no `CountDownLatch`.** If the test wants you to reach for these, you're bypassing the deterministic mode — stop and ask.
-- **One tick per command batch.** Submit all commands for a step, then call `tick()` once.
-- **Assert events via the listener the test registers**, not by reflecting into queues.
-- **Hole-card invariant** — any test that produces user-scoped events should assert foreign seats have null `cards`/`pendingIntent`. If the admin debug-view flag is on, assert the broadcast warning event was emitted.
+Rules:
+- **No `Thread.sleep`, Awaitility, or latches.** Needing one means you've left the deterministic path; stop and ask.
+- **Tick after submitting.** A command does nothing until `tick()`. Note that `StartGame` takes two ticks before cards are dealt: SEATING→ACTIVE, then deal.
+- **Assert on `fixture.savedEvents()`** (or `lastSavedEvent()`), not on internal queues.
+- **Hole-card invariant.** If the scenario sends seat/table data to a user (for example `GetTableState` → `TableSnapshot`), assert that seats the user doesn't own have `cards() == null` and `pendingIntent() == null`. If the admin debug-view flag is involved, also assert the broadcast warning was emitted.
 
-### Step 5: Name the test file
+## Step 4: Name and place the file
 
-Match the production class under test: `TexasHoldemTableManagerSidePotTest`, `CashGameManagerJoinLeaveTest`, etc. Prefer focused files over one giant test class.
+Put it next to the production class's package (`game/`, `game/table/`, `game/cash/`) and name it after the behavior: `BlindPostedTest`, `ShowdownWinningCardsTest`. Prefer a focused new class over growing a giant one.
 
-### Step 6: Run it
+## Step 5: Run it
 
 ```bash
-./gradlew :poker-server:test --tests "<fully.qualified.TestClass>"
+./gradlew :poker-server:test --tests "org.homepoker.game.table.YourTest"
 ```
 
-Expect it to pass on the first run — deterministic mode means flakes are bugs, not noise.
+It should pass or fail consistently. In deterministic mode a flaky test is a bug, not noise.

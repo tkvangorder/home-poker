@@ -1,5 +1,5 @@
 ---
-name: phaser-gamedev
+name: phaser-dev
 description: >
   Build 2D games with Phaser 3 framework. Covers scene lifecycle, sprites, physics (Arcade/Matter),
   tilemaps, animations, input handling, and game architecture. Trigger: "create phaser game",

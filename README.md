@@ -44,3 +44,8 @@ will need to include a valid JWT token in the initial connection request in orde
 receive game updates. 
 
 See [command-event-spec.md](poker-server/src/main/resources/static/command-event-spec.md) for details on the command and event specifications for client-server interactions.
+
+## Design docs
+
+- [cash-game-state-management.md](cash-game-state-management.md): game- and table-level state machines and hand flow.
+- [design-decisions.md](design-decisions.md): the reasoning behind shipped features (event sequencing, replay, disconnect eviction, the combined build, the Phaser table, and more).
